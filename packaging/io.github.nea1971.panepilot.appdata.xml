@@ -6,9 +6,7 @@
   <name>PanePilot</name>
   <summary>Two-panel file manager inspired by FreeCommander</summary>
   <summary xml:lang="de">Zwei-Fenster-Dateimanager nach dem Vorbild von FreeCommander</summary>
-  <developer id="io.github.nea1971">
-    <name>NEA1971</name>
-  </developer>
+  <developer_name>NEA1971</developer_name>
   <description>
     <p>
       PanePilot is a free two-panel file manager for Linux, inspired by FreeCommander.
@@ -28,7 +26,6 @@
   <url type="homepage">https://github.com/NEA1971/PanePilot</url>
   <url type="bugtracker">https://github.com/NEA1971/PanePilot/issues</url>
   <url type="donation">https://ko-fi.com/panepilot</url>
-  <url type="vcs-browser">https://github.com/NEA1971/PanePilot</url>
   <screenshots>
     <screenshot type="default">
       <caption>Two panels with favourites</caption>
