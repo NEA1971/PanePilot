@@ -20,7 +20,7 @@ python3 -m PyInstaller --noconfirm --clean --onedir --windowed \
   --exclude-module pytest \
   packaging/launcher.py
 
-mkdir -p AppDir/usr/lib AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/scalable/apps
+mkdir -p AppDir/usr/lib AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/scalable/apps AppDir/usr/share/metainfo
 cp -a dist/PanePilot AppDir/usr/lib/panepilot
 cp packaging/AppRun AppDir/AppRun
 cp packaging/panepilot.desktop AppDir/panepilot.desktop
@@ -28,7 +28,8 @@ cp packaging/panepilot.desktop AppDir/usr/share/applications/panepilot.desktop
 cp src/panepilot/icons/panepilot.svg AppDir/panepilot.svg
 cp src/panepilot/icons/panepilot.svg AppDir/usr/share/icons/hicolor/scalable/apps/panepilot.svg
 ln -sf panepilot.svg AppDir/.DirIcon
+cp packaging/io.github.nea1971.panepilot.appdata.xml AppDir/usr/share/metainfo/
 
 mkdir -p "$(dirname "$OUT")"
-ARCH=x86_64 "$APPIMAGETOOL" --appimage-extract-and-run --no-appstream AppDir "$OUT"
+ARCH=x86_64 "$APPIMAGETOOL" --appimage-extract-and-run AppDir "$OUT"
 echo "Fertig: $OUT"

@@ -1,11 +1,14 @@
 [Desktop Entry]
 Type=Application
 Name=PanePilot
-GenericName=Dateimanager
-Comment=Zwei-Fenster-Dateimanager
+GenericName=File Manager
+GenericName[de]=Dateimanager
+Comment=Two-panel file manager inspired by FreeCommander
+Comment[de]=Zwei-Fenster-Dateimanager nach dem Vorbild von FreeCommander
 Exec=PanePilot %U
 Icon=panepilot
 Terminal=false
-Categories=System;FileTools;FileManager;Utility;
-Keywords=Dateien;Ordner;Dateimanager;Commander;
+Categories=System;FileTools;FileManager;
+Keywords=files;folders;file manager;commander;rename;tags;checksum;
+Keywords[de]=Dateien;Ordner;Dateimanager;Commander;Umbenennen;Tags;Prüfsumme;
 StartupWMClass=PanePilot
