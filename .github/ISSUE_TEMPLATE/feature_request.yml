@@ -1,0 +1,21 @@
+name: 💡 Feature request / Idee oder Wunsch
+description: Suggest an idea or an improvement. / Schlage eine Idee oder Verbesserung vor.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea / Deine Idee
+      description: What would you like PanePilot to do? / Was soll PanePilot können?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would this help? / Wobei würde das helfen?
+      description: Describe the situation where you would use it. If another program already does it (e.g. FreeCommander, MP3TAG), tell us how it works there.
+  - type: input
+    id: version
+    attributes:
+      label: PanePilot version / Version
+      placeholder: e.g. 1.0.0

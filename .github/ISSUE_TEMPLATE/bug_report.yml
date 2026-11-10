@@ -1,0 +1,38 @@
+name: 🐞 Bug report / Fehler melden
+description: Something does not work as expected. / Etwas funktioniert nicht wie erwartet.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! English or German is fine.
+        Danke für deine Meldung! Gern auch auf Deutsch.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened? / Was ist passiert?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / Schritte zum Nachstellen
+      placeholder: |
+        1. …
+        2. …
+        3. …
+  - type: textarea
+    id: system
+    attributes:
+      label: System information / Systemangaben
+      description: |
+        In PanePilot: Help ▸ About PanePilot ▸ tab “System” ▸ “Copy”, then paste here.
+        In PanePilot: Hilfe ▸ Über PanePilot ▸ Reiter „System“ ▸ „Kopieren“ und hier einfügen.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots or additional notes / Bildschirmfotos oder weitere Hinweise

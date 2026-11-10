@@ -1,0 +1,51 @@
+name: Windows-Vorschau
+
+# Baut eine portable Windows-Vorschau (ZIP) und hängt sie an das Release
+# der aktuellen Versionsnummer an.
+on:
+  workflow_dispatch:  # nur von Hand starten (Windows ist noch eine Vorschau)
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python-Pakete
+        run: python -m pip install -r requirements-dev.txt pillow
+      - name: Programmsymbol
+        run: python packaging/windows/make_icon.py src/panepilot/icons/panepilot.svg panepilot.png
+      - name: Programm bauen
+        shell: pwsh
+        run: |
+          python -m PyInstaller --noconfirm --clean --onedir --windowed `
+            --name PanePilot --icon panepilot.png --paths src `
+            --add-data "src/panepilot/i18n/*.json;panepilot/i18n" `
+            --add-data "src/panepilot/icons;panepilot/icons" `
+            --exclude-module tkinter --exclude-module pytest `
+            packaging/launcher.py
+      - name: Kurz starten (ohne Bildschirm)
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+          PANEPILOT_CONFIG_DIR: ${{ runner.temp }}\pp-smoke
+        run: |
+          $p = Start-Process -FilePath "dist\PanePilot\PanePilot.exe" -PassThru
+          Start-Sleep -Seconds 12
+          if ($p.HasExited) { Write-Error "PanePilot ist beim Start abgebrochen (Code $($p.ExitCode))"; exit 1 }
+          Stop-Process -Id $p.Id -Force
+      - name: ZIP packen und an Release hängen
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = python -c "import sys; sys.path.insert(0, 'src'); import panepilot; print(panepilot.__version__)"
+          Copy-Item packaging\windows\LIESMICH.txt dist\PanePilot\
+          $zip = "PanePilot-$version-windows-x64-vorschau.zip"
+          Compress-Archive -Path dist\PanePilot -DestinationPath $zip
+          gh release upload "v$version" $zip --clobber --repo $env:GITHUB_REPOSITORY

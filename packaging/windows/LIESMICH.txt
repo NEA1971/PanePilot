@@ -1,0 +1,20 @@
+PanePilot – Windows-Vorschau
+============================
+
+Dies ist eine VORSCHAU. Die Hauptversion von PanePilot ist die Linux-Version;
+der eigentliche Umbau auf Windows folgt später.
+
+Starten: Ordner entpacken und PanePilot.exe doppelklicken. Es wird nichts
+installiert. Einstellungen liegen unter %APPDATA%\PanePilot.
+
+Beim ersten Start warnt Windows ggf. („Der Computer wurde durch Windows
+geschützt“), weil das Programm nicht signiert ist:
+„Weitere Informationen“ → „Trotzdem ausführen“.
+
+In der Vorschau ausgegraut (noch nicht umgesetzt):
+- Papierkorb anzeigen, wiederherstellen, endgültig löschen, leeren
+  (Löschen mit Entf verschiebt aber in den Windows-Papierkorb)
+- „Öffnen mit“
+- Spalten Rechte, Besitzer, Gruppe
+- Ordnerbaum: nur Persönlicher Ordner und Laufwerke (kein Netzwerk-Bereich)
+F4 öffnet Textdateien im Windows-Editor (Notepad).

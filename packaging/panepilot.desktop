@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=PanePilot
+GenericName=Dateimanager
+Comment=Zwei-Fenster-Dateimanager
+Exec=PanePilot %U
+Icon=panepilot
+Terminal=false
+Categories=System;FileTools;FileManager;Utility;
+Keywords=Dateien;Ordner;Dateimanager;Commander;
+StartupWMClass=PanePilot
