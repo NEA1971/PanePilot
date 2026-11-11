@@ -13,7 +13,7 @@ PanePilot brings together what usually takes three or four programs: a classic t
 ## Features
 
 - **Two panels** with folder tree, nested favourites, drive overview (including network shares and USB drives that are not mounted yet), filters, column profiles and a single-panel view
-- **File operations**: copy, move, rename, trash, archives (compress / extract), drag & drop to and from other applications, “Open with”, properties
+- **File operations**: copy, move, rename, trash, archives (compress / extract), drag & drop to and from other applications, “Open with”, properties, “Open terminal here”, directory listings as text file
 - **Search** by name (wildcards, several patterns) and by content, with depth limit; results appear as a normal panel
 - **Multi-rename** with placeholders, counters, dates, search & replace (text, wildcards, regular expressions), live preview, profiles and undo
 - **Meta wizard** for music tags (MP3, FLAC, Ogg, Opus, M4A, WMA, WAV):
@@ -25,6 +25,7 @@ PanePilot brings together what usually takes three or four programs: a classic t
 - **Fully configurable**: keyboard shortcuts, function-key bar (four layers), toolbar, sidebars
 - **Six languages**: English, German, Spanish, French, Russian and Franconian. You can edit any language or add your own.
 - **Built-in help** (F1 opens the page for the current function) and automatic daily backup of all settings
+- **UI scaling** (50–200 %) for high-resolution screens, optional entry in the application menu
 
 | Meta wizard | Multi-rename |
 |---|---|
@@ -37,6 +38,9 @@ PanePilot is distributed as an **AppImage** for 64-bit Linux (x86_64). Nothing n
 1. Download `PanePilot-x.y.z-x86_64.AppImage` from the [latest release](https://github.com/NEA1971/PanePilot/releases/latest).
 2. Make it executable: right-click → Properties → “Executable as program”, or `chmod +x PanePilot-*.AppImage`.
 3. Double-click to start.
+4. Optional: *Settings ▸ General ▸ Display ▸ Add to application menu* creates a launcher with icon.
+
+PanePilot supports [AppImageUpdate](https://github.com/AppImageCommunity/AppImageUpdate) and Gear Lever for delta updates.
 
 Optional: install `ffmpeg` (e.g. `sudo apt install ffmpeg`) to use ReplayGain.
 

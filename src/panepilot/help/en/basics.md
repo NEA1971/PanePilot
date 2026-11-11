@@ -16,6 +16,8 @@ PanePilot shows two file panels side by side. One of them is **active**, recogni
 - **Open with**: right-click a file to see matching programs; “Other application …” shows all.
 - **Archives**: compress and extract via the context menu.
 - **Properties** (Alt+Enter) shows size, permissions, dates and, for music, the metadata.
+- **Open terminal here** (File menu or right-click): opens the default terminal in the shown folder, or in the folder you right-clicked.
+- **Create directory listing …** (File menu or right-click): writes an indented list of the folder with sizes and modification dates to a text file. You choose the depth, whether files and hidden entries are included and whether to open the list afterwards.
 
 ## View
 - **Filter** (View menu): shows only matching entries, e.g. `*.mp3`. An active filter turns the path bar red.

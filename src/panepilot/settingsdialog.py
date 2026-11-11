@@ -375,7 +375,84 @@ class SettingsDialog(QDialog):
             layout.addWidget(box)
             self.display_boxes[aid] = box
         layout.addWidget(self._hint(t("settings.display_hint"), w))
+        # Skalierung (v1.1)
+        from PySide6.QtWidgets import QSlider
+
+        from .util import SCALE_STEPS
+
+        self.scale_slider = QSlider(Qt.Orientation.Horizontal, w)
+        self.scale_slider.setRange(0, len(SCALE_STEPS) - 1)
+        self.scale_slider.setPageStep(1)
+        self.scale_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.scale_slider.setTickInterval(1)
+        try:
+            current = int(self.window.settings.get("ui_scale") or 100)
+        except (TypeError, ValueError):
+            current = 100
+        self.scale_slider.setValue(SCALE_STEPS.index(current) if current in SCALE_STEPS else SCALE_STEPS.index(100))
+        self.scale_label = QLabel(w)
+        self.scale_label.setMinimumWidth(50)
+        self.scale_slider.valueChanged.connect(lambda v: self.scale_label.setText(f"{SCALE_STEPS[v]} %"))
+        self.scale_label.setText(f"{SCALE_STEPS[self.scale_slider.value()]} %")
+        row = QHBoxLayout()
+        row.addWidget(QLabel(t("settings.scale"), w))
+        row.addWidget(self.scale_slider, 1)
+        row.addWidget(self.scale_label)
+        layout.addSpacing(8)
+        layout.addLayout(row)
+        layout.addWidget(self._hint(t("settings.scale_hint"), w))
+        # Anwendungsmenü (v1.1)
+        from . import desktopint
+
+        self.menu_button = QPushButton(w)
+        self.menu_status = QLabel(w)
+        self.menu_status.setWordWrap(True)
+        self.menu_button.clicked.connect(self._toggle_menu_entry)
+        row = QHBoxLayout()
+        row.addWidget(self.menu_button)
+        row.addWidget(self.menu_status, 1)
+        layout.addSpacing(8)
+        layout.addLayout(row)
+        self._update_menu_entry()
         return w
+
+    def scale_value(self) -> int:
+        from .util import SCALE_STEPS
+
+        return SCALE_STEPS[self.scale_slider.value()]
+
+    def _update_menu_entry(self) -> None:
+        from . import desktopint
+
+        integrated = desktopint.is_integrated()
+        self.menu_button.setText(t("settings.menu_remove" if integrated else "settings.menu_add"))
+        if not desktopint.appimage_path() and not integrated:
+            self.menu_button.setEnabled(False)
+            self.menu_status.setText(t("settings.menu_only_appimage"))
+        else:
+            self.menu_button.setEnabled(True)
+            self.menu_status.setText(t("settings.menu_is_added" if integrated else "settings.menu_not_added"))
+
+    def _toggle_menu_entry(self) -> None:
+        from . import desktopint
+        from .dialogs import show_info
+
+        title = t("settings.menu_title")
+        if desktopint.is_integrated():
+            desktopint.remove()
+            self._update_menu_entry()
+            return
+        try:
+            desktopint.integrate()
+        except OSError as exc:
+            show_error(self, title, t("settings.menu_failed", reason=exc.strerror or str(exc)))
+            return
+        self._update_menu_entry()
+        others = desktopint.other_launchers()
+        text = t("settings.menu_done")
+        if others:
+            text += "\n\n" + t("settings.menu_others", files="\n".join(str(p) for p in others))
+        show_info(self, title, text)
 
     # --- Größeneinheit / ReplayGain ------------------------------------------------------
     def _size_section(self) -> QWidget:
@@ -842,12 +919,24 @@ class SettingsDialog(QDialog):
             colprofiles.save(name, out)
         assign = {side: box.currentText() for side, box in self.side_boxes.items()}
         new_lang = self.lang_box.currentData()
+        lang_changed = new_lang != (s.get("language") or "system")
         toggles = [aid for aid, box in self.display_boxes.items()
                    if box.isEnabled() and box.isChecked() != self.window.qactions[aid].isChecked()]
+        try:
+            old_scale = int(s.get("ui_scale") or 100)
+        except (TypeError, ValueError):
+            old_scale = 100
+        scale_changed = self.scale_value() != old_scale
+        s.set("ui_scale", self.scale_value())
         super().accept()
         for aid in toggles:
             self.window.trigger(aid)
         self.window.apply_settings(assign, new_lang)
+        # Bei Sprachwechsel fragt schon apply_settings nach dem Neustart
+        if scale_changed and not lang_changed and confirm(
+                self.window, t("settings.scale_title"), t("settings.scale_restart"), yes_key="button.restart_now",
+                no_key="donate.later"):
+            self.window.restart()
 
 
 def next_language_export_name(folder, code: str, day) -> str:

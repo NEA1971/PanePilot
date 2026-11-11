@@ -10,6 +10,8 @@ Open the settings via **File ▸ Settings ▸ Settings …** or the gear button.
   - **Reset to original** removes your changes to a bundled language; **Delete language** removes your own language.
 - **Backup**: PanePilot backs up its settings at the first start of each day. Here you find the location, the number to keep and the list of backups with restore, import and delete.
 - **Display**: button bar, function key bar, toolbar, hidden files, single-panel view.
+  - **Scaling** from 50 to 200 %, e.g. for UHD screens; takes effect after a restart.
+  - **Add to application menu** (only when running as an AppImage): creates a launcher with the program icon that you can also pin to the dock. If you later start another AppImage file (e.g. a newer version), the launcher is updated automatically.
 
 ## File view
 - **Size unit**: how file sizes are shown.

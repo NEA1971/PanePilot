@@ -102,7 +102,92 @@ def child_environment() -> QProcessEnvironment:
     # hielte sonst die PanePilot-Datei für seine eigene und schriebe sein Update darüber.
     for var in APPIMAGE_VARS:
         env.remove(var)
+    # Skalierung (v1.1): gilt nur für PanePilot, nicht für gestartete Programme
+    if SCALE_ENV_SET_BY_US:
+        if ORIGINAL_QT_SCALE is None:
+            env.remove("QT_SCALE_FACTOR")
+        else:
+            env.insert("QT_SCALE_FACTOR", ORIGINAL_QT_SCALE)
     return env
+
+
+SCALE_ENV_SET_BY_US = False
+ORIGINAL_QT_SCALE: str | None = None
+SCALE_STEPS = (50, 75, 100, 125, 150, 175, 200)
+
+
+def apply_ui_scale(percent) -> None:
+    """Skalierung der Oberfläche (v1.1). Muss vor dem Anlegen der QApplication laufen."""
+    global SCALE_ENV_SET_BY_US, ORIGINAL_QT_SCALE
+    try:
+        value = int(percent)
+    except (TypeError, ValueError):
+        return
+    if value == 100 or value not in SCALE_STEPS:
+        return
+    if not SCALE_ENV_SET_BY_US:
+        ORIGINAL_QT_SCALE = os.environ.get("QT_SCALE_FACTOR")
+    os.environ["QT_SCALE_FACTOR"] = f"{value / 100:g}"
+    SCALE_ENV_SET_BY_US = True
+
+
+# --- Terminal hier öffnen (v1.1) ---------------------------------------------------------------
+# Programmname → Schalter für den Startordner (None: nur über das Arbeitsverzeichnis)
+TERMINALS = (
+    ("gnome-terminal", "--working-directory={dir}"),
+    ("kgx", "--working-directory={dir}"),
+    ("ptyxis", "--working-directory={dir}"),
+    ("konsole", "--workdir={dir}"),
+    ("xfce4-terminal", "--working-directory={dir}"),
+    ("mate-terminal", "--working-directory={dir}"),
+    ("tilix", "--working-directory={dir}"),
+    ("terminator", "--working-directory={dir}"),
+    ("alacritty", "--working-directory={dir}"),
+    ("kitty", "--directory={dir}"),
+    ("lxterminal", "--working-directory={dir}"),
+    ("qterminal", "--workdir={dir}"),
+    ("xterm", None),
+)
+
+
+def terminal_command(folder: str) -> tuple[str, list[str]] | None:
+    """Standard-Terminal des Systems mit Startordner.
+
+    Unter Debian/Ubuntu ist das über ``x-terminal-emulator`` eingestellt (update-alternatives);
+    dahinter steckt z. B. gnome-terminal. Sonst wird ``xdg-terminal-exec`` bzw. das erste
+    bekannte Terminal genommen. Der Ordner wird zusätzlich als Arbeitsverzeichnis gesetzt.
+    """
+    import shutil
+
+    def known(program_path: str) -> tuple[str, list[str]] | None:
+        real = os.path.basename(os.path.realpath(program_path))
+        name = real.replace(".wrapper", "").replace(".real", "")
+        for prog, flag in TERMINALS:
+            if name == prog:
+                # Debians „gnome-terminal.wrapper“ versteht nur xterm-Schalter → das Programm selbst nehmen
+                direct = shutil.which(prog) if real != prog else None
+                return direct or program_path, ([flag.format(dir=folder)] if flag else [])
+        return None
+
+    default = shutil.which("x-terminal-emulator")
+    if default:
+        return known(default) or (default, [])
+    exec_ = shutil.which("xdg-terminal-exec")
+    if exec_:
+        return exec_, []
+    for prog, _flag in TERMINALS:
+        path = shutil.which(prog)
+        if path:
+            return known(path)
+    return None
+
+
+def open_terminal(folder: str) -> bool:
+    cmd = terminal_command(folder)
+    if cmd is None:
+        return False
+    program, args = cmd
+    return _start_detached(program, args, folder)
 
 
 APPIMAGE_VARS = ("APPIMAGE", "APPDIR", "ARGV0", "OWD", "APPIMAGE_EXTRACT_AND_RUN", "APPIMAGE_UUID")

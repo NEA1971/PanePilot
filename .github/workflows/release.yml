@@ -28,7 +28,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 \
             libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libfontconfig1 libdbus-1-3 file \
-            desktop-file-utils appstream
+            desktop-file-utils appstream zsync
       - name: Desktop-Datei und AppStream-Metadaten prüfen
         run: |
           desktop-file-validate packaging/panepilot.desktop
@@ -80,7 +80,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${{ steps.ver.outputs.tag }}"
-          gh release create "$TAG" dist/PanePilot-*-x86_64.AppImage \
+          ls -l dist/
+          test -f dist/PanePilot-*-x86_64.AppImage.zsync || { echo "zsync-Datei fehlt"; exit 1; }
+          gh release create "$TAG" dist/PanePilot-*-x86_64.AppImage dist/PanePilot-*-x86_64.AppImage.zsync \
             --target "$GITHUB_SHA" \
             --title "PanePilot $TAG" \
             --notes-file "docs/releases/$TAG.md" \

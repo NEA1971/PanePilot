@@ -39,6 +39,9 @@ THEME_NAMES: dict[str, tuple[str, ...]] = {
     # v0.9.10
     "search": ("system-search", "edit-find"),
     "settings_dialog": ("preferences-system", "emblem-system", "applications-system"),
+    # v1.1
+    "open_terminal": ("utilities-terminal", "terminal", "org.gnome.Terminal"),
+    "dir_list": ("view-list-text", "text-x-generic", "x-office-document"),
 }
 
 _cache: dict[str, QIcon] = {}

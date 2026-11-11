@@ -49,6 +49,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.1.0" date="2026-11-11">
+      <description>
+        <p>Open terminal here, directory listings as text file, UI scaling, application-menu entry and update information for AppImageUpdate.</p>
+      </description>
+    </release>
     <release version="1.0.1" date="2026-11-10">
       <description>
         <p>Packaging: AppStream metadata and an English desktop entry for software centers and AppImageHub.</p>

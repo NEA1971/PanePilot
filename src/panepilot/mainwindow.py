@@ -6,10 +6,11 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from PySide6.QtCore import QByteArray, QEvent, QKeyCombination, QMimeData, QObject, QPoint, Qt, QTimer, QUrl
+from PySide6.QtCore import QByteArray, QEvent, QEventLoop, QKeyCombination, QMimeData, QObject, QPoint, Qt, QTimer, QUrl
 from PySide6.QtGui import QAction, QActionGroup, QKeySequence, QPainter, QPalette
 from PySide6.QtWidgets import (
     QApplication,
+    QFileDialog,
     QVBoxLayout,
     QWidget,
     QLineEdit,
@@ -931,8 +932,8 @@ class MainWindow(MetaWizardMixin, QMainWindow):
         a = self.qactions
 
         m = mb.addMenu(t("menu.file"))
-        for aid in ("open", "edit_text", "open_with_other", None, "new_folder", "new_textfile", "rename",
-                    "multi_rename", "rename_undo", None, "search", "checksums", "properties", None,
+        for aid in ("open", "edit_text", "open_with_other", "open_terminal", None, "new_folder", "new_textfile",
+                    "rename", "multi_rename", "rename_undo", None, "search", "checksums", "dir_list", "properties", None,
                     "copy", "move", None, "delete", "delete_permanent", None):
             m.addSeparator() if aid is None else m.addAction(a[aid])
         # Einstellungen als Untermenü direkt über „Beenden“ (v0.9.10, vorher eigenes Menü)
@@ -1135,6 +1136,80 @@ class MainWindow(MetaWizardMixin, QMainWindow):
 
     def do_move_direct(self) -> None:
         self._copy_or_move(True, ask=False)
+
+    # --- Terminal und Verzeichnisliste (v1.1) ----------------------------------------------------
+    def _plain_folder(self) -> str | None:
+        panel = self.active
+        if panel.in_trash or panel.search_mode or not os.path.isdir(panel.current_path):
+            return None
+        return panel.current_path
+
+    def do_open_terminal(self, folder: str | None = None) -> None:
+        from . import util
+
+        folder = folder or self._plain_folder() or str(Path.home())
+        if not util.open_terminal(folder):
+            show_error(self, t("action.open_terminal"), t("error.no_terminal"))
+
+    def do_dir_list(self, folder: str | None = None) -> None:
+        import datetime as _dt
+
+        from PySide6.QtWidgets import QProgressDialog
+
+        from . import dirlist, util
+        from .i18n import current_language
+
+        folder = folder or self._plain_folder()
+        if not folder:
+            return
+        opts = dirlist.options_dialog(self, folder, self.settings)
+        if opts is None:
+            return
+        base = os.path.basename(folder.rstrip(os.sep)) or "root"
+        default_dir = folder if os.access(folder, os.W_OK) else str(Path.home())
+        name = dirlist.next_free_name(default_dir, f"{t('dirlist.file_prefix')}_{base}", _dt.date.today())
+        path, _f = QFileDialog.getSaveFileName(self, t("dirlist.title"), os.path.join(default_dir, name),
+                                               t("dirlist.file_filter"))
+        if not path:
+            return
+        if not path.lower().endswith(".txt"):
+            path += ".txt"
+        progress = QProgressDialog(t("dirlist.reading"), t("button.cancel"), 0, 0, self)
+        progress.setWindowTitle(t("dirlist.title"))
+        progress.setMinimumDuration(400)
+        worker = dirlist.DirListThread(folder, opts["files"], opts["depth"], opts["hidden"], self)
+        progress.canceled.connect(worker.cancel)
+        worker.progress.connect(lambda n: progress.setLabelText(t("dirlist.reading_n", n=n)))
+        result: dict = {}
+        worker.done.connect(lambda tree: result.__setitem__("tree", tree))
+        worker.failed.connect(lambda msg: result.__setitem__("error", msg))
+        loop = QEventLoop()
+        worker.finished.connect(loop.quit)
+        worker.start()
+        loop.exec()
+        progress.close()
+        if "error" in result:
+            show_error(self, t("dirlist.title"), t("dirlist.failed", reason=result["error"]))
+            return
+        tree = result.get("tree")
+        if tree is None:
+            return  # abgebrochen
+        german = current_language() in ("de", "frk")
+        fmt = "%d.%m.%Y %H:%M" if german else "%Y-%m-%d %H:%M"
+        now = _dt.datetime.now().strftime(fmt)
+        header = [t("dirlist.header", folder=folder), t("dirlist.created", date=now), ""]
+        text = dirlist.render(tree, util.format_size, fmt, header)
+        try:
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(text)
+        except OSError as exc:
+            show_error(self, t("dirlist.title"), t("dirlist.failed", reason=exc.strerror or str(exc)))
+            return
+        for sd in self.sides.values():
+            if sd.panel.current_path == os.path.dirname(path):
+                sd.panel.refresh()
+        if opts["open"]:
+            util.open_with_default_app(path)
 
     def do_new_textfile(self) -> None:
         """Leere Textdatei anlegen und gleich umbenennen lassen (F-310 ff.)."""
@@ -1899,6 +1974,17 @@ class MainWindow(MetaWizardMixin, QMainWindow):
                     "rename", "multi_rename", "meta_wizard", "delete", "delete_permanent", None, "new_folder",
                     "new_textfile"):
             menu.addSeparator() if aid is None else menu.addAction(a[aid])
+        # Terminal und Verzeichnisliste: angeklickter Ordner, sonst der angezeigte (v1.1)
+        panel = self.sides[side].panel
+        hit = panel.view.indexAt(panel.view.viewport().mapFromGlobal(pos))
+        hit_entry = panel.model.entry(hit.row()) if hit.isValid() else None
+        folder = hit_entry.path if hit_entry is not None and hit_entry.is_dir and not hit_entry.is_parent \
+            else panel.current_path
+        menu.addSeparator()
+        menu.addAction(a["open_terminal"].icon(), a["open_terminal"].text()).triggered.connect(
+            lambda _c=False, f=folder: self.do_open_terminal(f))
+        menu.addAction(a["dir_list"].icon(), a["dir_list"].text()).triggered.connect(
+            lambda _c=False, f=folder: self.do_dir_list(f))
         entry = self.sides[side].panel.current_entry()
         if entry is not None and entry.is_dir and not entry.is_parent and self.mounts.entry_for_mount_point(entry.path):
             self._mount_actions(menu, entry.path)
@@ -2200,6 +2286,10 @@ class MainWindow(MetaWizardMixin, QMainWindow):
             act.triggered.connect(lambda _c=False: self._open_tree_path(side, path))
             act = menu.addAction(t("action.add_favorite"))
             act.triggered.connect(lambda _c=False: self._add_favorite_paths([path]))
+            if os.path.isdir(path):
+                menu.addAction(t("action.open_terminal")).triggered.connect(
+                    lambda _c=False: self.do_open_terminal(path))
+                menu.addAction(t("action.dir_list")).triggered.connect(lambda _c=False: self.do_dir_list(path))
             self._mount_actions(menu, path if self.mounts.entry_for_mount_point(path) else None)
         elif idx.isValid() and view.disk_of(idx) is not None:
             self._disk_actions(menu, view.disk_of(idx), separator=False)

@@ -56,11 +56,11 @@ def _msgbox(parent, icon, title, text, buttons):
 
 
 def confirm(parent, title: str, text: str, yes_key: str = "button.yes", default_yes: bool = True,
-            warning: bool = False) -> bool:
+            warning: bool = False, no_key: str = "button.cancel") -> bool:
     icon = QMessageBox.Icon.Warning if warning else QMessageBox.Icon.Question
     clicked = _msgbox(parent, icon, title, text, [
         (yes_key, QMessageBox.ButtonRole.AcceptRole, default_yes),
-        ("button.cancel", QMessageBox.ButtonRole.RejectRole, not default_yes),
+        (no_key, QMessageBox.ButtonRole.RejectRole, not default_yes),
     ])
     return clicked == yes_key
 

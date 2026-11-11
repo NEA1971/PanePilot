@@ -31,5 +31,11 @@ ln -sf panepilot.svg AppDir/.DirIcon
 cp packaging/io.github.nea1971.panepilot.appdata.xml AppDir/usr/share/metainfo/
 
 mkdir -p "$(dirname "$OUT")"
-ARCH=x86_64 "$APPIMAGETOOL" --appimage-extract-and-run AppDir "$OUT"
+# Update-Angabe (v1.1): AppImageUpdate / Gear Lever finden neue Versionen über die GitHub-Releases
+# und laden mit der .zsync-Datei nur die Änderungen.
+UPDATE_INFO="gh-releases-zsync|NEA1971|PanePilot|latest|PanePilot-*x86_64.AppImage.zsync"
+ARCH=x86_64 "$APPIMAGETOOL" --appimage-extract-and-run -u "$UPDATE_INFO" AppDir "$OUT"
+if [ ! -f "$OUT.zsync" ] && command -v zsyncmake >/dev/null; then
+  (cd "$(dirname "$OUT")" && zsyncmake "$(basename "$OUT")")
+fi
 echo "Fertig: $OUT"

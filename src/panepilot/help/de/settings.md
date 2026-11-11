@@ -10,6 +10,8 @@ Die Einstellungen öffnet man über **Datei ▸ Einstellungen ▸ Einstellungen 
   - **Auf Original zurücksetzen** löscht deine Änderungen an einer mitgelieferten Sprache, **Sprache löschen** entfernt eine eigene Sprache.
 - **Sicherung**: PanePilot sichert seine Einstellungen beim ersten Start jedes Tages. Hier stehen Ort, Anzahl und die Liste der Sicherungen mit Wiederherstellen, Importieren und Löschen.
 - **Darstellung**: Knopfleiste, F-Tasten-Leiste, Symbolleiste, versteckte Dateien und Ein-Fenster-Ansicht.
+  - **Skalierung** von 50 bis 200 %, z. B. für UHD-Bildschirme. Sie wird nach einem Neustart wirksam.
+  - **Ins Anwendungsmenü aufnehmen** (nur beim Start als AppImage): legt einen Starter mit Programmsymbol an, den man auch ans Dock heften kann. Startet man später eine andere AppImage-Datei, zum Beispiel eine neuere Version, wird der Starter automatisch nachgeführt.
 
 ## Dateiansicht
 - **Größeneinheit**: wie Dateigrößen angezeigt werden.

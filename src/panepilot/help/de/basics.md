@@ -16,6 +16,8 @@ PanePilot zeigt zwei Dateifenster (Panels) nebeneinander. Eines davon ist **akti
 - **Öffnen mit**: Rechtsklick auf eine Datei zeigt die passenden Programme, „Andere Anwendung …“ alle.
 - **Archive**: Komprimieren und Entpacken über das Rechtsklick-Menü.
 - **Eigenschaften** (Alt+Enter) zeigt Größe, Rechte, Daten und bei Musik die Metadaten.
+- **Terminal hier öffnen** (Menü Datei oder Rechtsklick): öffnet das Standard-Terminal im angezeigten Ordner, nach Rechtsklick auf einen Ordner in diesem.
+- **Verzeichnisliste erstellen …** (Menü Datei oder Rechtsklick): schreibt eine eingerückte Liste des Ordners mit Größen und Änderungsdatum in eine Textdatei. Man wählt Tiefe, ob Dateien und versteckte Einträge dazugehören und ob die Liste danach geöffnet wird.
 
 ## Ansicht
 - **Filter** (Menü Ansicht): zeigt nur passende Einträge, z. B. `*.mp3`. Ein aktiver Filter färbt die Pfadzeile rot.
