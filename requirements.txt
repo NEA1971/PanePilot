@@ -1,2 +1,4 @@
 PySide6-Essentials==6.9.3
 mutagen==1.47.0
+paramiko==5.1.0
+secretstorage==3.5.0

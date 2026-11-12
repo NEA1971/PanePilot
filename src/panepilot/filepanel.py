@@ -32,7 +32,8 @@ from PySide6.QtWidgets import (
 )
 
 from .filemodel import (COL_CREATED, COL_DATE, COL_NAME, COL_NAME_STEM, COL_SIZE, COL_TYPE, COLUMN_COUNT, COLUMN_KEYS,
-                        DEFAULT_HIDDEN, NAME_COLUMNS, Entry, FileListModel)
+                        DEFAULT_HIDDEN, NAME_COLUMNS, REMOTE_MIME, Entry, FileListModel)
+from .remotefs import is_remote_uri
 from .trash import TRASH_URI, is_trash_uri
 from .i18n import t
 from .icons import IconProvider
@@ -61,6 +62,7 @@ class FileView(QTreeView):
     """Dateiliste mit Drag & Drop für Dateien."""
 
     drop_requested = Signal(list, str, object)  # Pfade, Zielordner, Qt.DropAction
+    remote_drop_requested = Signal(object, str, object)  # {side, paths, dirs} aus einem Server-Fenster (v1.3)
     focus_entered = Signal()
 
     def __init__(self, parent=None) -> None:
@@ -134,7 +136,41 @@ class FileView(QTreeView):
             return Qt.DropAction.MoveAction
         return None
 
+    @staticmethod
+    def _remote_payload(event) -> dict | None:
+        md = event.mimeData()
+        if not md.hasFormat(REMOTE_MIME):
+            return None
+        import json
+
+        try:
+            data = json.loads(bytes(md.data(REMOTE_MIME)).decode("utf-8"))
+        except ValueError:
+            return None
+        return data if isinstance(data, dict) and data.get("paths") else None
+
+    def _remote_drag(self, event) -> bool:
+        """Ziehen aus einem Server-Fenster: nur in das andere Fenster (v1.3)."""
+        payload = self._remote_payload(event)
+        if payload is None or event.source() is self:
+            return False
+        action = self._choose_action(event)
+        target = self._target_dir(event.position().toPoint(), payload["paths"])
+        if action is None or target is None or self.model().trash_mode:
+            return False
+        event.setDropAction(action)
+        return True
+
     def dragEnterEvent(self, event) -> None:
+        if self._remote_payload(event) is not None:
+            if event.source() is not self:
+                action = self._choose_action(event)
+                if action is not None:
+                    event.setDropAction(action)
+                    event.accept()
+                    return
+            event.ignore()
+            return
         if self._local_paths(event):
             action = self._choose_action(event)
             if action is not None:
@@ -144,6 +180,12 @@ class FileView(QTreeView):
         event.ignore()
 
     def dragMoveEvent(self, event) -> None:
+        if self._remote_payload(event) is not None:
+            if self._remote_drag(event):
+                event.accept()
+            else:
+                event.ignore()
+            return
         paths = self._local_paths(event)
         action = self._choose_action(event) if paths else None
         if action is None:
@@ -158,6 +200,15 @@ class FileView(QTreeView):
         event.accept()
 
     def dropEvent(self, event) -> None:
+        payload = self._remote_payload(event)
+        if payload is not None:
+            if not self._remote_drag(event):
+                event.ignore()
+                return
+            event.accept()
+            self.remote_drop_requested.emit(payload, self._target_dir(event.position().toPoint(), payload["paths"]),
+                                            event.dropAction())
+            return
         paths = self._local_paths(event)
         action = self._choose_action(event) if paths else None
         target = self._target_dir(event.position().toPoint(), paths) if paths else None
@@ -174,7 +225,10 @@ class FilePanel(QWidget):
     path_changed = Signal(str)
     context_menu_requested = Signal(QPoint)
     drop_requested = Signal(list, str, object)
+    remote_drop_requested = Signal(object, str, object)
     open_file_requested = Signal(str)
+    remote_open_requested = Signal(object)  # Entry auf dem Server (v1.3)
+    remote_closed = Signal(object)  # Sitzung wurde getrennt
     message = Signal(str, str)  # Titel, Text
     columns_changed = Signal()  # Spalten verschoben/Breite/ein-/ausgeblendet/Ausrichtung
     profile_chosen = Signal(str)  # Spaltenprofil im Kopf-Kontextmenü gewählt
@@ -192,6 +246,7 @@ class FilePanel(QWidget):
         self.trash = None  # Trash, vom Hauptfenster gesetzt
         self._columns_set = False
         self.filter_spec = None  # zuletzt definierter Filter (FilterSpec)
+        self.remote = None  # Server-Sitzung (v1.3), siehe remotecontrol.RemoteSession
         self._filter_on = False
 
         self.header = QFrame(self)
@@ -224,6 +279,8 @@ class FilePanel(QWidget):
             lambda pos: self.context_menu_requested.emit(self.view.viewport().mapToGlobal(pos))
         )
         self.view.drop_requested.connect(self.drop_requested)
+        self.view.remote_drop_requested.connect(self.remote_drop_requested)
+        self.model.remote_side = side
         hdr = self.view.header()
         # Spalten per Drag & Drop verschiebbar (F-340), per Rechtsklick ein-/ausblendbar (F-341)
         hdr.setSectionsMovable(True)
@@ -361,10 +418,79 @@ class FilePanel(QWidget):
             self._history = self._history[-HISTORY_LIMIT:]
             self._history_pos = len(self._history) - 1
 
+    # --- Server (v1.3) ----------------------------------------------------------------------
+    @property
+    def in_remote(self) -> bool:
+        return self.model.remote_mode
+
+    def _navigate_remote(self, uri: str, select_name: str | None, add_history: bool) -> bool:
+        session = self.remote
+        if session is None or not (uri == session.base or uri.startswith(session.base + "/")):
+            self.message.emit(t("srv.title"), t("srv.not_connected", uri=uri))
+            return False
+        path = uri[len(session.base):] or "/"
+        items = session.listdir(path)
+        if items is None:
+            return False
+        self.model.load_remote(session.base, path, items)
+        if self._watcher.directories():
+            self._watcher.removePaths(self._watcher.directories())
+        uri = session.base + path
+        self._add_history(uri, add_history)
+        self.path_edit.setText(uri)
+        self._update_filter_style()
+        self._free_text = ""
+        self._select_after_load(select_name)
+        self._update_status()
+        self.path_changed.emit(uri)
+        return True
+
+    def attach_remote(self, session, path: str) -> bool:
+        """Mit einer Sitzung verbinden und deren Startordner zeigen."""
+        if self.remote is not None and self.remote is not session:
+            self.close_remote()
+        self.remote = session
+        self.model.remote_rename = session.rename_entry
+        self.set_remote_color(session.cfg.color)
+        if not self.navigate(session.base + path):
+            if not self.navigate(session.base + "/"):
+                self.close_remote()
+                return False
+        return True
+
+    def close_remote(self, navigate_to: str | None = None, navigate_away: bool = True) -> None:
+        session = self.remote
+        if session is None:
+            return
+        self.remote = None
+        self.model.remote_rename = None
+        self.set_remote_color("")
+        base = session.base
+        keep = [h for h in self._history if not (h == base or h.startswith(base + "/"))]
+        pos = self._history_pos
+        if keep != self._history:
+            # Position auf den letzten lokalen Eintrag vor dem Server setzen
+            before = [h for h in self._history[: max(pos, 0) + 1] if not (h == base or h.startswith(base + "/"))]
+            self._history = keep
+            self._history_pos = len(before) - 1
+        self.remote_closed.emit(session)
+        if navigate_to is not None:
+            self.navigate(navigate_to)
+        elif navigate_away and self.in_remote:
+            target = self._history[self._history_pos] if 0 <= self._history_pos < len(self._history) else ""
+            self.navigate(target or os.path.expanduser("~"), add_history=not target)
+
+    def set_remote_color(self, color: str) -> None:
+        self.view.setStyleSheet(f"QTreeView {{ background-color: {color}; }}" if color else "")
+
     def navigate(self, path: str, select_name: str | None = None, add_history: bool = True) -> bool:
         if self.locked:
             return False
         self._end_search_view()
+        if is_remote_uri(path):
+            return self._navigate_remote(path, select_name, add_history)
+        if self.remote is not None:
+            self.close_remote(navigate_away=False)  # Verbindung endet beim Wechsel ins Lokale (L-346)
         if is_trash_uri(path):
             return self._show_trash(add_history)
         path = os.path.abspath(os.path.expanduser(path))
@@ -453,6 +579,18 @@ class FilePanel(QWidget):
             self.view.verticalScrollBar().setValue(scroll)
             self._update_status()
             return
+        if self.in_remote:
+            if self.remote is None:
+                return
+            path = self.current_path[len(self.remote.base):] or "/"
+            items = self.remote.listdir(path)
+            if items is None:
+                return
+            self.model.load_remote(self.remote.base, path, items)
+            self.select_names(selected, current=cur_name)
+            self.view.verticalScrollBar().setValue(scroll)
+            self._update_status()
+            return
         if not os.path.isdir(self.current_path):
             self.navigate(nearest_existing_dir(self.current_path))
             return
@@ -472,6 +610,14 @@ class FilePanel(QWidget):
 
     def go_up(self) -> None:
         if self.in_trash:
+            return
+        if self.in_remote and self.remote is not None:
+            import posixpath
+
+            path = self.current_path[len(self.remote.base):] or "/"
+            if path != "/":
+                parent = posixpath.dirname(path.rstrip("/")) or "/"
+                self.navigate(self.remote.base + parent, select_name=posixpath.basename(path.rstrip("/")))
             return
         if self.search_mode:
             self.navigate(self.current_path)
@@ -529,6 +675,8 @@ class FilePanel(QWidget):
             self.go_up()
         elif entry.is_dir:
             self.navigate(entry.path)
+        elif entry.remote:
+            self.remote_open_requested.emit(entry)
         else:
             self.open_file_requested.emit(entry.path)
 
@@ -549,6 +697,12 @@ class FilePanel(QWidget):
             return
         if is_trash_uri(text) or text.casefold() == t("trash.title").casefold():
             self.navigate(TRASH_URI)
+            self.view.setFocus()
+            return
+        if is_remote_uri(text):
+            if not self.navigate(text.rstrip("/") if text.count("/") > 3 else text):
+                self.path_edit.setText(self.current_path)
+                return
             self.view.setFocus()
             return
         target = os.path.abspath(os.path.expanduser(text))

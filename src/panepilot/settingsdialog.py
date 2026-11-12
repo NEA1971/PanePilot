@@ -163,6 +163,7 @@ class SettingsDialog(QDialog):
         page.add_section(t("settings.sec_backup"), self._backup_tab())
         page.add_section(t("settings.sec_display"), self._display_section())
         page.add_section(t("settings.sec_updates"), self._updates_section())
+        page.add_section(t("settings.sec_servers"), self._servers_section())
         # Reiter „Dateiansicht“: Größeneinheit, Spalten
         page = self._page("view", t("settings.tab_view"))
         page.add_section(t("settings.sec_size"), self._size_section())
@@ -206,6 +207,20 @@ class SettingsDialog(QDialog):
         self.update_check.setChecked(bool(self.window.settings.get("update_check")))
         lay.addWidget(self.update_check)
         lay.addWidget(self._hint(t("settings.update_hint"), w))
+        return w
+
+    # --- Server (v1.3) -------------------------------------------------------------------
+    def _servers_section(self) -> QWidget:
+        w = QWidget(self)
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        self.btn_filezilla = QPushButton(t("settings.import_filezilla"), w)
+        self.btn_filezilla.clicked.connect(lambda: self.window.import_filezilla(parent=self))
+        row = QHBoxLayout()
+        row.addWidget(self.btn_filezilla)
+        row.addStretch(1)
+        lay.addLayout(row)
+        lay.addWidget(self._hint(t("settings.import_filezilla_hint"), w))
         return w
 
     # --- Sprache -----------------------------------------------------------------------
