@@ -5,19 +5,9 @@ on:
 permissions:
   contents: write
 jobs:
-  wheels:
+  cleanup:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - run: |
-          mkdir w
-          python -m pip download -d w --no-deps --no-binary=:all: pyftpdlib
-          python -m pip download -d w --only-binary=:all: --python-version 3.13 --platform manylinux2014_x86_64 --platform manylinux_2_28_x86_64 --platform manylinux_2_34_x86_64 pyopenssl
-          ls -la w
-          tar czf wheels.tgz w
-          gh release delete wheels-tmp -R ${{ github.repository }} -y --cleanup-tag || true
-          gh release create wheels-tmp wheels.tgz -R ${{ github.repository }} --draft --target tools/wheels -t wheels-tmp -n tmp
+      - run: gh release delete wheels-tmp -R ${{ github.repository }} -y --cleanup-tag || true
         env:
           GH_TOKEN: ${{ github.token }}
