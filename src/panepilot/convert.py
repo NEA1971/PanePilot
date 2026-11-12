@@ -13,7 +13,8 @@ TAG_TO_FILE, FILE_TO_TAG, TAG_TO_TAG = "tag2file", "file2tag", "tag2tag"
 KINDS = (TAG_TO_FILE, FILE_TO_TAG, TAG_TO_TAG)
 TAG_TO_TEXT, TEXT_TO_TAG, NUMBER, PLAYLIST = "tag2text", "text2tag", "number", "playlist"  # v0.9.3
 REPLAYGAIN = "replaygain"  # v0.9.6
-TOOLS = KINDS + (TAG_TO_TEXT, TEXT_TO_TAG, NUMBER, PLAYLIST, REPLAYGAIN)
+DISC, MUSICBRAINZ = "disc", "musicbrainz"  # v1.2
+TOOLS = KINDS + (TAG_TO_TEXT, TEXT_TO_TAG, NUMBER, DISC, MUSICBRAINZ, PLAYLIST, REPLAYGAIN)
 
 ALIASES = {"tracknumber": "track", "discnumber": "disc", "date": "year", "album artist": "albumartist",
            "band": "albumartist"}

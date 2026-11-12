@@ -12,6 +12,7 @@ Open the settings via **File ▸ Settings ▸ Settings …** or the gear button.
 - **Display**: button bar, function key bar, toolbar, hidden files, single-panel view.
   - **Scaling** from 50 to 200 %, e.g. for UHD screens; takes effect after a restart.
   - **Add to application menu** (only when running as an AppImage): creates a launcher with the program icon that you can also pin to the dock. If you later start another AppImage file (e.g. a newer version), the launcher is updated automatically.
+- **Updates**: if **Check for updates once a day at startup** is switched on (default: off), PanePilot asks GitHub for a new version at the first start of the day. You can check by hand at any time via **Help ▸ Check for updates …**. If there is a new version, you can download it, be reminded later or skip this version. When running as an AppImage, the new file is saved in the same folder as the running one; the old one is kept. PanePilot then asks whether to restart with the new version right away.
 
 ## File view
 - **Size unit**: how file sizes are shown.

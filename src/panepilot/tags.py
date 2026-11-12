@@ -126,6 +126,10 @@ def _id3_read(rec: TagRecord, tags) -> None:
             k = EXTRA + (f"TXXX:{frame.desc}" if fid == "TXXX" else key)
             rec.fields[k] = _join(frame.text)
             rec.labels[k] = label_of(k)
+        elif fid == "UFID":  # v1.2: z. B. MusicBrainz-Track-ID
+            k = EXTRA + key
+            rec.fields[k] = bytes(frame.data).decode("utf-8", "replace")
+            rec.labels[k] = label_of(k)
         elif isinstance(frame, UrlFrame) or fid == "WXXX":
             k = EXTRA + key
             rec.fields[k] = frame.url
@@ -180,6 +184,11 @@ def _id3_set(tags, rec: TagRecord, key: str, value: str | None) -> None:
         tags.delall(f"TXXX:{desc}")
         if value is not None:
             tags.add(id3.TXXX(encoding=1, desc=desc, text=[value]))
+        return
+    if raw.startswith("UFID:"):
+        tags.delall(raw)
+        if value is not None:
+            tags.add(id3.UFID(owner=raw[5:], data=value.encode("utf-8")))
         return
     fid = raw.split(":")[0]
     cls = getattr(id3, fid, None)
@@ -313,7 +322,7 @@ def _mp4_read(rec: TagRecord, tags) -> None:
         k = EXTRA + key
         rec.fields[k] = _mp4_value(key, values)
         rec.labels[k] = label_of(k)
-        if not (key.startswith("----:") or key.startswith("\xa9")):
+        if not key.startswith(("----:", "\xa9", "so")):  # so..: Sortierfelder (v1.2)
             rec.readonly.add(k)
             rec.fixed.add(k)
     for c in tags.get("covr", []):
@@ -579,7 +588,26 @@ def resolve_key(rec: TagRecord, key: str) -> str:
     """Schlüssel, unter dem ein Feld in dieser Datei steht bzw. gespeichert würde."""
     if not key.startswith(EXTRA):
         return key
-    return find_key(rec, key) or custom_key(rec.kind, label_of(key))
+    return find_key(rec, key) or (key if _native_key(rec.kind, key[len(EXTRA):]) else
+                                  custom_key(rec.kind, label_of(key)))
+
+
+_MP4_SORT = ("soar", "soaa", "soal", "sonm", "soco")
+
+
+def _native_key(kind: str, raw: str) -> bool:
+    """Schlüssel, die schon im Format der Datei angegeben sind (v1.2, z. B. für MusicBrainz)."""
+    if kind == "id3":
+        if raw.startswith("UFID:"):
+            return True
+        if len(raw) == 4 and raw.startswith("T") and raw != "TXXX":
+            from mutagen import id3
+
+            return hasattr(id3, raw)
+        return False
+    if kind == "mp4":
+        return raw in _MP4_SORT
+    return False
 
 
 VALID_NAME_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 _-äöüÄÖÜß")

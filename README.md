@@ -18,14 +18,16 @@ PanePilot brings together what usually takes three or four programs: a classic t
 - **Multi-rename** with placeholders, counters, dates, search & replace (text, wildcards, regular expressions), live preview, profiles and undo
 - **Meta wizard** for music tags (MP3, FLAC, Ogg, Opus, M4A, WMA, WAV):
   - edit tags and covers for many files at once
-  - converters: file name ↔ tag, tag → tag, text/CSV export and import, track numbering
+  - converters: file name ↔ tag, tag → tag, text/CSV export and import, track and disc numbering
+  - **MusicBrainz** lookup: album search, track assignment, field selection and cover (Cover Art Archive)
   - M3U8 playlists
   - **ReplayGain** (EBU R128, via ffmpeg)
 - **Checksums**: CRC32, MD5, SHA-1, SHA-256, SHA-512, with comparison and drag & drop of checksum files (`SHA256SUMS`, `.md5`, SFV …)
 - **Fully configurable**: keyboard shortcuts, function-key bar (four layers), toolbar, sidebars
-- **Six languages**: English, German, Spanish, French, Russian and Franconian. You can edit any language or add your own.
+- **Seven languages**: English, German, Spanish, French, Russian, Franconian and Upper Saxon. You can edit any language or add your own.
 - **Built-in help** (F1 opens the page for the current function) and automatic daily backup of all settings
 - **UI scaling** (50–200 %) for high-resolution screens, optional entry in the application menu
+- Optional **update check** (off by default): downloads a new AppImage next to the current one
 
 | Meta wizard | Multi-rename |
 |---|---|
@@ -82,7 +84,7 @@ Er vereint, wofür man sonst drei oder vier Programme braucht:
 - Dateimanager mit zwei Fenstern, Ordnerbaum, Favoriten und Laufwerken
 - Suche nach Namen und Inhalt
 - Mehrfach-Umbenennen mit Vorschau
-- **Meta-Wizard** für Musik-Tags wie MP3TAG, mit ReplayGain und Playlists
+- **Meta-Wizard** für Musik-Tags wie MP3TAG, mit MusicBrainz, ReplayGain und Playlists
 - **Prüfsummen** zum Vergleichen von Downloads
 
 Die Oberfläche gibt es komplett auf Deutsch, die Hilfe mit F1 ebenfalls.

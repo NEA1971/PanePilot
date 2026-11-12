@@ -85,7 +85,7 @@ def test_bundled_languages_and_fallback():
     from panepilot import i18n
 
     langs = i18n.languages()
-    assert {"de", "en", "frk", "es", "fr", "ru"} <= set(langs)
+    assert {"de", "en", "frk", "sxu", "es", "fr", "ru"} <= set(langs)
     assert langs["frk"].fallback == "de" and langs["es"].fallback == "en"
     i18n.load_language("frk")
     assert i18n.current_language() == "frk"
@@ -104,7 +104,7 @@ def test_all_translations_complete_and_placeholders_match():
 
     base = i18n.read_language("de")
     ph = re.compile(r"\{(\w*)\}")
-    for code in ("en", "frk", "es", "fr", "ru"):
+    for code in ("en", "frk", "sxu", "es", "fr", "ru"):
         other = i18n.read_language(code)
         missing = sorted(set(base) - set(other))
         assert not missing, f"{code}: fehlende Texte {missing[:10]}"
@@ -115,9 +115,9 @@ def test_all_translations_complete_and_placeholders_match():
 def test_user_language_overrides_and_new_language():
     from panepilot import i18n
 
-    i18n.save_user_language("sxu", "Säggssch", "de", {"menu.file": "Dadei"})
-    assert i18n.languages()["sxu"].user
-    i18n.load_language("sxu")
+    i18n.save_user_language("bar", "Boarisch", "de", {"menu.file": "Dadei"})
+    assert i18n.languages()["bar"].user
+    i18n.load_language("bar")
     assert i18n.t("menu.file") == "Dadei"
     assert i18n.t("menu.edit") == i18n.read_language("de")["menu.edit"]  # Ersatz: Deutsch
     i18n.save_user_language("en", "English", "de", {"menu.file": "Fiiile"})

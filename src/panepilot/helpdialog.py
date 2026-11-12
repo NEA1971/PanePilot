@@ -44,7 +44,7 @@ def shortcuts_markdown(window) -> str:
     """Tabelle aller Funktionen mit Tastenkürzel, so wie sie gerade eingestellt sind."""
     from .actions import ACTION_DEFS
 
-    german = current_language() in ("de", "frk")
+    german = current_language() in ("de", "frk", "sxu")
     names = {"Ctrl": "Strg", "Shift": "Umschalt", "Del": "Entf", "Backspace": "Rücktaste", "Return": "Eingabe",
              "Left": "Links", "Right": "Rechts", "Up": "Hoch", "Down": "Runter", "Space": "Leertaste", "Ins": "Einfg",
              "PgUp": "Bild↑", "PgDown": "Bild↓", "Home": "Pos1", "End": "Ende", "Esc": "Esc"}

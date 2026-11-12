@@ -162,6 +162,7 @@ class SettingsDialog(QDialog):
         page.add_section(t("settings.sec_language"), self._language_section())
         page.add_section(t("settings.sec_backup"), self._backup_tab())
         page.add_section(t("settings.sec_display"), self._display_section())
+        page.add_section(t("settings.sec_updates"), self._updates_section())
         # Reiter „Dateiansicht“: Größeneinheit, Spalten
         page = self._page("view", t("settings.tab_view"))
         page.add_section(t("settings.sec_size"), self._size_section())
@@ -193,6 +194,19 @@ class SettingsDialog(QDialog):
         label.setWordWrap(True)
         label.setEnabled(False)
         return label
+
+    # --- Updates (v1.2) -----------------------------------------------------------------
+    def _updates_section(self) -> QWidget:
+        from PySide6.QtWidgets import QCheckBox
+
+        w = QWidget(self)
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        self.update_check = QCheckBox(t("settings.update_check"), w)
+        self.update_check.setChecked(bool(self.window.settings.get("update_check")))
+        lay.addWidget(self.update_check)
+        lay.addWidget(self._hint(t("settings.update_hint"), w))
+        return w
 
     # --- Sprache -----------------------------------------------------------------------
     def _language_section(self) -> QWidget:
@@ -900,6 +914,7 @@ class SettingsDialog(QDialog):
         self._apply_backup_settings()
         s.set("size_unit", self.unit_box.currentData())
         s.set("replaygain_target", round(self.rg_target.value(), 1))
+        s.set("update_check", self.update_check.isChecked())
         # Spaltenprofile schreiben
         for name in self._deleted:
             try:

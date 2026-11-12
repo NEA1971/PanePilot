@@ -991,7 +991,7 @@ class MainWindow(MetaWizardMixin, QMainWindow):
             m.addSeparator() if aid is None else m.addAction(a[aid])
 
         m = mb.addMenu(t("menu.help"))
-        for aid in ("help", "help_online", None, "donate", None, "about"):
+        for aid in ("help", "help_online", None, "check_updates", None, "donate", None, "about"):
             m.addSeparator() if aid is None else m.addAction(a[aid])
 
     # --- Seiten / Fokus ---------------------------------------------------------------------
@@ -1069,7 +1069,7 @@ class MainWindow(MetaWizardMixin, QMainWindow):
     SINGLE_BLOCKED = {"switch_panel", "same_path", "swap_panels", "copy", "move", "copy_direct", "move_direct"}
 
     # Während „Mehrfach umbenennen“ erlaubt (F-703, F-706)
-    RENAME_ALLOWED = {"filter_define", "filter_toggle", "quit", "about", "help", "help_online", "donate"}
+    RENAME_ALLOWED = {"filter_define", "filter_toggle", "quit", "about", "help", "help_online", "check_updates", "donate"}
 
     def trigger(self, action_id: str) -> None:
         if not action_id:
@@ -1194,7 +1194,7 @@ class MainWindow(MetaWizardMixin, QMainWindow):
         tree = result.get("tree")
         if tree is None:
             return  # abgebrochen
-        german = current_language() in ("de", "frk")
+        german = current_language() in ("de", "frk", "sxu")
         fmt = "%d.%m.%Y %H:%M" if german else "%Y-%m-%d %H:%M"
         now = _dt.datetime.now().strftime(fmt)
         header = [t("dirlist.header", folder=folder), t("dirlist.created", date=now), ""]
@@ -1772,6 +1772,18 @@ class MainWindow(MetaWizardMixin, QMainWindow):
         from .helpdialog import help_language
 
         util.open_url(f"{HELP_ONLINE_URL}/{help_language()}")
+
+    def do_check_updates(self) -> None:
+        from . import updatecheck
+
+        updatecheck.check(self, manual=True)
+
+    def auto_update_check(self) -> None:
+        """Beim Start: einmal täglich nach Updates suchen, wenn eingeschaltet (v1.2)."""
+        from . import updatecheck
+
+        if updatecheck.due_today(self.settings):
+            updatecheck.check(self, manual=False)
 
     def do_donate(self) -> None:
         from .donation import DonateDialog

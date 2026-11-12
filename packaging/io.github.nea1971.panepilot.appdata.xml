@@ -49,6 +49,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.2.0" date="2026-11-12">
+      <description>
+        <p>MusicBrainz lookup and disc numbering in the meta wizard, optional update check, Upper Saxon as seventh language.</p>
+      </description>
+    </release>
     <release version="1.1.0" date="2026-11-11">
       <description>
         <p>Open terminal here, directory listings as text file, UI scaling, application-menu entry and update information for AppImageUpdate.</p>

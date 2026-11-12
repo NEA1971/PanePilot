@@ -5,13 +5,13 @@ from __future__ import annotations
 import os
 
 from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QDialog, QFileDialog, QMessageBox
 
 from .dialogs import ErrorListDialog, _msgbox, show_error
 from .i18n import t
 
 MODE_META = "meta"
-META_ALLOWED = {"quit", "about", "help", "help_online", "donate"}  # während des Meta-Wizards erlaubte Funktionen
+META_ALLOWED = {"quit", "about", "help", "help_online", "check_updates", "donate"}  # während des Meta-Wizards erlaubte Funktionen
 
 
 class MetaWizardMixin:
@@ -491,7 +491,8 @@ class MetaWizardMixin:
             if self.meta_mode is None or self.meta_mode.get("rg") is not None:
                 return
             {cv.TAG_TO_TEXT: self.meta_export_text, cv.TEXT_TO_TAG: self.meta_import_text,
-             cv.NUMBER: self.meta_number, cv.PLAYLIST: self.meta_playlist, cv.REPLAYGAIN: self.meta_replaygain}[kind]()
+             cv.NUMBER: self.meta_number, cv.DISC: self.meta_disc, cv.MUSICBRAINZ: self.meta_musicbrainz,
+             cv.PLAYLIST: self.meta_playlist, cv.REPLAYGAIN: self.meta_replaygain}[kind]()
             return
         pane = self._meta_pane()
         items = [it for it in pane.meta_view.selected_items() if not it.record.error]
@@ -659,6 +660,78 @@ class MetaWizardMixin:
         self.settings.set("meta_number", dlg.settings())
         for it, value in zip(items, dlg.values()):
             it.set("track", value)
+        self._meta_refresh()
+
+    # --- v1.2: Disc-Assistent und MusicBrainz -------------------------------------------------------------
+    def meta_disc(self) -> None:
+        from .metaextras import DiscDialog
+
+        items = self._meta_targets()
+        if not items:
+            return
+        dlg = DiscDialog(self, items, self.settings.get("meta_disc") or {})
+        if dlg.exec() != dlg.DialogCode.Accepted:
+            return
+        self.settings.set("meta_disc", dlg.settings())
+        for it, values in dlg.changes():
+            for key, value in values.items():
+                if not it.readonly(key):
+                    it.set(key, value)
+        self._meta_refresh()
+
+    def meta_musicbrainz(self) -> None:
+        from . import musicbrainz as mb
+        from . import netutil
+        from . import tags as tg
+        from .mbdialogs import ApplyDialog, ResultsDialog, SearchDialog, cover_mime
+
+        items = self._meta_targets()
+        if not items:
+            return
+        title = t("mb.title")
+        album, artist = mb.search_terms(items)
+        while True:
+            sdlg = SearchDialog(self, album, artist, len(items))
+            if sdlg.exec() != sdlg.DialogCode.Accepted:
+                return
+            album, artist = sdlg.terms()
+            hits, error = netutil.run_blocking(self, lambda: mb.search(album, artist), t("mb.searching"), title)
+            if error:
+                show_error(self, title, t("mb.failed", reason=error))
+                continue
+            if hits is None:
+                continue
+            rdlg = ResultsDialog(self, hits, len(items))
+            res = rdlg.exec()
+            if res == ResultsDialog.BACK:
+                continue
+            if res != QDialog.DialogCode.Accepted or rdlg.selected() is None:
+                return
+            hit = rdlg.selected()
+            loaded, error = netutil.run_blocking(self, lambda: mb.load_release(hit.id), t("mb.loading"), title)
+            if error:
+                show_error(self, title, t("mb.failed", reason=error))
+                continue
+            if loaded is None:
+                continue
+            release, cover = loaded
+            adlg = ApplyDialog(self, release, cover, items, self.settings.get("meta_musicbrainz") or {})
+            if adlg.exec() != QDialog.DialogCode.Accepted:
+                return
+            break
+        self.settings.set("meta_musicbrainz", adlg.settings())
+        cover_data = adlg.cover_data()
+        changes = adlg.changes()
+        for it, values in changes:
+            it.mark = ""
+            for fid, value in values.items():
+                key = mb.FIELD_BY_ID[fid].key(it.record.kind)
+                if not it.readonly(key):
+                    it.set(key, value)
+            if cover_data:
+                others = [p for p in it.pictures() if p.ptype != tg.FRONT_COVER]
+                it.set_pictures([tg.Picture(cover_data, cover_mime(cover_data), tg.FRONT_COVER, "")] + others)
+        self._meta_pane().summary.setText(t("mb.done", n=len(changes)))
         self._meta_refresh()
 
     def meta_playlist(self) -> None:

@@ -150,4 +150,4 @@ def test_help_menu_entries(window):  # noqa: F811
     for obj in help_menu:
         if hasattr(obj, "title") and obj.title() == "&Hilfe":
             entries = [a.text() for a in obj.actions() if not a.isSeparator()]
-    assert entries == ["Hilfe …", "Online-Hilfe (GitHub)", "☕ PanePilot unterstützen …", "Über PanePilot"]
+    assert entries == ["Hilfe …", "Online-Hilfe (GitHub)", "Nach Updates suchen …", "☕ PanePilot unterstützen …", "Über PanePilot"]

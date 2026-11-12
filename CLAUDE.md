@@ -6,7 +6,7 @@ The maintainer (NEA1971) is not a programmer; development is done together with 
 ## Basics
 - Python 3 + PySide6 (Qt 6). Stay platform-independent (Qt functions for trash, default app, paths).
 - Sidebars are exchangeable modules; all keyboard shortcuts are configurable centrally (action → key); data lives in `~/.config/PanePilot/`.
-- All UI texts live in `src/panepilot/i18n/*.json` (6 languages). Every new key must be added to all languages
+- All UI texts live in `src/panepilot/i18n/*.json` (7 languages). Every new key must be added to all languages
   (`tests/test_i18n.py` checks completeness and placeholders).
 - Help pages: `src/panepilot/help/<lang>/*.md` (German and English).
 - Only implement what has been agreed with the maintainer; clarify open questions first and state assumptions explicitly.

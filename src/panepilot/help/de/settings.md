@@ -12,6 +12,7 @@ Die Einstellungen öffnet man über **Datei ▸ Einstellungen ▸ Einstellungen 
 - **Darstellung**: Knopfleiste, F-Tasten-Leiste, Symbolleiste, versteckte Dateien und Ein-Fenster-Ansicht.
   - **Skalierung** von 50 bis 200 %, z. B. für UHD-Bildschirme. Sie wird nach einem Neustart wirksam.
   - **Ins Anwendungsmenü aufnehmen** (nur beim Start als AppImage): legt einen Starter mit Programmsymbol an, den man auch ans Dock heften kann. Startet man später eine andere AppImage-Datei, zum Beispiel eine neuere Version, wird der Starter automatisch nachgeführt.
+- **Updates**: Ist **Einmal täglich beim Start nach Updates suchen** eingeschaltet (Vorgabe: aus), fragt PanePilot beim ersten Start des Tages bei GitHub nach einer neuen Version. Von Hand geht das jederzeit über **Hilfe ▸ Nach Updates suchen …**. Gibt es eine neue Version, kann man sie herunterladen, später erinnert werden oder diese Version überspringen. Beim Start als AppImage landet die neue Datei im selben Ordner wie die laufende; die alte bleibt erhalten. Danach fragt PanePilot, ob es gleich mit der neuen Version neu starten soll.
 
 ## Dateiansicht
 - **Größeneinheit**: wie Dateigrößen angezeigt werden.

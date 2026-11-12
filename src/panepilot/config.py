@@ -151,6 +151,12 @@ class Settings:
         # v1.1
         "ui_scale": 100,  # Skalierung der Oberfläche in Prozent (50–200, nach Neustart)
         "dirlist": {"files": True, "depth": 0, "hidden": False, "open": True},  # Verzeichnisliste (0 = unbegrenzt)
+        # v1.2
+        "update_check": False,  # einmal täglich beim Start nach Updates suchen (Vorgabe: aus)
+        "update_last_check": "",  # Tag der letzten Prüfung (JJJJ-MM-TT)
+        "update_skip": "",  # diese Version nicht mehr automatisch anbieten
+        "meta_disc": {},  # Disc-Assistent: letzte Einstellungen
+        "meta_musicbrainz": {},  # MusicBrainz: angehakte Felder und Cover
         # Spenden (v0.9.11)
         "first_start": "",  # Datum des ersten Starts (JJJJ-MM-TT); Hinweis erst nach 30 Tagen
         "donate_last_shown": "",  # an diesem Tag kam der Hinweis zuletzt

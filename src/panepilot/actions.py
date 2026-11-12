@@ -105,6 +105,7 @@ ACTION_DEFS: tuple[ActionDef, ...] = (
     # Programm
     ActionDef("help", "action.help", (), "always"),  # Standard: F1 (F-Tasten-Leiste)
     ActionDef("help_online", "action.help_online", (), "window"),
+    ActionDef("check_updates", "action.check_updates", (), "window"),
     ActionDef("donate", "action.donate", (), "window"),
     ActionDef("about", "action.about", (), "window"),
     ActionDef("quit", "action.quit", ("Ctrl+Q",), "always"),

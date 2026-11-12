@@ -90,11 +90,11 @@ def test_settings_language_buttons(window, tmp_path, monkeypatch):  # noqa: F811
     dlg._reset_language()
     assert not i18n.languages()["en"].user
     # Eigene Sprache: Knopf heißt „Sprache löschen“
-    i18n.save_user_language("sxu", "Säggssch", "de", {"menu.file": "Dadei"})
-    dlg._refresh_languages("sxu")
+    i18n.save_user_language("bar", "Boarisch", "de", {"menu.file": "Dadei"})
+    dlg._refresh_languages("bar")
     assert dlg.btn_lang_reset.text() == "Sprache löschen"
     dlg._reset_language()
-    assert "sxu" not in i18n.languages()
+    assert "bar" not in i18n.languages()
     assert dlg.lang_box.currentData() == "system"
     dlg.reject()
 
@@ -129,7 +129,7 @@ def test_settings_layout_and_display_toggles(window):  # noqa: F811
     dlg = SettingsDialog(window)
     assert [dlg.tabs.tabText(i) for i in range(dlg.tabs.count())] == ["Allgemein", "Dateiansicht", "Meta-Wizard"]
     general = dlg.pages["general"]
-    assert [general.nav.item(i).text() for i in range(general.nav.count())] == ["Sprache", "Sicherung", "Darstellung"]
+    assert [general.nav.item(i).text() for i in range(general.nav.count())] == ["Sprache", "Sicherung", "Darstellung", "Updates"]
     assert [g.title() for g in dlg.pages["view"].groups] == ["Größeneinheit", "Spalten"]
     assert [g.title() for g in dlg.pages["meta"].groups] == ["ReplayGain"]
     dlg.resize(900, 500)

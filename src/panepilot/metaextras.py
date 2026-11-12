@@ -7,6 +7,7 @@ import csv
 import datetime as _dt
 import io
 import os
+import re
 from dataclasses import dataclass
 
 from PySide6.QtCore import Qt
@@ -560,3 +561,161 @@ class PlaylistDialog(QDialog):
             p += ".m3u8"
         return p
 
+
+
+# --- Disc-Nummern-Assistent (v1.2) ----------------------------------------------------------------------
+DISC_FOLDER, DISC_RESTART, DISC_MANUAL = "folder", "restart", "manual"
+DISC_TOTAL_NONE, DISC_TOTAL_PAIR, DISC_TOTAL_FIELD = "none", "pair", "field"
+
+
+def _track_no(item) -> int | None:
+    m = re.match(r"\s*(\d+)", item.value("track") or "")
+    return int(m.group(1)) if m else None
+
+
+def disc_numbers(items, mode: str, manual: int = 1) -> list[int]:
+    """Disc-Nummer je Titel (in Listenreihenfolge).
+
+    folder:  Titel im selben Ordner bilden eine Disc, in der Reihenfolge ihres ersten Auftretens
+    restart: Disc wechselt, sobald die Tracknummer wieder kleiner oder gleich der vorigen wird
+    manual:  alle Titel bekommen dieselbe Nummer
+    """
+    if mode == DISC_MANUAL:
+        return [manual] * len(items)
+    if mode == DISC_FOLDER:
+        order: dict[str, int] = {}
+        result = []
+        for it in items:
+            folder = os.path.dirname(it.record.path)
+            order.setdefault(folder, len(order) + 1)
+            result.append(order[folder])
+        return result
+    result, disc, last = [], 1, None
+    for it in items:
+        n = _track_no(it)
+        if n is not None and last is not None and n <= last:
+            disc += 1
+        if n is not None:
+            last = n
+        result.append(disc)
+    return result
+
+
+def disc_total_key(kind: str) -> str:
+    """Eigenes Feld „Anzahl Discs“ im jeweiligen Tag-Format."""
+    return tg.custom_key(kind, "DISCTOTAL")
+
+
+def default_disc_mode(items) -> str:
+    return DISC_FOLDER if len({os.path.dirname(it.record.path) for it in items}) > 1 else DISC_RESTART
+
+
+class DiscDialog(QDialog):
+    """Disc-Nummern vergeben: nach Ordner, Neubeginn der Tracknummer oder von Hand (v1.2)."""
+
+    def __init__(self, parent, items, settings: dict) -> None:
+        from PySide6.QtWidgets import QButtonGroup, QRadioButton, QSpinBox
+
+        super().__init__(parent)
+        free_window(self)
+        self.items = items
+        self.setWindowTitle(t("disc.title"))
+        self.setMinimumWidth(520)
+        lay = QVBoxLayout(self)
+        intro = QLabel(t("disc.intro", n=len(items)), self)
+        intro.setWordWrap(True)
+        lay.addWidget(intro)
+        self.mode_group = QButtonGroup(self)
+        self.mode_buttons = {}
+        mode = settings.get("mode") or default_disc_mode(items)
+        for key in (DISC_FOLDER, DISC_RESTART, DISC_MANUAL):
+            rb = QRadioButton(t(f"disc.mode_{key}"), self)
+            self.mode_group.addButton(rb)
+            self.mode_buttons[key] = rb
+            lay.addWidget(rb)
+        self.manual = QSpinBox(self)
+        self.manual.setRange(1, 99)
+        self.manual.setValue(int(settings.get("manual") or 1))
+        row = QHBoxLayout()
+        row.addSpacing(24)
+        row.addWidget(QLabel(t("disc.manual_value"), self))
+        row.addWidget(self.manual)
+        row.addStretch(1)
+        lay.addLayout(row)
+        lay.addSpacing(6)
+        lay.addWidget(QLabel(t("disc.total"), self))
+        self.total_group = QButtonGroup(self)
+        self.total_buttons = {}
+        for key in (DISC_TOTAL_NONE, DISC_TOTAL_PAIR, DISC_TOTAL_FIELD):
+            rb = QRadioButton(t(f"disc.total_{key}"), self)
+            self.total_group.addButton(rb)
+            self.total_buttons[key] = rb
+            lay.addWidget(rb)
+        self.manual_total = QSpinBox(self)
+        self.manual_total.setRange(1, 99)
+        self.manual_total.setValue(int(settings.get("manual_total") or 1))
+        row = QHBoxLayout()
+        row.addSpacing(24)
+        row.addWidget(QLabel(t("disc.manual_total"), self))
+        row.addWidget(self.manual_total)
+        row.addStretch(1)
+        lay.addLayout(row)
+        hint = QLabel(t("disc.hint_field"), self)
+        hint.setWordWrap(True)
+        hint.setEnabled(False)
+        lay.addWidget(hint)
+        self.preview = QLabel(self)
+        self.preview.setWordWrap(True)
+        lay.addWidget(self.preview)
+        box = QDialogButtonBox(self)
+        box.addButton(t("button.ok"), QDialogButtonBox.ButtonRole.AcceptRole).setDefault(True)
+        box.addButton(t("button.cancel"), QDialogButtonBox.ButtonRole.RejectRole)
+        box.accepted.connect(self.accept)
+        box.rejected.connect(self.reject)
+        lay.addWidget(box)
+        self.mode_buttons.get(mode, self.mode_buttons[DISC_RESTART]).setChecked(True)
+        self.total_buttons.get(settings.get("total") or DISC_TOTAL_NONE,
+                               self.total_buttons[DISC_TOTAL_NONE]).setChecked(True)
+        for w in list(self.mode_buttons.values()) + list(self.total_buttons.values()):
+            w.toggled.connect(self._update)
+        self.manual.valueChanged.connect(self._update)
+        self.manual_total.valueChanged.connect(self._update)
+        self._update()
+
+    def mode(self) -> str:
+        return next(k for k, b in self.mode_buttons.items() if b.isChecked())
+
+    def total_mode(self) -> str:
+        return next(k for k, b in self.total_buttons.items() if b.isChecked())
+
+    def settings(self) -> dict:
+        return {"mode": self.mode(), "total": self.total_mode(), "manual": self.manual.value(),
+                "manual_total": self.manual_total.value()}
+
+    def changes(self) -> list[tuple[object, dict[str, str]]]:
+        """(Titel, {Schlüssel: Wert}) je Titel."""
+        nums = disc_numbers(self.items, self.mode(), self.manual.value())
+        total = self.manual_total.value() if self.mode() == DISC_MANUAL else max(nums, default=1)
+        result = []
+        for it, n in zip(self.items, nums):
+            values = {}
+            if self.total_mode() == DISC_TOTAL_PAIR:
+                values["disc"] = f"{n}/{total}"
+            else:
+                values["disc"] = str(n)
+            if self.total_mode() == DISC_TOTAL_FIELD:
+                values[disc_total_key(it.record.kind)] = str(total)
+            result.append((it, values))
+        return result
+
+    def _update(self, *_args) -> None:
+        manual = self.mode() == DISC_MANUAL
+        self.manual.setEnabled(manual)
+        self.manual_total.setEnabled(manual and self.total_mode() != DISC_TOTAL_NONE)
+        lines = []
+        for it, values in self.changes()[:6]:
+            extra = "".join(f", {tg.label_of(k)} {v}" for k, v in values.items() if k != "disc")
+            lines.append(f"{it.display_name}: {values['disc']}{extra}")
+        if len(self.items) > 6:
+            lines.append("…")
+        self.preview.setText(t("number.preview") + "\n" + "\n".join(lines))

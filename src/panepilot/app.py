@@ -59,6 +59,7 @@ def main() -> int:
 
     QTimer.singleShot(2000, window.auto_backup)  # Sicherung beim ersten Start des Tages (F-852)
     QTimer.singleShot(3000, window.maybe_ask_for_donation)  # Bitte um Unterstützung (v0.9.11)
+    QTimer.singleShot(5000, window.auto_update_check)  # einmal täglich nach Updates suchen (v1.2)
     from . import desktopint
 
     QTimer.singleShot(1500, desktopint.update_if_moved)  # Starter im Anwendungsmenü nachführen (v1.1)
