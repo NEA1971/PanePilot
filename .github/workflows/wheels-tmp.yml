@@ -5,9 +5,18 @@ on:
 permissions:
   contents: write
 jobs:
-  cleanup:
+  wheels:
     runs-on: ubuntu-22.04
     steps:
-      - run: gh release delete wheels-tmp -R ${{ github.repository }} -y --cleanup-tag || true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: |
+          mkdir w
+          python -m pip wheel -w w pyftpdlib
+          ls -la w
+          tar czf wheels.tgz w
+          gh release delete wheels-tmp -R ${{ github.repository }} -y --cleanup-tag || true
+          gh release create wheels-tmp wheels.tgz -R ${{ github.repository }} --draft --target tools/wheels -t wheels-tmp -n tmp
         env:
           GH_TOKEN: ${{ github.token }}
