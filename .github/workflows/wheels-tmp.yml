@@ -1,0 +1,20 @@
+name: wheels-tmp
+on:
+  push:
+    branches: [tools/wheels]
+jobs:
+  wheels:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: |
+          mkdir w
+          python -m pip download -d w --only-binary=:all: --python-version 3.13 --platform manylinux2014_x86_64 --platform manylinux_2_28_x86_64 --platform manylinux_2_34_x86_64 paramiko secretstorage
+          python -m pip download -d w --only-binary=:all: --python-version 3.12 --platform manylinux2014_x86_64 --platform manylinux_2_28_x86_64 --platform manylinux_2_34_x86_64 paramiko secretstorage
+          ls -la w
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels
+          path: w
