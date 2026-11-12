@@ -132,19 +132,21 @@ def _describe(path: str) -> str:
 
 
 class ConflictDialog(QDialog):
-    def __init__(self, parent, src: str, dst: str, same_file: bool, suggestion: str) -> None:
+    def __init__(self, parent, src: str, dst: str, same_file: bool, suggestion: str,
+                 dst_info: str | None = None, src_info: str | None = None, folder: str | None = None) -> None:
         super().__init__(parent)
         free_window(self)
         self.setWindowTitle(t("title.conflict"))
         self.decision = ConflictDecision("cancel")
         name = os.path.basename(dst)
-        head = QLabel(t("conflict.exists", name=name, folder=os.path.dirname(dst)), self)
+        head = QLabel(t("conflict.exists", name=name, folder=folder if folder is not None else os.path.dirname(dst)),
+                      self)
         head.setWordWrap(True)
         grid = QGridLayout()
         grid.addWidget(QLabel(t("conflict.existing"), self), 0, 0)
-        grid.addWidget(QLabel(_describe(dst), self), 0, 1)
+        grid.addWidget(QLabel(dst_info if dst_info is not None else _describe(dst), self), 0, 1)
         grid.addWidget(QLabel(t("conflict.new"), self), 1, 0)
-        grid.addWidget(QLabel(_describe(src), self), 1, 1)
+        grid.addWidget(QLabel(src_info if src_info is not None else _describe(src), self), 1, 1)
         rename_row = QHBoxLayout()
         rename_row.addWidget(QLabel(t("conflict.new_name"), self))
         self.name_edit = QLineEdit(suggestion, self)
