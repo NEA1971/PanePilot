@@ -13,7 +13,8 @@ jobs:
           python-version: "3.13"
       - run: |
           mkdir w
-          python -m pip download -d w --only-binary=:all: --python-version 3.13 --platform manylinux2014_x86_64 --platform manylinux_2_28_x86_64 --platform manylinux_2_34_x86_64 pyftpdlib pyopenssl
+          python -m pip download -d w --no-deps --no-binary=:all: pyftpdlib
+          python -m pip download -d w --only-binary=:all: --python-version 3.13 --platform manylinux2014_x86_64 --platform manylinux_2_28_x86_64 --platform manylinux_2_34_x86_64 pyopenssl
           ls -la w
           tar czf wheels.tgz w
           gh release delete wheels-tmp -R ${{ github.repository }} -y --cleanup-tag || true
