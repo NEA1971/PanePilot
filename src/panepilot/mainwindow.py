@@ -1173,7 +1173,6 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
     def do_dir_list(self, folder: str | None = None) -> None:
         import datetime as _dt
 
-        from PySide6.QtWidgets import QProgressDialog
 
         from . import dirlist, util
         from .i18n import current_language
@@ -1193,9 +1192,9 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
             return
         if not path.lower().endswith(".txt"):
             path += ".txt"
-        progress = QProgressDialog(t("dirlist.reading"), t("button.cancel"), 0, 0, self)
-        progress.setWindowTitle(t("dirlist.title"))
-        progress.setMinimumDuration(400)
+        from .dialogs import WaitDialog
+
+        progress = WaitDialog(self, t("dirlist.title"), t("dirlist.reading"))
         worker = dirlist.DirListThread(folder, opts["files"], opts["depth"], opts["hidden"], self)
         progress.canceled.connect(worker.cancel)
         worker.progress.connect(lambda n: progress.setLabelText(t("dirlist.reading_n", n=n)))
@@ -1206,7 +1205,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         worker.finished.connect(loop.quit)
         worker.start()
         loop.exec()
-        progress.close()
+        progress.finish()
         if "error" in result:
             show_error(self, t("dirlist.title"), t("dirlist.failed", reason=result["error"]))
             return

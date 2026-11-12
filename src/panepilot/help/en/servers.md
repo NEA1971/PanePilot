@@ -1,9 +1,9 @@
-# Servers (FTP/SFTP)
+# FTP servers
 
 PanePilot connects to servers via **FTP**, **FTP over TLS** (explicit or implicit) and **SFTP** (over SSH), for example your NAS or an FTP app on your phone. The server then appears in the file panel like any other folder.
 
-## “Servers” sidebar
-- Switch a sidebar to **Servers** via **View ▸ Sidebar** or by right-clicking a sidebar – left or right.
+## “FTP servers” sidebar
+- Switch a sidebar to **FTP servers** via **View ▸ Sidebar** or by right-clicking a sidebar – left or right.
 - Servers can be grouped in **folders** and rearranged with the mouse.
 - **Double-click** connects. The server is shown in the file panel on the same side.
 - **Right-click**:
@@ -11,8 +11,8 @@ PanePilot connects to servers via **FTP**, **FTP over TLS** (explicit or implici
   - on a folder: new server, new folder, rename, delete (only if empty)
 - A connected server is shown in **bold** with a **green** icon. The path bar shows the address, e.g. `sftp://alice@192.168.1.10/Download`.
 
-## Server manager
-**File ▸ Server manager …** (or “Edit …” in the context menu) – laid out like FileZilla’s:
+## FTP server manager
+**File ▸ FTP server manager …** (or “Edit …” in the context menu) – laid out like FileZilla’s:
 - **General**: protocol, host and port, encryption, logon type (normal, anonymous, ask for password, key file for SFTP), user, password, background colour of the file panel and comment.
 - **Advanced**: start folder on the server and a local folder for the other panel.
 - **Transfer**: passive (recommended) or active – FTP only.
@@ -44,4 +44,4 @@ Transfers run in the background – you can keep working.
 - If a file already exists, you get the usual question (overwrite, skip, rename, “for all”).
 
 ## Taking over from FileZilla
-**Settings ▸ General ▸ Servers ▸ Import from FileZilla …** reads FileZilla’s server list including folders and saved passwords. Choose with the checkboxes; servers with the same name in the same folder are skipped.
+**Settings ▸ General ▸ FTP servers ▸ Import from FileZilla …** reads FileZilla’s server list including folders and saved passwords. Choose with the checkboxes; servers with the same name in the same folder are skipped.

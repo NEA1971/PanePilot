@@ -6,7 +6,7 @@ import os
 import posixpath
 
 from PySide6.QtCore import QEventLoop, Qt, QThread, QTimer, Signal
-from PySide6.QtWidgets import QDialog, QMenu, QProgressDialog
+from PySide6.QtWidgets import QDialog, QMenu
 
 from . import remotefs as rf
 from . import servers as sv
@@ -39,10 +39,9 @@ class _Task(QThread):
 
 def run_task(parent, fn, text: str, cancel_flag: list | None = None):
     """fn im Hintergrund ausführen, dabei ein Wartefenster zeigen. (Wert, Ausnahme, abgebrochen)."""
-    dlg = QProgressDialog(text, t("button.cancel"), 0, 0, parent)
-    dlg.setWindowTitle(t("srv.title"))
-    dlg.setWindowModality(Qt.WindowModality.WindowModal)
-    dlg.setMinimumDuration(400)
+    from .dialogs import WaitDialog
+
+    dlg = WaitDialog(parent, t("srv.title"), text)
     task = _Task(fn)
     loop = QEventLoop()
     task.finished.connect(loop.quit)
@@ -57,12 +56,11 @@ def run_task(parent, fn, text: str, cancel_flag: list | None = None):
     task.start()
     if not task.isFinished():
         loop.exec()
-    dlg.canceled.disconnect()
-    dlg.close()
+    dlg.finish()
     if state["cancel"] and not task.isFinished():
         task.finished.connect(task.deleteLater)
-        task.setParent(None)
         _orphans.append(task)
+        task.finished.connect(lambda: _orphans.remove(task) if task in _orphans else None)
         return None, None, True
     task.wait()
     return task.value, task.error, state["cancel"]

@@ -1,9 +1,9 @@
-# Server (FTP/SFTP)
+# FTP-Server
 
 PanePilot verbindet sich mit Servern über **FTP**, **FTP über TLS** (explizit oder implizit) und **SFTP** (über SSH), zum Beispiel mit dem NAS oder einer FTP-App auf dem Handy. Der Server erscheint dann ganz normal im Dateifenster.
 
-## Seitenleiste „Server“
-- Über **Ansicht ▸ Seitenleiste** bzw. per Rechtsklick in eine Seitenleiste schaltet man auf **Server** um – links oder rechts.
+## Seitenleiste „FTP-Server“
+- Über **Ansicht ▸ Seitenleiste** bzw. per Rechtsklick in eine Seitenleiste schaltet man auf **FTP-Server** um – links oder rechts.
 - Server lassen sich in **Ordnern** gruppieren und mit der Maus umsortieren.
 - **Doppelklick** verbindet. Der Server wird im Dateifenster derselben Seite angezeigt.
 - **Rechtsklick**:
@@ -11,8 +11,8 @@ PanePilot verbindet sich mit Servern über **FTP**, **FTP über TLS** (explizit 
   - auf einem Ordner: Neuer Server, Neuer Ordner, Umbenennen, Löschen (nur wenn leer)
 - Ein verbundener Server ist **fett** und hat ein **grünes** Symbol. Die Pfadzeile zeigt die Adresse, z. B. `sftp://alice@192.168.1.10/Download`.
 
-## Servermanager
-**Datei ▸ Servermanager …** (oder „Bearbeiten …“ im Rechtsklick-Menü) – aufgebaut wie bei FileZilla:
+## FTP-Servermanager
+**Datei ▸ FTP-Servermanager …** (oder „Bearbeiten …“ im Rechtsklick-Menü) – aufgebaut wie bei FileZilla:
 - **Allgemein**: Protokoll, Server und Port, Verschlüsselung, Verbindungsart (normal, anonym, nach Passwort fragen, bei SFTP auch Schlüsseldatei), Benutzer, Passwort, Hintergrundfarbe des Dateifensters und Kommentar.
 - **Erweitert**: Startordner auf dem Server und ein lokaler Ordner für das andere Fenster.
 - **Übertragung**: Passiv (empfohlen) oder Aktiv – nur bei FTP.
@@ -44,4 +44,4 @@ PanePilot verbindet sich mit Servern über **FTP**, **FTP über TLS** (explizit 
 - Gibt es eine Datei schon, kommt die gewohnte Rückfrage (Überschreiben, Überspringen, Umbenennen, „für alle“).
 
 ## Aus FileZilla übernehmen
-**Einstellungen ▸ Allgemein ▸ Server ▸ Aus FileZilla importieren …** liest die Serverliste von FileZilla samt Ordnern und gespeicherten Passwörtern. Man wählt per Häkchen aus; Server mit gleichem Namen im selben Ordner werden übersprungen.
+**Einstellungen ▸ Allgemein ▸ FTP-Server ▸ Aus FileZilla importieren …** liest die Serverliste von FileZilla samt Ordnern und gespeicherten Passwörtern. Man wählt per Häkchen aus; Server mit gleichem Namen im selben Ordner werden übersprungen.

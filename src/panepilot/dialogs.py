@@ -185,6 +185,80 @@ class ConflictDialog(QDialog):
         super().reject()
 
 
+class WaitDialog(QDialog):
+    """Wartefenster für Abfragen im Hintergrund (v1.3.1).
+
+    Erscheint erst nach ``delay`` ms (kurze Abfragen ohne Flackern) und als eigenständiges Fenster.
+    Anders als QProgressDialog taucht es nach ``finish()`` garantiert nicht mehr auf.
+    """
+
+    canceled = Signal()
+
+    def __init__(self, parent, title: str, text: str, maximum: int = 0, delay: int = 400) -> None:
+        from PySide6.QtCore import QTimer
+
+        super().__init__(parent)
+        free_window(self)
+        self.setWindowTitle(title)
+        self._done = False
+        self._canceled = False
+        self.label = QLabel(text, self)
+        self.label.setMinimumWidth(360)
+        self.label.setWordWrap(True)
+        self.bar = QProgressBar(self)
+        self.bar.setRange(0, maximum)
+        self.bar.setTextVisible(maximum > 0)
+        self.btn_cancel = QPushButton(t("button.cancel"), self)
+        self.btn_cancel.clicked.connect(self._cancel)
+        row = QHBoxLayout()
+        row.addStretch(1)
+        row.addWidget(self.btn_cancel)
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.label)
+        layout.addWidget(self.bar)
+        layout.addLayout(row)
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.timeout.connect(self._show_now)
+        self._timer.start(max(delay, 0))
+
+    def _show_now(self) -> None:
+        if not self._done:
+            self.show()
+            self.raise_()
+
+    def setValue(self, value: int) -> None:  # noqa: N802 – wie QProgressDialog
+        self.bar.setValue(value)
+
+    def setLabelText(self, text: str) -> None:  # noqa: N802
+        self.label.setText(text)
+
+    def wasCanceled(self) -> bool:  # noqa: N802
+        return self._canceled
+
+    def _cancel(self) -> None:
+        if self._done or self._canceled:
+            return
+        self._canceled = True
+        self.btn_cancel.setEnabled(False)
+        self.canceled.emit()
+
+    def reject(self) -> None:  # Esc
+        self._cancel()
+
+    def closeEvent(self, event) -> None:
+        if not self._done:
+            self._cancel()
+        super().closeEvent(event)
+
+    def finish(self) -> None:
+        """Endgültig schließen – auch ein noch nicht gezeigtes Fenster erscheint danach nicht mehr."""
+        self._done = True
+        self._timer.stop()
+        self.hide()
+        self.deleteLater()
+
+
 class ProgressDialog(QDialog):
     cancel_requested = Signal()
 

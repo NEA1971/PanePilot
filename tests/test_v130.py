@@ -507,3 +507,32 @@ def test_keyring_with_fake_secret_service(monkeypatch):
     sv.delete_secret("id1")
     assert sv.load_secret("id1") is None
     monkeypatch.setattr(sv._Keyring, "available", None)
+
+
+def test_wait_dialog_never_reappears(window, server, qtbot, monkeypatch):  # noqa: F811
+    """1.3.1: Nach Ende der Abfrage taucht kein Wartefenster mehr auf (auch keins, das noch nicht zu sehen war)."""
+    import time
+
+    from panepilot.dialogs import WaitDialog
+    from panepilot.remotecontrol import run_task
+
+    cfg, _srv = server
+    panel = _connect(window, cfg, monkeypatch=monkeypatch)
+    panel.open_entry(next(e for e in panel.model.entries() if e.name == "Fotos"))
+    value, error, cancelled = run_task(window, lambda: time.sleep(0.6) or 42, "x")
+    assert (value, error, cancelled) == (42, None, False)
+    qtbot.wait(700)
+    assert not [d for d in window.findChildren(WaitDialog) if d.isVisible()]
+    # Abbrechen wirkt sofort
+    dlg = WaitDialog(window, "t", "x", delay=0)
+    hits = []
+    dlg.canceled.connect(lambda: hits.append(1))
+    qtbot.wait(50)
+    assert dlg.isVisible()
+    dlg.btn_cancel.click()
+    assert hits == [1] and dlg.wasCanceled()
+    dlg.finish()
+    qtbot.wait(50)
+    import shiboken6
+
+    assert not shiboken6.isValid(dlg) or not dlg.isVisible()
