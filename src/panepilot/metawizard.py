@@ -40,6 +40,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from . import metaprofile as mp
 from . import tags as tg
 from .i18n import t
 from .toolpanes import ToolPane
@@ -49,11 +50,9 @@ REMOVE = None  # Wert „Feld entfernen“
 
 # --- Spalten und Felder ---------------------------------------------------------------------------
 COL_FILENAME, COL_PATH = "filename", "path"
-INFO_COLUMNS = ("i:length", "i:bitrate", "i:samplerate", "i:codec", "i:size", "i:mtime")
-DEFAULT_COLUMNS = ["filename", "title", "artist", "album", "albumartist", "track", "disc", "year", "genre",
-                   "comment", "path"]  # F-910
-DEFAULT_SIDEBAR = ["title", "artist", "album", "year", "track", "genre", "comment", "albumartist", "composer",
-                   "disc", "cover"]  # F-920
+INFO_COLUMNS = mp.AUDIO_INFO  # Musik; im Foto-Modus mp.info_columns()
+DEFAULT_COLUMNS = mp.AUDIO_COLUMNS  # F-910
+DEFAULT_SIDEBAR = mp.AUDIO_SIDEBAR  # F-920
 COVER = "cover"
 MAX_VALUES = 50  # F-921
 CHANGED_COLOR = QColor("#2E7D32")
@@ -68,8 +67,16 @@ def column_title(col: str) -> str:
     if col.startswith("i:"):
         return t(f"meta.info.{col[2:]}")
     if col == COVER:
-        return t("meta.field.cover")
+        return t("photo.preview") if mp.is_photo_mode() else t("meta.field.cover")
     return t(f"meta.field.{col}")
+
+
+def camera_name(item) -> str:
+    """Hersteller und Modell, ohne doppelten Herstellernamen (z. B. „Canon EOS R6“)."""
+    make, model = item.value("make").strip(), item.value("model").strip()
+    if make and model.casefold().startswith(make.split()[0].casefold()):
+        return model
+    return f"{make} {model}".strip()
 
 
 def _natural(text: str) -> str:
@@ -118,7 +125,15 @@ class MetaItem:
             self.pending[key] = value
 
     def readonly(self, key: str) -> bool:
-        return tg.resolve_key(self.record, key) in self.record.readonly
+        ro = self.record.readonly
+        if "*" in ro:  # ganze Datei nur lesbar (z. B. RAW-Fotos, v1.4)
+            return True
+        key = tg.resolve_key(self.record, key)
+        return key in ro or ("x:*" in ro and key.startswith(tg.EXTRA))
+
+    def remove_only(self, key: str) -> bool:
+        """Feld lässt sich nur entfernen, nicht ändern (Kamera, GPS … bei Fotos)."""
+        return key in self.record.removable
 
     def set_pictures(self, pictures: list[tg.Picture]) -> None:
         old = self.record.pictures
@@ -138,7 +153,7 @@ class MetaModel(QAbstractTableModel):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.items: list[MetaItem] = []
-        self.columns: list[str] = list(DEFAULT_COLUMNS)
+        self.columns: list[str] = mp.default_columns()
         self.align: dict[str, str] = {}
         self.custom_fields: list[str] = []
 
@@ -160,7 +175,8 @@ class MetaModel(QAbstractTableModel):
         return None
 
     def _alignment(self, col: str):
-        mode = self.align.get(col, "right" if col in ("i:bitrate", "i:samplerate", "i:size", "i:length") else "left")
+        mode = self.align.get(col, "right" if col in ("i:bitrate", "i:samplerate", "i:size", "i:length", "rating", "iso")
+                              else "left")
         h = {"left": Qt.AlignmentFlag.AlignLeft, "center": Qt.AlignmentFlag.AlignHCenter,
              "right": Qt.AlignmentFlag.AlignRight}.get(mode, Qt.AlignmentFlag.AlignLeft)
         return int(h | Qt.AlignmentFlag.AlignVCenter)
@@ -179,8 +195,12 @@ class MetaModel(QAbstractTableModel):
                 return f"{round(rec.bitrate / 1000)} kbit/s" if rec.bitrate else ""
             if what == "samplerate":
                 return f"{rec.sample_rate} Hz" if rec.sample_rate else ""
-            if what == "codec":
+            if what in ("codec", "format"):
                 return rec.codec
+            if what == "dims":
+                return f"{rec.width} × {rec.height}" if rec.width else ""
+            if what == "camera":
+                return camera_name(item)
             if what == "size":
                 return format_size(rec.size)
             if what == "mtime":
@@ -199,6 +219,15 @@ class MetaModel(QAbstractTableModel):
             return float(rec.size)
         if col == "i:mtime":
             return float(rec.mtime)
+        if col == "i:dims":
+            return float(rec.width * rec.height)
+        if col == "i:camera":
+            return _natural(camera_name(item))
+        if col in ("rating", "iso"):
+            try:
+                return float(item.value(col).split()[0])
+            except (ValueError, IndexError):
+                return -1.0
         if col == COL_FILENAME:
             return _natural(rec.name)
         if col == COL_PATH:
@@ -396,7 +425,7 @@ class MetaView(QTreeView):
             act.setEnabled(not (col in cols and len(cols) == 1))
             act.toggled.connect(lambda on, c=col: toggle(c, on))
 
-        for col in (COL_FILENAME, *tg.FIELDS, COL_PATH):
+        for col in (COL_FILENAME, *mp.fields(), COL_PATH):
             add_toggle(menu, col)
         extra = menu.addMenu(t("meta.more_fields"))
         keys = self.source.extra_keys()
@@ -404,11 +433,11 @@ class MetaView(QTreeView):
         for k in keys:
             add_toggle(extra, k)
         info = menu.addMenu(t("meta.info_fields"))
-        for col in INFO_COLUMNS:
+        for col in mp.info_columns():
             add_toggle(info, col)
         menu.addSeparator()
         menu.addAction(t("fields.menu")).triggered.connect(self.field_editor_requested)
-        menu.addAction(t("meta.columns_default")).triggered.connect(lambda: self.set_columns(DEFAULT_COLUMNS))
+        menu.addAction(t("meta.columns_default")).triggered.connect(lambda: self.set_columns(mp.default_columns()))
         menu.exec(self.header().mapToGlobal(pos))
 
     def _set_align(self, col: str, mode: str) -> None:
@@ -454,7 +483,9 @@ class MetaView(QTreeView):
     def restore_layout(self, state) -> None:
         if not isinstance(state, dict):
             state = {}
-        cols = [c for c in state.get("columns", []) if isinstance(c, str)] or list(DEFAULT_COLUMNS)
+        known = set(mp.fields()) | set(mp.info_columns()) | {COL_FILENAME, COL_PATH}
+        cols = [c for c in state.get("columns", []) if isinstance(c, str) and (c in known or c.startswith(tg.EXTRA))]
+        cols = cols or mp.default_columns()
         self.widths = {k: int(v) for k, v in (state.get("widths") or {}).items() if isinstance(v, int)}
         self.source.align = {k: v for k, v in (state.get("align") or {}).items() if v in ("left", "center", "right")}
         self.set_columns(cols)
@@ -462,13 +493,15 @@ class MetaView(QTreeView):
 
 # --- Einlesen im Hintergrund (F-904) ------------------------------------------------------------------
 class MetaScanThread(QThread):
+    kind_chosen = Signal(str, int, int)  # Art (audio/photo), Anzahl Musik, Anzahl Fotos (v1.4)
     found = Signal(list)  # Liste von TagRecord
     progress = Signal(int, int)  # eingelesen, gesamt (gesamt = -1, solange noch gesucht wird)
     finished_scan = Signal(bool)  # vollständig
 
     def __init__(self, paths: list[str], hidden: bool, accept=None, exclude: set[str] | None = None,
-                 parent=None) -> None:
+                 parent=None, kind: str | None = None) -> None:
         super().__init__(parent)
+        self.kind = kind  # None = die Art mit den meisten Dateien
         self.paths = paths
         self.hidden = hidden
         self.accept = accept
@@ -478,14 +511,17 @@ class MetaScanThread(QThread):
     def stop(self) -> None:
         self._stop = True
 
-    def _collect(self) -> list[str]:
+    def _collect(self) -> tuple[list[str], list[str]]:
         files: list[str] = []
+        photos: list[str] = []
         queue: list[str] = []
         for p in self.paths:
             if os.path.isdir(p) and not os.path.islink(p):
                 queue.append(p)
             elif tg.is_audio(p) and os.path.isfile(p):
                 files.append(p)
+            elif mp.accepts(p, mp.PHOTO) and os.path.isfile(p):
+                photos.append(p)
         last = time.monotonic()
         while queue and not self._stop:
             folder = queue.pop(0)
@@ -508,13 +544,18 @@ class MetaScanThread(QThread):
                         queue.append(de.path)
                 elif tg.is_audio(de.name):
                     files.append(de.path)
+                elif mp.accepts(de.name, mp.PHOTO):
+                    photos.append(de.path)
             if time.monotonic() - last > 0.3:
-                self.progress.emit(len(files), -1)
+                self.progress.emit(len(files) + len(photos), -1)
                 last = time.monotonic()
-        return files
+        return files, photos
 
     def run(self) -> None:
-        files = self._collect()
+        audio, photos = self._collect()
+        kind = self.kind or (mp.PHOTO if len(photos) > len(audio) else mp.AUDIO)
+        self.kind_chosen.emit(kind, len(audio), len(photos))
+        files = photos if kind == mp.PHOTO else audio
         total = len(files)
         self.progress.emit(0, total)
         batch: list[tg.TagRecord] = []
@@ -649,8 +690,9 @@ class FieldBox(QComboBox):
         self.lineEdit().editingFinished.connect(self._edited)
         self.activated.connect(self._activated)
 
-    def show_values(self, values: list[str], enabled: bool) -> None:
+    def show_values(self, values: list[str], enabled: bool, remove_only: bool = False) -> None:
         keep, remove = t("meta.keep"), t("meta.remove")
+        self.remove_only = remove_only
         distinct: list[str] = []
         for v in values:
             if v and v not in distinct:
@@ -663,10 +705,15 @@ class FieldBox(QComboBox):
         shown_values = distinct[:MAX_VALUES]
         for v in shown_values:
             self.addItem(v.replace("\n", " ⏎ ") if self.key != "lyrics" else v[:80], v)
-        if self.key == "genre":
+        if self.key == "genre" and not mp.is_photo_mode():
             for g in tg.STANDARD_GENRES:
                 if g not in shown_values:
                     self.addItem(g, g)
+        if self.key == "rating" and mp.is_photo_mode():
+            for g in ("0", "1", "2", "3", "4", "5"):
+                if g not in shown_values:
+                    self.addItem(f"{g} " + "★" * int(g), g)
+        self.lineEdit().setReadOnly(remove_only)
         text = keep if mixed else (values[0] if values else "")
         self.setEditText(text)
         self._shown = text
@@ -681,6 +728,8 @@ class FieldBox(QComboBox):
             return
         if text == t("meta.remove") or not text.strip():
             self.committed.emit(self.key, REMOVE)
+        elif getattr(self, "remove_only", False):
+            return  # Kamera, GPS …: nur entfernen (L-431)
         else:
             self.committed.emit(self.key, text)
 
@@ -689,6 +738,9 @@ class FieldBox(QComboBox):
 
     def _activated(self, index: int) -> None:
         data = self.itemData(index)
+        if getattr(self, "remove_only", False) and self.itemText(index) != t("meta.remove"):
+            self.setEditText(self._shown)
+            return
         self._emit(data if isinstance(data, str) else self.itemText(index))
 
 
@@ -760,6 +812,25 @@ class CoverBox(QWidget):
 
     def current(self) -> tg.Picture | None:
         return self.pictures[self.index] if 0 <= self.index < len(self.pictures) and not self.mixed else None
+
+    def show_preview(self, path: str | None, count: int) -> None:
+        """Foto-Modus (L-423): Vorschaubild statt Cover, ohne Menü und Ablegen."""
+        from .phototags import preview
+
+        self.pictures, self.mixed, self.enabled_for_selection = [], False, False
+        for w in (self.btn_prev, self.btn_next, self.counter):
+            w.setVisible(False)
+        self.image.setPixmap(QPixmap())
+        if not path:
+            self.image.setText("")
+            self.info.setText("")
+            return
+        img = preview(path, self.SIZE - 4)
+        if img is None:
+            self.image.setText(t("photo.no_preview"))
+        else:
+            self.image.setPixmap(QPixmap.fromImage(img))
+        self.info.setText(t("photo.preview_of", name=os.path.basename(path)) if count > 1 else "")
 
     def _step(self, delta: int) -> None:
         if self.pictures:
@@ -856,6 +927,40 @@ def picture_from_file(path: str) -> tg.Picture | None:
     return tg.Picture(data, mime, tg.FRONT_COVER, "")
 
 
+class KindSwitch(QWidget):
+    """Umschalter „Musik | Fotos“, wenn ein Ordner beides enthält (L-421)."""
+
+    changed = Signal(str)
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        from PySide6.QtWidgets import QButtonGroup
+
+        self.btn_audio = QPushButton(self)
+        self.btn_photo = QPushButton(self)
+        group = QButtonGroup(self)
+        for b in (self.btn_audio, self.btn_photo):
+            b.setCheckable(True)
+            group.addButton(b)
+        group.setExclusive(True)
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 4)
+        lay.setSpacing(0)
+        lay.addWidget(self.btn_audio, 1)
+        lay.addWidget(self.btn_photo, 1)
+        self.btn_audio.clicked.connect(lambda: self.changed.emit(mp.AUDIO))
+        self.btn_photo.clicked.connect(lambda: self.changed.emit(mp.PHOTO))
+
+    def select(self, kind: str) -> None:
+        (self.btn_photo if kind == mp.PHOTO else self.btn_audio).setChecked(True)
+
+    def set_counts(self, kind: str, audio: int, photos: int) -> None:
+        self.btn_audio.setText(t("photo.switch_audio", n=audio))
+        self.btn_photo.setText(t("photo.switch_photo", n=photos))
+        (self.btn_photo if kind == mp.PHOTO else self.btn_audio).setChecked(True)
+        self.setVisible(audio > 0 and photos > 0)
+
+
 class MetaPane(ToolPane):
     """Seitenleiste des Meta-Wizards (F-920 ff.)."""
 
@@ -873,13 +978,20 @@ class MetaPane(ToolPane):
 
     def __init__(self, parent=None) -> None:
         super().__init__(t("meta.title"), parent)
-        self.layout_keys: list[str] = list(DEFAULT_SIDEBAR)
+        self.layout_keys: list[str] = mp.default_sidebar()
         self.boxes: dict[str, FieldBox] = {}
         self.rows: dict[str, QWidget] = {}
         self.wav_hint = QLabel(t("meta.wav_hint"), self)
         self.wav_hint.setWordWrap(True)
         self.wav_hint.setStyleSheet("color: gray;")
         self.wav_hint.hide()
+        self.photo_hint = QLabel(self)  # HEIC ohne exiftool, RAW (v1.4)
+        self.photo_hint.setWordWrap(True)
+        self.photo_hint.setStyleSheet("color: gray;")
+        self.photo_hint.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.photo_hint.hide()
+        self.kind_switch = KindSwitch(self)  # „Musik | Fotos“ (L-421)
+        self.kind_switch.hide()
         self.cover = CoverBox(self)
         self.cover.replace_requested.connect(self.cover_replace)
         self.cover.remove_requested.connect(self.cover_remove)
@@ -887,8 +999,10 @@ class MetaPane(ToolPane):
         self.fields_host = QWidget(self.inner)
         self.fields_layout = QVBoxLayout(self.fields_host)
         self.fields_layout.setContentsMargins(0, 0, 0, 0)
+        self.inner_layout.addWidget(self.kind_switch)
         self.inner_layout.addWidget(self.fields_host)
         self.inner_layout.addWidget(self.wav_hint)
+        self.inner_layout.addWidget(self.photo_hint)
         from PySide6.QtWidgets import QGroupBox
 
         from . import convert as cv
@@ -901,6 +1015,7 @@ class MetaPane(ToolPane):
             b.clicked.connect(lambda _c=False, k=kind: self.convert_requested.emit(k))
             cl.addWidget(b)
             self.convert_buttons[kind] = b
+        self.apply_profile_buttons()
         self.inner_layout.addWidget(conv)
         self.inner.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.inner.customContextMenuRequested.connect(self._layout_menu)
@@ -925,18 +1040,27 @@ class MetaPane(ToolPane):
         self.btn_undo.setEnabled(False)
         self.set_layout(self.layout_keys)
 
+    def apply_profile_buttons(self) -> None:
+        """Konverter passend zur Art zeigen (L-440, L-441)."""
+        shown = set(mp.tools())
+        for kind, b in self.convert_buttons.items():
+            b.setVisible(kind in shown)
+
     # Aufbau
     def set_layout(self, keys: list[str]) -> None:
-        keys = [k for k in keys if k == COVER or k in tg.FIELDS or k.startswith(tg.EXTRA)]
+        keys = [k for k in keys if k == COVER or k in mp.fields() or k.startswith(tg.EXTRA)]
         if not keys:
-            keys = list(DEFAULT_SIDEBAR)
+            keys = mp.default_sidebar()
         self.layout_keys = list(dict.fromkeys(keys))
         while self.fields_layout.count():
             w = self.fields_layout.takeAt(0).widget()
             if w is not None and w is not self.cover:
+                w.hide()  # sofort weg, nicht erst beim Löschen
+                w.setParent(None)
                 w.deleteLater()
         self.cover.setParent(None)
         self.boxes, self.rows = {}, {}
+        self.map_link = None
         for key in self.layout_keys:
             if key == COVER:
                 self.cover.setParent(self.fields_host)
@@ -948,10 +1072,19 @@ class MetaPane(ToolPane):
             lay = QVBoxLayout(row)
             lay.setContentsMargins(0, 2, 0, 2)
             lay.setSpacing(1)
-            lay.addWidget(QLabel(column_title(key), row))
+            if key == "gpslat":  # Link zur Karte (L-433)
+                head = QHBoxLayout()
+                head.addWidget(QLabel(column_title(key), row))
+                head.addStretch(1)
+                self.map_link = QLabel(row)
+                self.map_link.setOpenExternalLinks(True)
+                head.addWidget(self.map_link)
+                lay.addLayout(head)
+            else:
+                lay.addWidget(QLabel(column_title(key), row))
             box = FieldBox(key, row)
             box.committed.connect(self.field_committed)
-            if key in ("lyrics", "comment"):  # F-980: langer Text
+            if key in ("lyrics", "comment", "description"):  # F-980: langer Text
                 line = QHBoxLayout()
                 line.addWidget(box, 1)
                 more = QToolButton(row)
@@ -982,7 +1115,7 @@ class MetaPane(ToolPane):
             menu.addAction(t("meta.field_remove", name=column_title(key))).triggered.connect(lambda: self._remove(key))
             menu.addSeparator()
         add = menu.addMenu(t("meta.field_add"))
-        for k in (*tg.FIELDS, COVER):
+        for k in (*mp.fields(), COVER):
             if k not in self.layout_keys:
                 add.addAction(column_title(k)).triggered.connect(lambda _c=False, kk=k: self._add(kk))
         extra = getattr(self, "extra_keys", {})
@@ -992,7 +1125,7 @@ class MetaPane(ToolPane):
                 if k not in self.layout_keys:
                     more.addAction(label).triggered.connect(lambda _c=False, kk=k: self._add(kk))
         menu.addSeparator()
-        menu.addAction(t("meta.field_default")).triggered.connect(lambda: self._apply(list(DEFAULT_SIDEBAR)))
+        menu.addAction(t("meta.field_default")).triggered.connect(lambda: self._apply(mp.default_sidebar()))
         src = widget if widget is not None else self.inner
         menu.exec(src.mapToGlobal(pos))
 
@@ -1018,13 +1151,32 @@ class MetaPane(ToolPane):
         enabled = bool(items)
         for key, box in self.boxes.items():
             values = [it.value(key) for it in items]
-            box.show_values(values, enabled and not all(it.readonly(key) for it in items))
+            box.show_values(values, enabled and not all(it.readonly(key) for it in items),
+                            remove_only=bool(items) and all(it.remove_only(key) for it in items))
         if COVER in self.rows:
-            covers = [it.pictures() for it in items]
-            fronts = [_front(p) for p in covers]
-            mixed = len({f.data if f else None for f in fronts}) > 1
-            self.cover.show_pictures(covers[0] if covers and not mixed else [], mixed, enabled)
+            if mp.is_photo_mode():
+                self.cover.show_preview(items[-1].record.path if items else None, len(items))
+            else:
+                covers = [it.pictures() for it in items]
+                fronts = [_front(p) for p in covers]
+                mixed = len({f.data if f else None for f in fronts}) > 1
+                self.cover.show_pictures(covers[0] if covers and not mixed else [], mixed, enabled)
+        if getattr(self, "map_link", None) is not None and "gpslat" in self.boxes:
+            from .phototags import map_url
+
+            url = map_url(items[-1].record) if len(items) == 1 else None
+            self.map_link.setText(f'<a href="{url}">{t("photo.show_map")}</a>' if url else "")
         self.wav_hint.setVisible(any(it.record.codec == "WAV" for it in items))
+        hint = ""
+        if mp.is_photo_mode() and items:
+            from . import phototags as ph
+
+            if any(ph.is_heif(it.record.path) for it in items) and not ph.exiftool():
+                hint = t("photo.heic_hint")
+            elif any(ph.is_raw(it.record.path) for it in items):
+                hint = t("photo.raw_hint")
+        self.photo_hint.setText(hint)
+        self.photo_hint.setVisible(bool(hint))
 
     def update_state(self, scanning: bool, saving: bool, has_changes: bool, can_undo: bool) -> None:
         """Knöpfe passend zum Zustand (F-925): Stopp nur beim Einlesen, Speichern nur mit Änderungen."""

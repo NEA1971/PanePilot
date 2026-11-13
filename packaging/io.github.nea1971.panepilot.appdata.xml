@@ -18,6 +18,7 @@
       <li>Search by file name and content</li>
       <li>Multi-rename with placeholders, counters, dates, regular expressions, preview and undo</li>
       <li>Meta wizard for music tags with covers, converters, MusicBrainz lookup, CSV import and export, playlists and ReplayGain</li>
+      <li>Photo metadata (EXIF, IPTC, XMP) with preview, date shift and renaming by date taken</li>
       <li>Checksums with comparison and drag and drop of checksum files</li>
       <li>Configurable keyboard shortcuts, function-key bar and toolbar</li>
       <li>Seven languages and built-in help</li>
@@ -50,6 +51,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.4.0" date="2026-11-13">
+      <description>
+        <p>Photo metadata in the meta wizard: EXIF, IPTC and XMP for JPEG, PNG, TIFF and WebP (HEIC with exiftool, RAW read-only), preview, GPS removal, date shift and renaming by date taken.</p>
+      </description>
+    </release>
     <release version="1.3.1" date="2026-11-12">
       <description>
         <p>Fixes waiting windows that stayed open after connecting to a server; "Server" is now called "FTP server".</p>

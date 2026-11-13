@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import convert as cv
+from . import metaprofile as mp
 from . import tags as tg
 from .dialogs import free_window, show_error
 from .i18n import t
@@ -57,7 +58,7 @@ class TextDialog(QDialog):
 # --- Feld-Editor (F-970 ff.) ------------------------------------------------------------------------
 @dataclass
 class FieldRow:
-    key: str  # Feld (tg.FIELDS), "x:<Name>" oder "d:<Name>"
+    key: str  # Feld (mp.fields()), "x:<Name>" oder "d:<Name>"
     label: str
     count: int
     kind: str  # "standard", "known", "extra", "fixed", "data", "new"
@@ -89,7 +90,7 @@ def collect_fields(items, custom: list[str]) -> list[FieldRow]:
                 row = total.setdefault(gid, FieldRow(tg.EXTRA + label, label, 0, kind))
             else:
                 gid = key
-                kind = "standard" if key in tg.STANDARD_FIELDS else "known"
+                kind = "standard" if key in mp.standard_fields() else "known"
                 row = total.setdefault(gid, FieldRow(key, column_title(key), 0, kind))
             if gid not in seen:
                 row.count += 1
@@ -105,7 +106,7 @@ def collect_fields(items, custom: list[str]) -> list[FieldRow]:
     order = {"standard": 0, "known": 1, "extra": 2, "fixed": 3, "data": 4}
 
     def sort_key(r: FieldRow):
-        idx = tg.FIELDS.index(r.key) if r.key in tg.FIELDS else 0
+        idx = mp.fields().index(r.key) if r.key in mp.fields() else 0
         return (order.get(r.kind, 5), idx, r.label.casefold())
 
     return sorted(total.values(), key=sort_key)
@@ -234,7 +235,7 @@ class FieldEditorDialog(QDialog):
     def _names_taken(self) -> set[str]:
         from .metawizard import column_title
 
-        taken = {k.casefold() for k in tg.FIELDS} | {column_title(k).casefold() for k in tg.FIELDS}
+        taken = {k.casefold() for k in mp.fields()} | {column_title(k).casefold() for k in mp.fields()}
         return taken
 
     def _accept(self) -> None:
@@ -279,7 +280,7 @@ def placeholder_menu(parent, kind: str, extra_labels: list[str], edit: QLineEdit
     def add(text: str, target=menu, label: str | None = None) -> None:
         target.addAction(label or text).triggered.connect(lambda _c=False, s=text: edit.insert(s))
 
-    for key in tg.FIELDS:
+    for key in mp.fields():
         add(f"%{key}%", label=key)
     if kind == cv.FILE_TO_TAG:
         add(f"%{cv.DUMMY}%", label=cv.DUMMY)
@@ -291,8 +292,16 @@ def placeholder_menu(parent, kind: str, extra_labels: list[str], edit: QLineEdit
         info = menu.addMenu(t("conv.info_fields"))
         add("%_filename%", info, "_filename")
         add("%_folder%", info, "_folder")
+        if mp.is_photo_mode():
+            for name in ("camera", "width", "height", "format"):
+                add(f"%{name}%", info, name)
         funcs = menu.addMenu(t("conv.functions"))
         for name, sample in cv.FUNCTIONS.items():
+            if not mp.is_photo_mode():
+                sample = sample.replace("%datetaken%", "%year%").replace("_hhmmss", "") if name == "date" else sample
+            else:
+                sample = sample.replace("%track%", "%rating%").replace("%albumartist%,%albumartist%,%artist%",
+                                                                       "%title%,%title%,%_filename%")
             add(sample, funcs, f"${name}()")
     if manage is not None:
         menu.addSeparator()

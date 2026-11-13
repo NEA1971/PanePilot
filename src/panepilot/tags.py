@@ -33,6 +33,12 @@ def is_audio(path: str) -> bool:
     return os.path.splitext(path)[1].lower() in AUDIO_EXTENSIONS
 
 
+def is_photo(path: str) -> bool:
+    from .phototags import is_photo as _p
+
+    return _p(path)
+
+
 @dataclass
 class Picture:
     data: bytes
@@ -55,6 +61,9 @@ class TagRecord:
     readonly: set[str] = field(default_factory=set)  # Zusatzfelder, die nur angezeigt werden
     fixed: set[str] = field(default_factory=set)  # Zusatzfelder mit festem Namen (nur löschbar)
     data: dict[str, str] = field(default_factory=dict)  # Datenfelder → Anzeigename (F-972)
+    removable: set[str] = field(default_factory=set)  # Felder, die sich nur entfernen lassen (Fotos, v1.4)
+    width: int = 0  # Fotos (v1.4)
+    height: int = 0
     pictures: list[Picture] = field(default_factory=list)
     length: float = 0.0
     bitrate: int = 0
@@ -77,6 +86,8 @@ class TagRecord:
 def label_of(key: str) -> str:
     """Anzeigename eines Zusatzfelds aus seinem Schlüssel."""
     raw = key[len(EXTRA):] if key.startswith(EXTRA) else key
+    if raw.startswith("Xmp.panepilot."):  # eigene Felder bei Fotos (v1.4)
+        return raw[len("Xmp.panepilot."):]
     if raw.startswith("TXXX:"):
         return raw[5:]
     if raw.startswith("----:"):
@@ -481,6 +492,10 @@ def _kind(audio) -> tuple[str, str]:
 
 
 def read_file(path: str) -> TagRecord:
+    if is_photo(path):
+        from . import phototags
+
+        return phototags.read_file(path)
     rec = TagRecord(path)
     try:
         st = os.stat(path)
@@ -523,6 +538,10 @@ def write_file(rec: TagRecord, changes: dict[str, str | None], pictures: list[Pi
     """
     import mutagen
 
+    if rec.kind == "photo":
+        from . import phototags
+
+        return phototags.write_file(rec, changes)
     audio = _open(rec.path)
     kind, _codec = _kind(audio)
     if audio.tags is None:
@@ -570,6 +589,8 @@ def custom_key(kind: str, name: str) -> str:
         return EXTRA + name.upper()
     if kind == "mp4":
         return f"{EXTRA}{_FF}{name}"
+    if kind == "photo":
+        return f"{EXTRA}Xmp.panepilot.{name.strip().replace(' ', '_')}"
     return EXTRA + name
 
 
@@ -622,6 +643,10 @@ def snapshot(path: str, with_pictures: bool) -> tuple:
     """Kompletter Tag einer Datei (ohne Bilder, wenn sie nicht geändert werden), zum Wiederherstellen."""
     import copy
 
+    if is_photo(path):
+        from . import phototags
+
+        return phototags.snapshot(path)
     audio = _open(path)
     kind, _codec = _kind(audio)
     tags = audio.tags
@@ -647,6 +672,10 @@ def snapshot(path: str, with_pictures: bool) -> tuple:
 def restore(path: str, snap: tuple) -> TagRecord:
     """Schreibt einen Schnappschuss zurück; Bilder bleiben unangetastet, wenn sie nicht darin sind."""
     kind, content, pics = snap
+    if kind == "photo":
+        from . import phototags
+
+        return phototags.restore(path, snap)
     audio = _open(path)
     if audio.tags is None:
         audio.add_tags()

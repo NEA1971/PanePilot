@@ -1,6 +1,6 @@
 # Meta wizard
 
-**Meta wizard …** (Ctrl+T) edits the tags of music files (MP3, FLAC, Ogg, Opus, M4A, WMA, WAV), similar to MP3TAG.
+**Meta wizard …** (Ctrl+T) edits the tags of music files (MP3, FLAC, Ogg, Opus, M4A, WMA, WAV), similar to MP3TAG, and the metadata of photos (see below).
 
 ## Basics
 - The track list shows the files of the current folder with their tags. Choose columns by right-clicking the column headers; you can also create your own fields there.
@@ -22,3 +22,15 @@
 - **ReplayGain …**: measures the loudness with ffmpeg (EBU R128) and adds track and album values. The target loudness is in the [Settings](settings.md). This requires ffmpeg to be installed.
 
 The meta wizard closes with its “Close” button or when you call it again. Pending changes are only lost after a confirmation.
+
+## Photos
+If the folder contains photos, the meta wizard shows their metadata (EXIF, IPTC, XMP). If music and photos are mixed, choose what to show with **“Music | Photos”** at the top; the kind with more files is preselected.
+- **Read and write**: JPEG, PNG, TIFF, WebP. **HEIC/HEIF** (phone photos) only if the **exiftool** program is installed (`sudo apt install libimage-exiftool-perl`), otherwise read-only. **RAW** files (CR2, NEF, ARW, DNG …) are read-only.
+- **Edit**: title, description, keywords (separated by “;”), rating (0–5), author, copyright and date taken. PanePilot writes each field to all the usual places (XMP, IPTC, EXIF) so that e.g. digiKam or the image viewer finds it.
+- **Camera, lens, exposure, aperture, ISO, focal length, flash, orientation and GPS** cannot be changed but can be removed with `< remove >` – e.g. the GPS position before sharing photos. **Show on map** opens the position in OpenStreetMap.
+- **Custom fields** are added via the column headers as for music. They are stored as XMP; other programs usually read them but do not show them in their normal view – for things that should be visible everywhere, keywords are the better place.
+- Instead of the cover, the sidebar shows a **preview**.
+- **Converters** for photos: tag → file name, file name → tag, tag → tag, tag → text file/CSV, text file → tag and **Shift date …**.
+  - Placeholders: `%datetaken%`, `%make%`, `%model%`, `%lens%`, `%iso%`, `%title%`, `%rating%`, `%author%` …, plus `%camera%`, `%width%`, `%height%`.
+  - `$date(%datetaken%,JJJJ-MM-TT_hhmmss)` reformats the date, e.g. to `2026-11-08_150012` (JJJJ = year, MM = month, TT = day, hh/mm/ss = time). Without a date taken, the file’s modification date is used.
+  - **Shift date …** moves the date taken by days, hours, minutes and seconds, e.g. if the camera clock was wrong. Photos without a date taken are skipped.
