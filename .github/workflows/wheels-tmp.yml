@@ -5,9 +5,22 @@ on:
 permissions:
   contents: write
 jobs:
-  cleanup:
+  wheels:
     runs-on: ubuntu-22.04
     steps:
-      - run: gh release delete wheels-tmp -R ${{ github.repository }} -y --cleanup-tag || true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: |
+          mkdir w
+          for v in 3.13 3.12; do
+            python -m pip download -d w --only-binary=:all: --python-version $v --platform manylinux2014_x86_64 --platform manylinux_2_28_x86_64 --platform manylinux_2_34_x86_64 pyexiv2 pillow-heif
+          done
+          ls -la w
+          python -m pip install w/pyexiv2-*cp313*.whl || python -m pip install pyexiv2
+          python -c "import pyexiv2; print('exiv2', pyexiv2.__exiv2_version__ if hasattr(pyexiv2,'__exiv2_version__') else '?')"
+          tar czf wheels.tgz w
+          gh release delete wheels-tmp -R ${{ github.repository }} -y --cleanup-tag || true
+          gh release create wheels-tmp wheels.tgz -R ${{ github.repository }} --draft --target tools/wheels -t wheels-tmp -n tmp
         env:
           GH_TOKEN: ${{ github.token }}
