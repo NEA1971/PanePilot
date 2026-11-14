@@ -1176,7 +1176,7 @@
   "dup.mode_content": "a) Même contenu (identique octet par octet, avec somme de contrôle)",
   "dup.mode_name": "b) Même nom sans extension (p. ex. Film.mkv et Film.mp4)",
   "dup.mode_namesize": "c) Même nom et même taille (rapide, sans somme de contrôle)",
-  "dup.speed_hint": "b) et c) sont rapides, car seuls les noms et les tailles sont comparés. a) est le plus précis, mais doit lire entièrement les fichiers de même taille – avec de gros fichiers ou via le réseau (NAS), cela peut prendre longtemps.",
+  "dup.speed_hint": "b), c) et d) sont rapides, car seuls les noms et les tailles sont comparés. a) est le plus précis, mais doit lire entièrement les fichiers de même taille – avec de gros fichiers ou via le réseau (NAS), cela peut prendre longtemps.",
   "dup.depth_one": "1 (ce dossier seulement)",
   "dup.pattern": "Fichiers seulement :",
   "dup.min_size": "Taille minimale :",
@@ -1205,5 +1205,7 @@
   "dup.save": "Enregistrer la liste …",
   "dup.file_name": "Doublons",
   "dup.folders": "Dossiers :",
-  "dup.no_folder": "Le dossier « {path} » n’existe pas."
+  "dup.no_folder": "Le dossier « {path} » n’existe pas.",
+  "dup.mode_id": "d) Même identifiant dans le nom (p. ex. [imdbid-tt0078748])",
+  "dup.checked": "({n} fichiers vérifiés)"
 }

@@ -38,7 +38,8 @@ class FilterSpec:
         if self.regex:
             rx = re.compile(self.pattern, flags)
             return lambda name: rx.search(name) is not None
-        parts = [p.strip() for p in self.pattern.split(";") if p.strip()]
+        # mehrere Muster mit „;“ oder (ab v1.6.2) „,“ getrennt
+        parts = [p.strip() for p in re.split(r"[;,]", self.pattern) if p.strip()]
         # Ohne Platzhalter: Teil des Namens genügt (wie im FreeCommander-Schnellfilter)
         regexes = [re.compile(fnmatch.translate(p if any(c in p for c in "*?[") else f"*{p}*"), flags)
                    for p in parts]

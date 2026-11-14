@@ -11,7 +11,7 @@ PanePilot zeigt zwei Dateifenster (Panels) nebeneinander. Eines davon ist **akti
 
 ## Dateien bearbeiten
 - **Kopieren / Verschieben** ins andere Panel (F5 / F6) fragt vorher nach, die Varianten „ohne Rückfrage“ legen sofort los. Ziehen mit der Maus geht ebenfalls, auch von und nach Nautilus.
-- **Umbenennen** (F2), **Neuer Ordner** (F7), **Neue Textdatei** (Umschalt+F4), **In den Papierkorb** (F8), **Endgültig löschen**.
+- **Umbenennen** (F2), **Neuer Ordner** (F7), **Neue Textdatei** (Umschalt+F4), **In den Papierkorb** (F8), **Endgültig löschen**. Beim Umbenennen zeigt das Eingabefeld immer den kompletten Namen mit Endung – auch in der Spalte „Name (ohne Endung)“. Vorab markiert ist der Teil vor der Endung; die Endung lässt sich mit ändern.
 - **Zwischenablage**: Kopieren, Ausschneiden, Einfügen (Strg+C/X/V), auch zusammen mit anderen Programmen.
 - **Öffnen mit**: Rechtsklick auf eine Datei zeigt die passenden Programme, „Andere Anwendung …“ alle.
 - **Archive**: Komprimieren und Entpacken über das Rechtsklick-Menü.
@@ -20,7 +20,7 @@ PanePilot zeigt zwei Dateifenster (Panels) nebeneinander. Eines davon ist **akti
 - **Verzeichnisliste erstellen …** (Menü Datei oder Rechtsklick): schreibt eine eingerückte Liste des Ordners mit Größen und Änderungsdatum in eine Textdatei. Man wählt Tiefe, ob Dateien und versteckte Einträge dazugehören und ob die Liste danach geöffnet wird.
 
 ## Ansicht
-- **Filter** (Menü Ansicht): zeigt nur passende Einträge, z. B. `*.mp3`. Ein aktiver Filter färbt die Pfadzeile rot.
+- **Filter** (Menü Ansicht): zeigt nur passende Einträge, z. B. `*.mp3`. Mehrere Muster trennt man mit Semikolon oder Komma, z. B. `*.mkv;*.mp4`. Ein aktiver Filter färbt die Pfadzeile rot.
 - **Versteckte Dateien**, **Ein-Fenster-Ansicht**, Knopfleiste, F-Tasten-Leiste und Symbolleiste lassen sich im Menü **Ansicht** ein- und ausschalten.
 - Spalten: Rechtsklick auf die Spaltenköpfe. Reihenfolge und Breite stellt man direkt durch Ziehen ein (siehe [Einstellungen](settings.md)).
 

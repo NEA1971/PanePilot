@@ -578,6 +578,47 @@ class MetaScanThread(QThread):
                 last = time.monotonic()
         return found
 
+    WORKERS = 6  # v1.6.2: mehrere Dateien gleichzeitig lesen (über das Netzwerk viel schneller)
+
+    @staticmethod
+    def _read(path: str) -> tg.TagRecord:
+        try:
+            return tg.read_file(path)
+        except Exception as exc:  # noqa: BLE001 – kaputte Datei als Fehler anzeigen
+            rec = tg.TagRecord(path)
+            rec.error = str(exc) or type(exc).__name__
+            return rec
+
+    def _read_all(self, files: list[str], kind: str):
+        """Liest die Dateien in der ursprünglichen Reihenfolge. Musik und Videos parallel, Fotos nacheinander
+        (die Foto-Bibliothek exiv2 ist nicht für gleichzeitige Zugriffe gedacht)."""
+        if kind == mp.PHOTO or len(files) < 2:
+            for path in files:
+                if self._stop:
+                    return
+                yield self._read(path)
+            return
+        from collections import deque
+        from concurrent.futures import ThreadPoolExecutor
+
+        pending: deque = deque()
+        it = iter(files)
+        with ThreadPoolExecutor(max_workers=self.WORKERS, thread_name_prefix="meta-read") as pool:
+            for path in it:
+                pending.append(pool.submit(self._read, path))
+                if len(pending) >= self.WORKERS * 2:
+                    break
+            while pending:
+                if self._stop:
+                    for fut in pending:
+                        fut.cancel()
+                    return
+                rec = pending.popleft().result()
+                nxt = next(it, None)
+                if nxt is not None:
+                    pending.append(pool.submit(self._read, nxt))
+                yield rec
+
     def run(self) -> None:
         found = self._collect()
         counts = {k: len(v) for k, v in found.items()}
@@ -590,10 +631,8 @@ class MetaScanThread(QThread):
         batch: list[tg.TagRecord] = []
         last = time.monotonic()
         done = 0
-        for path in files:
-            if self._stop:
-                break
-            batch.append(tg.read_file(path))
+        for rec in self._read_all(files, kind):
+            batch.append(rec)
             done += 1
             if time.monotonic() - last > 0.2:
                 self.found.emit(batch)

@@ -11,7 +11,7 @@ PanePilot shows two file panels side by side. One of them is **active**, recogni
 
 ## Working with files
 - **Copy / Move** to the other panel (F5 / F6) asks first; the “without asking” variants start right away. Drag and drop works too, also to and from Nautilus.
-- **Rename** (F2), **New folder** (F7), **New text file** (Shift+F4), **Move to trash** (F8), **Delete permanently**.
+- **Rename** (F2), **New folder** (F7), **New text file** (Shift+F4), **Move to trash** (F8), **Delete permanently**. When renaming, the input field always shows the complete name including the extension – also in the “Name (without extension)” column. The part before the extension is preselected; the extension can be changed as well.
 - **Clipboard**: copy, cut, paste (Ctrl+C/X/V), also together with other programs.
 - **Open with**: right-click a file to see matching programs; “Other application …” shows all.
 - **Archives**: compress and extract via the context menu.
@@ -20,7 +20,7 @@ PanePilot shows two file panels side by side. One of them is **active**, recogni
 - **Create directory listing …** (File menu or right-click): writes an indented list of the folder with sizes and modification dates to a text file. You choose the depth, whether files and hidden entries are included and whether to open the list afterwards.
 
 ## View
-- **Filter** (View menu): shows only matching entries, e.g. `*.mp3`. An active filter turns the path bar red.
+- **Filter** (View menu): shows only matching entries, e.g. `*.mp3`. Separate several patterns with a semicolon or comma, e.g. `*.mkv;*.mp4`. An active filter turns the path bar red.
 - **Hidden files**, **single-panel view**, button bar, function key bar and toolbar can be switched in the **View** menu.
 - Columns: right-click the column headers. Order and width are set directly by dragging (see [Settings](settings.md)).
 

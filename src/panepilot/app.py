@@ -49,8 +49,42 @@ def create_app(argv: list[str] | None = None) -> QApplication:
     return app
 
 
+def start_hang_log(seconds: float = 5.0):
+    """Hänger-Diagnose (v1.6.2): Mit PANEPILOT_HANG_LOG=1 schreibt PanePilot den Stand aller Programmteile in
+    „hang.log“ im Einstellungsordner, sobald die Oberfläche länger als einige Sekunden nicht reagiert.
+    Gibt die Datei bzw. None zurück."""
+    import faulthandler
+    import time
+
+    from PySide6.QtCore import QTimer
+
+    from .config import config_dir
+
+    try:
+        path = config_dir() / "hang.log"
+        fh = open(path, "a", encoding="utf-8")  # noqa: SIM115 – bleibt bis zum Programmende offen
+    except OSError:
+        return None
+    fh.write(f"\n=== PanePilot gestartet {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n")
+    fh.flush()
+
+    def arm() -> None:
+        faulthandler.dump_traceback_later(seconds, repeat=True, file=fh)
+
+    timer = QTimer(QApplication.instance())
+    timer.setInterval(1000)
+    timer.timeout.connect(arm)  # solange die Oberfläche arbeitet, wird die Uhr immer wieder zurückgesetzt
+    timer.start()
+    arm()
+    return path
+
+
 def main() -> int:
     app = create_app()
+    import os
+
+    if os.environ.get("PANEPILOT_HANG_LOG"):
+        start_hang_log()
     from .mainwindow import MainWindow  # erst nach QApplication importieren
 
     window = MainWindow()

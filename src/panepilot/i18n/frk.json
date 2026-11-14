@@ -1176,7 +1176,7 @@
   "dup.mode_content": "a) Gleicher Inhalt (aufs Byte gnau, mid Brüfsumm)",
   "dup.mode_name": "b) Gleicher Name ohne Endung (z. B. Film.mkv und Film.mp4)",
   "dup.mode_namesize": "c) Gleicher Name und gleiche Größ (schnell, ohne Brüfsumm)",
-  "dup.speed_hint": "b) und c) sin schnell, weil bloß Namen und Größn verglichn wern. a) is am gnauestn, muss aber gleich große Dadein ganz lesn – bei großn Dadein odder übers Netzwerk (NAS) ko des lang dauern.",
+  "dup.speed_hint": "b), c) und d) sin schnell, weil bloß Namen und Größn verglichn wern. a) is am gnauestn, muss aber gleich große Dadein ganz lesn – bei großn Dadein odder übers Netzwerk (NAS) ko des lang dauern.",
   "dup.depth_one": "1 (bloß der Ordner)",
   "dup.pattern": "Bloß Dadein:",
   "dup.min_size": "Mindesdgröß:",
@@ -1205,5 +1205,7 @@
   "dup.save": "Lisdn speichern …",
   "dup.file_name": "Dubblikaade",
   "dup.folders": "Ordner:",
-  "dup.no_folder": "Den Ordner „{path}“ gibt’s ned."
+  "dup.no_folder": "Den Ordner „{path}“ gibt’s ned.",
+  "dup.mode_id": "d) Gleiche Kennung im Namen (z. B. [imdbid-tt0078748])",
+  "dup.checked": "({n} Dadein brüfd)"
 }

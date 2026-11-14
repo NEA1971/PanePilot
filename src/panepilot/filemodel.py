@@ -485,7 +485,7 @@ class FileListModel(QAbstractTableModel):
         elif role == Qt.ItemDataRole.EditRole and col == COL_NAME:
             return e.name
         elif role == Qt.ItemDataRole.EditRole and col == COL_NAME_STEM:
-            return stem_of(e.name, e.is_dir)
+            return e.name  # v1.6.2: beim Umbenennen den kompletten Namen zeigen, die Endung ist änderbar
         elif role == Qt.ItemDataRole.DecorationRole and col == self.icon_column:
             if e.is_parent:
                 return self._icons.parent_entry()
@@ -543,10 +543,6 @@ class FileListModel(QAbstractTableModel):
         new_name = str(value).strip()
         if e.remote:
             return self._set_remote_name(index, e, new_name)
-        if index.column() == COL_NAME_STEM and new_name:
-            # Umbenennen in der Spalte „ohne Endung“: die Endung bleibt erhalten
-            ext = os.path.splitext(e.name)[1] if not e.is_dir else ""
-            new_name += ext
         if e.is_parent or not new_name or new_name == e.name:
             return False
         if "/" in new_name or new_name in (".", ".."):

@@ -133,7 +133,7 @@ def test_window_flow(window, tmp_path, qtbot, monkeypatch):  # noqa: F811
     monkeypatch.setattr("panepilot.fileops.move_to_trash", lambda p: (moved.append(p), os.remove(p)))
     win.move_to_trash()
     assert len(moved) == 3 and not asked[0][1].get("warning")
-    assert win.groups == [] and win.summary.text() == dup.summary_text([])
+    assert win.groups == [] and win.summary.text().startswith(dup.summary_text([]))
     # alle einer Gruppe angekreuzt: deutliche Warnung
     win.start_or_stop()
     qtbot.waitUntil(lambda: win.thread is None, timeout=10000)
@@ -191,3 +191,82 @@ def test_mkv_attachments_read_directly(tmp_path, monkeypatch):
     rec = tg.read_file(str(out))
     assert len(rec.pictures) == 1 and rec.pictures[0].desc == "cover.png"
     assert not any(os.path.basename(c) == "ffmpeg" for c in calls)
+
+
+# --- 1.6.2 ----------------------------------------------------------------------------------------------------
+def test_comma_separates_patterns():
+    from panepilot.filters import FilterSpec
+
+    m = FilterSpec("*.mkv, *.mp4").matcher()
+    assert m("Alien (1979).mkv") and m("a.MP4") and not m("a.avi")
+    assert FilterSpec("*.mkv;*.mp4").matcher()("x.mp4")
+
+
+def test_id_mode_and_checked_count(tmp_path):
+    from panepilot import duplicates as dup
+
+    assert dup.file_id("Alien (1979) [imdbid-tt0078748].mkv") == "imdbid-tt0078748"
+    assert dup.file_id("Alien (1979) [tmdbid-348] [imdbid-TT0078748].mp4") == "imdbid-tt0078748"
+    assert dup.file_id("Alien {tmdb-348}.mkv") == "tmdbid-348" and dup.file_id("Alien (1979).mkv") is None
+    root = tmp_path / "Movie"
+    for name in ("Minions and Monsters (2026) [imdbid-tt32890033].mkv",
+                 "Minions Monsters (2026) [imdbid-tt32890033].mp4",
+                 "Minions Monsters (2026) [imdbid-tt32890033].eng.srt",
+                 "Alien (1979) [imdbid-tt0078748].mp4", "Ohne Kennung (2000).mp4"):
+        _write(root / name, name.encode())
+    files = dup.collect([str(root)], dup.DEPTH_ALL, hidden=False, pattern="*.mkv,*.mp4")
+    assert len(files) == 4
+    groups = dup.find_groups(files, dup.MODE_ID)
+    assert len(groups) == 1 and len(groups[0].files) == 2
+    assert groups[0].key == "Minions and Monsters (2026)  [imdbid-tt32890033]"
+    assert dup.summary_text(groups, 4).endswith("(4 Dateien geprüft)")
+    assert dup.summary_text([], 0) == "Keine Duplikate gefunden. (0 Dateien geprüft)"
+
+
+def test_meta_scan_parallel_keeps_order(tmp_path, monkeypatch):
+    import threading
+
+    from panepilot import metaprofile as mp
+    from panepilot import tags as tg
+    from panepilot.metawizard import MetaScanThread
+
+    seen_threads = set()
+    real = tg.read_file
+
+    def slow(path):
+        seen_threads.add(threading.get_ident())
+        time.sleep(0.1)
+        return real(path)
+    monkeypatch.setattr(tg, "read_file", slow)
+    src = os.path.join(os.path.dirname(__file__), "data", "video", "clip.mp4")
+    files = []
+    for i in range(30):
+        p = tmp_path / f"v{i:02d}.mp4"
+        p.write_bytes(open(src, "rb").read())
+        files.append(str(p))
+    th = MetaScanThread([str(tmp_path)], False)
+    t0 = time.monotonic()
+    recs = list(th._read_all(files, mp.VIDEO))
+    assert [r.path for r in recs] == files and len(seen_threads) > 1
+    assert time.monotonic() - t0 < 30 * 0.1 / 2  # deutlich schneller als nacheinander (3 s)
+    th._stop = True
+    assert list(th._read_all(files, mp.VIDEO)) == []
+    seen_threads.clear()
+    th._stop = False
+    list(th._read_all(files[:3], mp.PHOTO))  # Fotos nacheinander
+    assert len(seen_threads) == 1
+
+
+def test_hang_log(tmp_path, monkeypatch):
+    import faulthandler
+
+    from panepilot.app import create_app, start_hang_log
+
+    create_app([])
+    path = start_hang_log(0.2)
+    try:
+        time.sleep(0.6)  # Oberfläche „hängt“
+    finally:
+        faulthandler.cancel_dump_traceback_later()
+    text = open(path, encoding="utf-8").read()
+    assert "PanePilot gestartet" in text and "test_hang_log" in text

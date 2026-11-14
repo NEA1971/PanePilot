@@ -267,8 +267,13 @@ def test_name_without_extension_column(window, tree):
     row = panel.model.row_of("eins.txt")
     idx = panel.model.index(row, COL_NAME_STEM)
     assert idx.data() == "eins"
-    assert panel.model.setData(idx, "zwei")
+    # v1.6.2: F2 zeigt den kompletten Namen, die Endung lässt sich mit ändern
+    assert idx.data(Qt.ItemDataRole.EditRole) == "eins.txt"
+    assert panel.model.setData(idx, "zwei.txt")
     assert (tree / "a" / "zwei.txt").exists()
+    idx = panel.model.index(panel.model.row_of("zwei.txt"), COL_NAME_STEM)
+    assert panel.model.setData(idx, "zwei.md")
+    assert (tree / "a" / "zwei.md").exists() and not (tree / "a" / "zwei.txt").exists()
     assert panel.model.icon_column == COL_NAME_STEM
 
 

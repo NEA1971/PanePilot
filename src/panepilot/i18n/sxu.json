@@ -1176,7 +1176,7 @@
   "dup.mode_content": "a) Gleechor Inhalt (uffs Byte genau, mit Brüfsumme)",
   "dup.mode_name": "b) Gleechor Name ohne Endung (z. B. Film.mkv un Film.mp4)",
   "dup.mode_namesize": "c) Gleechor Name un gleeche Greeße (fix, ohne Brüfsumme)",
-  "dup.speed_hint": "b) un c) sin fix, weil bloß Namen un Greeßen vorglichn wern. a) is am genausten, muss abor gleech große Dadein ganz lesn – bei großen Dadein odor übors Netzwerk (NAS) gann das lange dauorn.",
+  "dup.speed_hint": "b), c) un d) sin fix, weil bloß Namen un Greeßen vorglichn wern. a) is am genausten, muss abor gleech große Dadein ganz lesn – bei großen Dadein odor übors Netzwerk (NAS) gann das lange dauorn.",
   "dup.depth_one": "1 (bloß där Ordnor)",
   "dup.pattern": "Bloß Dadein:",
   "dup.min_size": "Mindestgreeße:",
@@ -1205,5 +1205,7 @@
   "dup.save": "Liste speichorn …",
   "dup.file_name": "Dubblikade",
   "dup.folders": "Ordnor:",
-  "dup.no_folder": "Den Ordnor „{path}“ gibt’s ni."
+  "dup.no_folder": "Den Ordnor „{path}“ gibt’s ni.",
+  "dup.mode_id": "d) Gleeche Kennung im Namen (z. B. [imdbid-tt0078748])",
+  "dup.checked": "({n} Dadein gebrüft)"
 }

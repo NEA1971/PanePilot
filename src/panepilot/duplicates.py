@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import stat
 import time
 from dataclasses import asdict, dataclass, field, fields
@@ -40,8 +41,10 @@ from PySide6.QtWidgets import (
 from .filters import FilterSpec
 from .i18n import t
 
-MODE_CONTENT, MODE_NAME, MODE_NAMESIZE = "content", "name", "namesize"
-MODES = (MODE_CONTENT, MODE_NAME, MODE_NAMESIZE)
+MODE_CONTENT, MODE_NAME, MODE_NAMESIZE, MODE_ID = "content", "name", "namesize", "id"
+MODES = (MODE_CONTENT, MODE_NAME, MODE_NAMESIZE, MODE_ID)
+# Kennung im Dateinamen wie bei Jellyfin/Plex/Kodi, z. B. „Alien (1979) [imdbid-tt0078748].mkv“ (v1.6.2)
+_ID_RX = re.compile(r"[\[{]\s*(imdbid|tmdbid|tvdbid|imdb|tmdb|tvdb)\s*[-=]\s*([A-Za-z0-9]+)\s*[\]}]", re.IGNORECASE)
 DEPTH_ALL = 0  # wie bei der Verzeichnisliste: 0 = unbegrenzt, 1 = nur dieser Ordner, n = n Ebenen
 CHUNK = 1024 * 1024
 QUICK = 64 * 1024  # erst den Anfang vergleichen, dann ganz (spart Lesen bei verschiedenen Dateien)
@@ -163,6 +166,19 @@ def stem(name: str) -> str:
     return os.path.splitext(name)[0]
 
 
+def file_id(name: str) -> str | None:
+    """Kennung aus dem Dateinamen: IMDb vor TMDb vor TVDb, z. B. „imdbid-tt0078748“."""
+    found = {}
+    for m in _ID_RX.finditer(name):
+        kind = m.group(1).lower()
+        kind = kind if kind.endswith("id") else kind + "id"
+        found.setdefault(kind, m.group(2).lower())
+    for kind in ("imdbid", "tmdbid", "tvdbid"):
+        if kind in found:
+            return f"{kind}-{found[kind]}"
+    return None
+
+
 def _groups_by(files: list[FileInfo], key) -> list[Group]:
     buckets: dict = {}
     for f in files:
@@ -208,6 +224,12 @@ def find_groups(files: list[FileInfo], mode: str, stop=lambda: False, on_bytes=l
         return _sorted(groups)
     if mode == MODE_NAMESIZE:
         return _sorted(_groups_by(files, lambda f: (f.name.casefold(), f.size)))
+    if mode == MODE_ID:  # gleiche Kennung im Namen; Dateien ohne Kennung zählen nicht
+        with_id = [(file_id(f.name), f) for f in files]
+        groups = _groups_by([f for i, f in with_id if i], lambda f: file_id(f.name))
+        for g in groups:  # Anzeige: Name der ersten Datei ohne Endung und Kennung
+            g.key = _ID_RX.sub("", stem(g.files[0].name)).strip() + f"  [{g.key}]"
+        return _sorted(groups)
     # gleicher Inhalt: nur gleich große Dateien lesen (L-631); leere Dateien zählen nicht
     by_size = [g for g in _groups_by([f for f in files if f.size > 0], lambda f: f.size)]
     total = sum(min(f.size, QUICK) for g in by_size for f in g.files)
@@ -249,7 +271,7 @@ def _sorted(groups: list[Group]) -> list[Group]:
 class DupThread(QThread):
     counted = Signal(int)  # gefundene Dateien
     bytes_progress = Signal(object, object)  # gelesen, gesamt (große Zahlen als Python-int)
-    done = Signal(list, bool)  # Gruppen, vollständig (nicht abgebrochen)
+    done = Signal(list, bool, int)  # Gruppen, vollständig (nicht abgebrochen), Anzahl geprüfter Dateien
 
     def __init__(self, opts: DupOptions, folders: list[str], hidden: bool, parent=None) -> None:
         super().__init__(parent)
@@ -280,15 +302,15 @@ class DupThread(QThread):
         files = collect(self.folders, self.opts.depth, self.hidden, self.opts.pattern,
                         self.opts.min_size_mb * 1000 * 1000, stop, self.counted.emit)
         groups = [] if self._stop else find_groups(files, self.opts.mode, stop, self._on_bytes, self._set_total)
-        self.done.emit(groups, not self._stop)
+        self.done.emit(groups, not self._stop, len(files))
 
 
 # --- Liste als Text ------------------------------------------------------------------------------------
-def groups_text(groups: list[Group], opts: DupOptions, folders: list[str]) -> str:
+def groups_text(groups: list[Group], opts: DupOptions, folders: list[str], checked: int | None = None) -> str:
     from .util import format_size
 
     lines = [t("dup.title"), "", t("dup.folders") + " " + "; ".join(folders),
-             t("dup.mode") + " " + t(f"dup.mode_{opts.mode}"), "", summary_text(groups), ""]
+             t("dup.mode") + " " + t(f"dup.mode_{opts.mode}"), "", summary_text(groups, checked), ""]
     for n, g in enumerate(groups, 1):
         lines.append(f"[{n}] {g.key}")
         for f in g.files:
@@ -298,14 +320,18 @@ def groups_text(groups: list[Group], opts: DupOptions, folders: list[str]) -> st
     return "\n".join(lines)
 
 
-def summary_text(groups: list[Group]) -> str:
+def summary_text(groups: list[Group], checked: int | None = None) -> str:
     from .util import format_size
 
     if not groups:
-        return t("dup.none")
-    files = sum(len(g.files) for g in groups)
-    return t("dup.summary", groups=len(groups), files=files, extra=files - len(groups),
-             size=format_size(sum(g.extra_size for g in groups)))
+        text = t("dup.none")
+    else:
+        files = sum(len(g.files) for g in groups)
+        text = t("dup.summary", groups=len(groups), files=files, extra=files - len(groups),
+                 size=format_size(sum(g.extra_size for g in groups)))
+    if checked is not None:  # v1.6.2: zeigt, ob der Filter überhaupt etwas erfasst hat
+        text += " " + t("dup.checked", n=checked)
+    return text
 
 
 # --- Fenster ---------------------------------------------------------------------------------------------
@@ -322,6 +348,7 @@ class DuplicateWindow(QWidget):
         self.thread: DupThread | None = None
         self.groups: list[Group] = []
         self.last_opts: DupOptions | None = None
+        self.checked_count: int | None = None
         self.last_folders: list[str] = []
         self.setWindowTitle(t("dup.title"))
         opts = DupOptions.from_dict(window.settings.get("dup_last"))
@@ -501,7 +528,7 @@ class DuplicateWindow(QWidget):
             self.bar.setValue(int(1000 * min(done, total) / total))
             self.status.setText(t("dup.reading", done=format_size(done), total=format_size(total)))
 
-    def _done(self, groups: list, complete: bool) -> None:
+    def _done(self, groups: list, complete: bool, checked: int = 0) -> None:
         th, self.thread = self.thread, None
         if th is not None:
             th.wait(2000)
@@ -515,6 +542,7 @@ class DuplicateWindow(QWidget):
             return
         self.status.setText("")
         self.groups = groups
+        self.checked_count = checked
         self._fill()
 
     def _fill(self) -> None:
@@ -542,7 +570,7 @@ class DuplicateWindow(QWidget):
             self.tree.addTopLevelItem(top)
             top.setExpanded(True)
         self.tree.blockSignals(False)
-        self.summary.setText(summary_text(self.groups))  # L-641
+        self.summary.setText(summary_text(self.groups, self.checked_count))  # L-641
         self._update_buttons()
 
     # Auswahl
@@ -613,6 +641,8 @@ class DuplicateWindow(QWidget):
         for g in self.groups:
             g.files = [f for f in g.files if f.path not in done]
         self.groups = [g for g in self.groups if len(g.files) > 1]
+        if self.checked_count is not None:
+            self.checked_count = max(0, self.checked_count - len(done))
         self._fill()
         self._refresh_panels()
         if failed:
@@ -654,7 +684,8 @@ class DuplicateWindow(QWidget):
             return
         try:
             with open(path, "w", encoding="utf-8") as fh:
-                fh.write(groups_text(self.groups, self.last_opts or self.options(), self.last_folders))
+                fh.write(groups_text(self.groups, self.last_opts or self.options(), self.last_folders,
+                                     self.checked_count))
         except OSError as exc:
             show_error(self, t("dup.save"), exc.strerror or str(exc))
 

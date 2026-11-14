@@ -1176,7 +1176,7 @@
   "dup.mode_content": "a) Same content (byte-identical, with checksum)",
   "dup.mode_name": "b) Same name without extension (e.g. Film.mkv and Film.mp4)",
   "dup.mode_namesize": "c) Same name and same size (fast, no checksum)",
-  "dup.speed_hint": "b) and c) are fast because only names and sizes are compared. a) is the most accurate but has to read files of equal size completely – with large files or over the network (NAS) this can take a long time.",
+  "dup.speed_hint": "b), c) and d) are fast because only names and sizes are compared. a) is the most accurate but has to read files of equal size completely – with large files or over the network (NAS) this can take a long time.",
   "dup.depth_one": "1 (this folder only)",
   "dup.pattern": "Only files:",
   "dup.min_size": "Minimum size:",
@@ -1205,5 +1205,7 @@
   "dup.save": "Save list …",
   "dup.file_name": "Duplicates",
   "dup.folders": "Folders:",
-  "dup.no_folder": "The folder “{path}” does not exist."
+  "dup.no_folder": "The folder “{path}” does not exist.",
+  "dup.mode_id": "d) Same ID in the name (e.g. [imdbid-tt0078748])",
+  "dup.checked": "({n} files checked)"
 }
