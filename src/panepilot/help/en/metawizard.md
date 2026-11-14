@@ -10,7 +10,12 @@
 
 ## Converters
 - **File name → tag**, **tag → file name**, **tag → tag**: with format strings like `%track% - %title%`, with a preview and templates.
+  - Examples for **file name → tag**. `%dummy%` skips a part of the name; custom fields are written like placeholders, e.g. `%Season%`:
+    - `01 - Intro.mp3` → `%track% - %title%`
+    - `Alien (1979).mkv` → `%title% (%year%)`
+    - `Battlestar Galactica (2003) - S01E09 - Tigh Me Up.mkv` → `%dummy% - S%Season%E%Episode% - %title%` (Season “01”, Episode “09”, title “Tigh Me Up”)
 - **Tag → text file/CSV** and **text file → tag**: for editing in LibreOffice or for taking over a track list from the internet. In the assignment window, placeholders make up for missing lines.
+  - **Table from LibreOffice Calc:** a column **“File name”** (exact name including extension) and further columns headed e.g. “Title”, “Year” or custom field names. Save as **Text CSV** with semicolon or comma as separator, UTF-8, **without “Fixed column width”**. PanePilot then matches the rows by file name.
 - **Number …**: track numbers from top to bottom, optionally with the total (e.g. “01/12”).
 - **Disc numbers …**: assigns disc numbers for multi-disc albums – by subfolder (e.g. CD1, CD2), anew whenever the track number starts again, or manually. The total number of discs can go into the disc field as “1/2” or into a separate DISCTOTAL field.
 - **MusicBrainz …**: looks up the album in the free music database [MusicBrainz](https://musicbrainz.org) (requires an internet connection).

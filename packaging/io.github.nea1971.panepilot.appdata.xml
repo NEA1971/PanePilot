@@ -52,6 +52,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.7.1" date="2026-11-14">
+      <description>
+        <p>Fixes in the meta wizard: custom fields differing only in case are merged, the left-hand buttons in "text file to tag" work again, and comma-separated CSV files are recognised.</p>
+      </description>
+    </release>
     <release version="1.7.0" date="2026-11-14">
       <description>
         <p>The meta wizard shows the audio tracks and subtitles contained in videos with their language codes.</p>

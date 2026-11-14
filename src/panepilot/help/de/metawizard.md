@@ -10,7 +10,12 @@
 
 ## Konverter
 - **Dateiname → Tag**, **Tag → Dateiname**, **Tag → Tag**: mit Formatstrings wie `%track% - %title%`. Es gibt eine Vorschau und Vorlagen.
+  - Beispiele für **Dateiname → Tag**. `%dummy%` überspringt einen Teil des Namens; eigene Felder schreibt man wie Platzhalter, z. B. `%Season%`:
+    - `01 - Intro.mp3` → `%track% - %title%`
+    - `Alien (1979).mkv` → `%title% (%year%)`
+    - `Battlestar Galactica (2003) - S01E09 - Tigh Me Up.mkv` → `%dummy% - S%Season%E%Episode% - %title%` (Season „01“, Episode „09“, Titel „Tigh Me Up“)
 - **Tag → Textdatei/CSV** und **Textdatei → Tag**: zum Bearbeiten in LibreOffice oder zum Übernehmen einer Titelliste aus dem Internet. Das Zuordnungsfenster mit Platzhaltern gleicht fehlende Zeilen aus.
+  - **Tabelle aus LibreOffice Calc:** eine Spalte **„Dateiname“** (genauer Name mit Endung) und weitere Spalten mit Überschriften wie „Titel“, „Jahr“ oder eigenen Feldnamen. Speichern als **Text CSV**, Feldtrenner Semikolon oder Komma, Zeichensatz UTF-8, **ohne „Feste Spaltenbreite“**. PanePilot ordnet die Zeilen dann über den Dateinamen zu.
 - **Nummerieren …**: Tracknummern von oben nach unten, wahlweise mit Gesamtzahl (z. B. „01/12“).
 - **Disc-Nummern …**: vergibt Disc-Nummern für mehrteilige Alben – nach Unterordner (z. B. CD1, CD2), neu, sobald die Tracknummer wieder von vorn beginnt, oder von Hand. Die Anzahl der Discs kann man im Disc-Feld als „1/2“ oder in einem eigenen Feld DISCTOTAL eintragen.
 - **MusicBrainz …**: sucht das Album in der freien Musikdatenbank [MusicBrainz](https://musicbrainz.org) (dafür ist eine Internetverbindung nötig).
