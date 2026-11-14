@@ -48,7 +48,9 @@ def test_tracks_read(tmp_path):
     assert lines[0] == "ger (Deutsch) – AC-3 5.1 – Standard"
     assert lines[1] == "eng (Englisch) – AAC Stereo – „Kommentar“"
     sub = tooltip(rec.sub_tracks).splitlines()
-    assert sub[0] == "eng (Englisch) – SRT – erzwungen" and sub[1] == "Sprache unbekannt – SRT"
+    # ältere ffmpeg-Versionen markieren den ersten Untertitel zusätzlich als Standard
+    assert sub[0] in ("eng (Englisch) – SRT – erzwungen", "eng (Englisch) – SRT – Standard, erzwungen")
+    assert sub[1] == "Sprache unbekannt – SRT"
 
 
 def test_language_names():
@@ -87,4 +89,4 @@ def test_columns_tooltip_placeholders_and_properties(window, tmp_path, qtbot):  
     dlg = PropertiesDialog(window, [path])
     labels = [w.text() for w in dlg.tabs.widget(2).findChildren(QLabel)]
     assert any("ger (Deutsch) – AC-3 5.1 – Standard" in x for x in labels)
-    assert any("eng (Englisch) – SRT – erzwungen" in x for x in labels)
+    assert any("eng (Englisch) – SRT –" in x and "erzwungen" in x for x in labels)
