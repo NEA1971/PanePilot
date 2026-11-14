@@ -313,9 +313,21 @@ class MetaModel(QAbstractTableModel):
         self.items.extend(items)
         self.endInsertRows()
 
+    def canonical(self, keys: list[str]) -> list[str]:
+        """Zusatzfelder ohne Rücksicht auf Groß-/Kleinschreibung zusammenführen (v1.7.1): „Season“ aus einem
+        gespeicherten Layout und „SEASON“ aus einer MKV-Datei sind dasselbe Feld."""
+        by_label = {lab.casefold(): k for k, lab in self.extra_keys().items()}
+        out: list[str] = []
+        for k in keys:
+            if k.startswith(tg.EXTRA):
+                k = by_label.get(tg.label_of(k).casefold(), k)
+            if k not in out:
+                out.append(k)
+        return out
+
     def set_columns(self, columns: list[str]) -> None:
         self.beginResetModel()
-        self.columns = list(columns)
+        self.columns = self.canonical(list(columns))
         self.endResetModel()
 
     def rows_changed(self, rows: list[int] | None = None) -> None:
@@ -1227,6 +1239,9 @@ class MetaPane(ToolPane):
         keys = [k for k in keys if k == COVER or k in mp.fields() or k.startswith(tg.EXTRA)]
         if not keys:
             keys = mp.default_sidebar()
+        model = getattr(self, "meta_model", None)
+        if model is not None:
+            keys = model.canonical(keys)
         self.layout_keys = list(dict.fromkeys(keys))
         while self.fields_layout.count():
             w = self.fields_layout.takeAt(0).widget()

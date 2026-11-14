@@ -90,3 +90,32 @@ def test_columns_tooltip_placeholders_and_properties(window, tmp_path, qtbot):  
     labels = [w.text() for w in dlg.tabs.widget(2).findChildren(QLabel)]
     assert any("ger (Deutsch) – AC-3 5.1 – Standard" in x for x in labels)
     assert any("eng (Englisch) – SRT –" in x and "erzwungen" in x for x in labels)
+
+
+# --- 1.7.1: „Season“ und „SEASON“ sind dasselbe Feld -------------------------------------------------------------
+def test_custom_field_case_merged(window, tmp_path, qtbot, monkeypatch):  # noqa: F811
+    from panepilot import tags as tg
+    from panepilot import videotags as vt
+
+    folder = tmp_path / "Serie"
+    folder.mkdir()
+    shutil.copy(os.path.join(VIDEO, "clip.mkv"), folder / "S01E01.mkv")
+    real = vt.read_file
+
+    def fake(path):  # MKV-Datei mit eigenem Feld in Großbuchstaben (wie mkvpropedit es schreibt)
+        rec = real(path)
+        rec.fields["x:SEASON"] = "S01"
+        rec.labels["x:SEASON"] = "SEASON"
+        return rec
+    monkeypatch.setattr(vt, "read_file", fake)
+    window.settings.set("meta_video_custom_fields", ["Season"])
+    window.settings.set("meta_video_layout", {"columns": ["filename", "x:Season", "x:SEASON", "title"]})
+    window.settings.set("meta_video_sidebar", ["title", "x:Season"])
+    pane = _open(window, qtbot, folder)
+    model = pane.meta_model
+    assert list(model.extra_keys()) == ["x:SEASON"]
+    assert model.columns.count("x:SEASON") == 1 and "x:Season" not in model.columns
+    assert pane.layout_keys == ["title", "x:SEASON"]
+    assert model.text(model.items[0], "x:SEASON") == "S01"
+    assert tg.custom_key("video-mkv", "Season") == "x:SEASON"
+    window.meta_close()

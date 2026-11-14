@@ -214,6 +214,13 @@ class MetaWizardMixin:
             text = t("meta.none_found")
         pane.summary.setText(text)
         pane.extra_keys = pane.meta_model.extra_keys()
+        # Spalten und Seitenleiste auf die Schreibweise der eingelesenen Felder bringen (v1.7.1)
+        cols = pane.meta_model.canonical(pane.meta_model.columns)
+        if cols != pane.meta_model.columns:
+            pane.meta_view.set_columns(cols)
+        keys = pane.meta_model.canonical(pane.layout_keys)
+        if keys != pane.layout_keys:
+            pane.set_layout(keys)
         self._meta_update_state()
 
     def _meta_stop_scan(self) -> None:
