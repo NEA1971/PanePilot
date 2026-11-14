@@ -201,6 +201,10 @@ class MetaModel(QAbstractTableModel):
                 from .videotags import format_fps
 
                 return format_fps(rec.fps)
+            if what in ("audio", "subs"):  # v1.7
+                from .tracks import lang_list
+
+                return lang_list(rec.audio_tracks if what == "audio" else rec.sub_tracks)
             if what == "vcodec":
                 return rec.vcodec
             if what == "acodec":
@@ -286,6 +290,11 @@ class MetaModel(QAbstractTableModel):
                 return t("video.wrong_ext", name=item.record.name, real=item.record.wrong_ext)
             if col == COL_FILENAME and item.pending_name:
                 return t("conv.old_name", name=item.record.name)
+            if col in ("i:audio", "i:subs"):  # je Spur eine Zeile (L-713)
+                from .tracks import tooltip
+
+                tracks = item.record.audio_tracks if col == "i:audio" else item.record.sub_tracks
+                return tooltip(tracks) or None
             if col == COL_PATH:
                 return os.path.dirname(item.record.path)
             if col == COL_FILENAME:

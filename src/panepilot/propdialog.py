@@ -176,6 +176,10 @@ class PropertiesDialog(QDialog):
             row(t("meta.info.fps"), vt.format_fps(rec.fps))
             row(t("meta.info.vcodec"), rec.vcodec)
             row(t("meta.info.acodec"), rec.acodec)
+            from .tracks import tooltip  # v1.7 (L-720)
+
+            row(t("meta.info.audio"), tooltip(rec.audio_tracks))
+            row(t("meta.info.subs"), tooltip(rec.sub_tracks))
             if rec.bitrate:
                 row(t("meta.info.bitrate"), f"{round(rec.bitrate / 1000)} kbit/s")
         if kind != mp.PHOTO:

@@ -296,7 +296,7 @@ def placeholder_menu(parent, kind: str, extra_labels: list[str], edit: QLineEdit
             for name in ("camera", "width", "height", "format"):
                 add(f"%{name}%", info, name)
         if mp.is_video_mode():
-            for name in ("duration", "resolution", "width", "height", "fps", "codec", "format"):
+            for name in ("duration", "resolution", "width", "height", "fps", "codec", "audiolang", "sublang", "format"):
                 add(f"%{name}%", info, name)
         funcs = menu.addMenu(t("conv.functions"))
         for name, sample in cv.FUNCTIONS.items():

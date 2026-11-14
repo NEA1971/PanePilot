@@ -51,8 +51,8 @@ def standard_fields() -> tuple[str, ...]:
 
 AUDIO_INFO = ("i:length", "i:bitrate", "i:samplerate", "i:codec", "i:size", "i:mtime")
 PHOTO_INFO = ("i:dims", "i:camera", "i:format", "i:size", "i:mtime")
-VIDEO_INFO = ("i:duration", "i:resolution", "i:fps", "i:vcodec", "i:acodec", "i:bitrate", "i:format", "i:size",
-              "i:mtime")
+VIDEO_INFO = ("i:duration", "i:resolution", "i:fps", "i:vcodec", "i:acodec", "i:audio", "i:subs", "i:bitrate",
+              "i:format", "i:size", "i:mtime")
 
 
 def info_columns() -> tuple[str, ...]:

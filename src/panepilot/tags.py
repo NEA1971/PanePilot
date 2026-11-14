@@ -74,6 +74,8 @@ class TagRecord:
     vcodec: str = ""
     acodec: str = ""
     wrong_ext: str = ""  # tatsächliches Format, wenn die Endung nicht passt (v1.5.2)
+    audio_tracks: list = field(default_factory=list)  # Videos: Audiospuren und Untertitel (v1.7)
+    sub_tracks: list = field(default_factory=list)
     pictures: list[Picture] = field(default_factory=list)
     length: float = 0.0
     bitrate: int = 0

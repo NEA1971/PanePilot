@@ -523,6 +523,10 @@ class MetaWizardMixin:
                     return f"{rec.fps:.3f}".rstrip("0").rstrip(".") if rec.fps else ""
                 if name == "codec":
                     return rec.vcodec
+                if name in ("audiolang", "sublang"):  # v1.7 (L-730)
+                    from .tracks import lang_list
+
+                    return lang_list(rec.audio_tracks if name == "audiolang" else rec.sub_tracks)
                 if name == "format":
                     return rec.codec
             return it.value(tg.EXTRA + name)

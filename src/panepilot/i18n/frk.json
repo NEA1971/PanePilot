@@ -1215,5 +1215,14 @@
   "meta.count_photo_one": "1 Bild",
   "meta.count_video": "{n} Videos",
   "meta.count_video_one": "1 Video",
-  "meta.list_and": "{first} und {last}"
+  "meta.list_and": "{first} und {last}",
+  "meta.info.audio": "Audioschbuurn",
+  "meta.info.subs": "Unterdidl",
+  "track.default": "Standard",
+  "track.forced": "erzwungn",
+  "track.sdh": "für Hörgschädichde",
+  "track.stereo": "Stereo",
+  "track.mono": "Mono",
+  "track.channels": "{n} Kanäl",
+  "track.unknown": "Sprach unbekannd"
 }

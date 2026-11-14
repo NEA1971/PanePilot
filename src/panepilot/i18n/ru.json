@@ -1215,5 +1215,14 @@
   "meta.count_photo_one": "изображения – 1",
   "meta.count_video": "видео – {n}",
   "meta.count_video_one": "видео – 1",
-  "meta.list_and": "{first} и {last}"
+  "meta.list_and": "{first} и {last}",
+  "meta.info.audio": "Аудиодорожки",
+  "meta.info.subs": "Субтитры",
+  "track.default": "по умолчанию",
+  "track.forced": "принудительные",
+  "track.sdh": "для слабослышащих",
+  "track.stereo": "стерео",
+  "track.mono": "моно",
+  "track.channels": "каналов: {n}",
+  "track.unknown": "язык неизвестен"
 }

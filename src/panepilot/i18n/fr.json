@@ -1215,5 +1215,14 @@
   "meta.count_photo_one": "1 image",
   "meta.count_video": "{n} vidéos",
   "meta.count_video_one": "1 vidéo",
-  "meta.list_and": "{first} et {last}"
+  "meta.list_and": "{first} et {last}",
+  "meta.info.audio": "Pistes audio",
+  "meta.info.subs": "Sous-titres",
+  "track.default": "par défaut",
+  "track.forced": "forcés",
+  "track.sdh": "pour malentendants",
+  "track.stereo": "stéréo",
+  "track.mono": "mono",
+  "track.channels": "{n} canaux",
+  "track.unknown": "langue inconnue"
 }

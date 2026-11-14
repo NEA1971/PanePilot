@@ -52,6 +52,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.7.0" date="2026-11-14">
+      <description>
+        <p>The meta wizard shows the audio tracks and subtitles contained in videos with their language codes.</p>
+      </description>
+    </release>
     <release version="1.6.3" date="2026-11-14">
       <description>
         <p>Folders with many selected files reload much faster, the meta wizard shows which kinds of files it found, and it has a new icon.</p>

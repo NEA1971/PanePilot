@@ -223,7 +223,13 @@ def _apply_probe(rec, info: dict) -> None:
     except ValueError:
         pass
     video = audio = None
+    from .tracks import from_stream
+
+    rec.audio_tracks, rec.sub_tracks = [], []
     for s in info.get("streams") or []:
+        tr = from_stream(s)
+        if tr is not None:
+            (rec.audio_tracks if tr.kind == "audio" else rec.sub_tracks).append(tr)
         if s.get("codec_type") == "video" and not (s.get("disposition") or {}).get("attached_pic") \
                 and video is None:
             video = s
