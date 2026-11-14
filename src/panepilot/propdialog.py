@@ -108,16 +108,21 @@ class FolderSizeThread(QThread):
 
 class PropertiesDialog(QDialog):
     def _meta_tab(self) -> tuple[QWidget, bool]:
-        """Reiter „Metadaten“ (F-950): Tags, Cover und technische Infos einer Musikdatei, nur zur Anzeige."""
+        """Reiter „Metadaten“ (F-950): Tags und technische Infos einer Musik-, Foto- oder Videodatei (v1.5),
+        nur zur Anzeige."""
         from PySide6.QtCore import QByteArray
         from PySide6.QtGui import QPixmap
         from PySide6.QtWidgets import QPushButton, QScrollArea
 
+        from . import metaprofile as mp
+        from . import phototags as ph
         from . import tags as tg
-        from .metawizard import column_title, picture_info
+        from . import videotags as vt
+        from .metawizard import picture_info
 
         w = QWidget(self)
-        if len(self.paths) != 1 or not tg.is_audio(self.paths[0]) or not os.path.isfile(self.paths[0]):
+        kind = mp.kind_of(self.paths[0]) if len(self.paths) == 1 else None
+        if kind is None or not os.path.isfile(self.paths[0]):
             return w, False
         rec = tg.read_file(self.paths[0])
         if rec.error:
@@ -127,33 +132,74 @@ class PropertiesDialog(QDialog):
         form = QFormLayout(inner)
 
         def row(label: str, value: str) -> None:
+            if not value:
+                return
             val = QLabel(value, inner)
             val.setWordWrap(True)
             val.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             form.addRow(label + ":", val)
 
-        for key in tg.FIELDS:
+        def image(label: str, pm: QPixmap, info: str = "") -> None:
+            if pm.isNull():
+                return
+            img = QLabel(inner)
+            img.setPixmap(pm.scaled(160, 160, Qt.AspectRatioMode.KeepAspectRatio,
+                                    Qt.TransformationMode.SmoothTransformation))
+            form.addRow(label + ":", img)
+            if info:
+                form.addRow("", QLabel(info, inner))
+
+        fields = {mp.AUDIO: tg.FIELDS, mp.PHOTO: ph.FIELDS, mp.VIDEO: vt.FIELDS}[kind]
+        for key in fields:
             if rec.fields.get(key):
-                row(column_title(key), rec.fields[key])
+                row(t(f"meta.field.{key}"), rec.fields[key])
         for key in sorted((k for k in rec.fields if k.startswith(tg.EXTRA)), key=lambda k: rec.labels.get(k, k).casefold()):
             row(rec.labels.get(key, key), rec.fields[key])
-        row(t("meta.info.codec"), rec.codec)
-        if rec.length:
-            row(t("meta.info.length"), tg.format_length(rec.length))
-        if rec.bitrate:
-            row(t("meta.info.bitrate"), f"{round(rec.bitrate / 1000)} kbit/s")
-        if rec.sample_rate:
-            row(t("meta.info.samplerate"), f"{rec.sample_rate} Hz")
-        cover = rec.front_cover()
-        if cover is not None:
-            img = QLabel(inner)
-            pm = QPixmap()
-            pm.loadFromData(QByteArray(cover.data))
-            if not pm.isNull():
-                img.setPixmap(pm.scaled(160, 160, Qt.AspectRatioMode.KeepAspectRatio,
-                                        Qt.TransformationMode.SmoothTransformation))
-            form.addRow(t("meta.field.cover") + ":", img)
-            form.addRow("", QLabel(picture_info(cover), inner))
+        if kind == mp.AUDIO:
+            row(t("meta.info.codec"), rec.codec)
+            if rec.length:
+                row(t("meta.info.length"), tg.format_length(rec.length))
+            if rec.bitrate:
+                row(t("meta.info.bitrate"), f"{round(rec.bitrate / 1000)} kbit/s")
+            if rec.sample_rate:
+                row(t("meta.info.samplerate"), f"{rec.sample_rate} Hz")
+        elif kind == mp.PHOTO:
+            row(t("meta.info.format"), rec.codec)
+            if rec.width:
+                row(t("meta.info.dims"), f"{rec.width} × {rec.height}")
+        else:
+            row(t("meta.info.format"), rec.codec)
+            if rec.length:
+                row(t("meta.info.duration"), tg.format_length(rec.length))
+            if rec.width:
+                row(t("meta.info.resolution"), f"{rec.width} × {rec.height}")
+            row(t("meta.info.fps"), vt.format_fps(rec.fps))
+            row(t("meta.info.vcodec"), rec.vcodec)
+            row(t("meta.info.acodec"), rec.acodec)
+            if rec.bitrate:
+                row(t("meta.info.bitrate"), f"{round(rec.bitrate / 1000)} kbit/s")
+        if kind != mp.PHOTO:
+            cover = rec.front_cover()
+            label = t("video.poster") if kind == mp.VIDEO else t("meta.field.cover")
+            if cover is not None:
+                pm = QPixmap()
+                pm.loadFromData(QByteArray(cover.data))
+                image(label, pm, picture_info(cover))
+            elif kind == mp.VIDEO:  # Standbild, wenn das Video kein eigenes Vorschaubild hat (L-522)
+                data = vt.grab_frame(rec.path, rec.length, 320)
+                if data:
+                    pm = QPixmap()
+                    pm.loadFromData(QByteArray(data))
+                    image(label, pm, t("video.frame_info"))
+        else:
+            img = ph.preview(rec.path, 160)
+            if img is not None:
+                image(t("photo.preview"), QPixmap.fromImage(img))
+        url = ph.map_url(rec) if kind != mp.AUDIO else None
+        if url:
+            link = QLabel(f'<a href="{url}">{t("photo.show_map")}</a>', inner)
+            link.setOpenExternalLinks(True)
+            form.addRow("", link)
         scroll = QScrollArea(w)
         scroll.setWidgetResizable(True)
         scroll.setWidget(inner)

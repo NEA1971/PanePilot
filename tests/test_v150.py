@@ -350,3 +350,25 @@ def test_help_chapter_tools():
         for prog in ("ffmpeg", "exiftool", "mkvtoolnix", "7zip", "unrar"):
             assert prog in text, (lang, prog)
     assert topic_markdown("tools", "de").startswith("# Zusatzprogramme")
+
+
+# --- Eigenschaften: Reiter „Metadaten“ auch für Fotos und Videos (1.5.1) --------------------------------------
+@needs_ffprobe
+def test_properties_metadata_tab_video_and_photo(window, tmp_path):  # noqa: F811
+    from PySide6.QtWidgets import QLabel
+
+    from panepilot.propdialog import PropertiesDialog
+    from test_v140 import make_photo
+
+    dlg = PropertiesDialog(window, [copy(tmp_path, "clip.mp4")])
+    assert dlg.tabs.isTabEnabled(2)
+    labels = [w.text() for w in dlg.tabs.widget(2).findChildren(QLabel)]
+    assert "Strand" in labels and "64 × 48" in labels and "H.264" in labels and "2026-11-08 15:00:12" in labels
+    assert any("openstreetmap.org" in x for x in labels)
+    assert any(w.pixmap() is not None and not w.pixmap().isNull() for w in dlg.tabs.widget(2).findChildren(QLabel))
+    photo = PropertiesDialog(window, [str(make_photo(tmp_path / "IMG_1.jpg"))])
+    assert photo.tabs.isTabEnabled(2)
+    labels = [w.text() for w in photo.tabs.widget(2).findChildren(QLabel)]
+    assert "Xiaomi" in labels and "64 × 48" in labels and "JPEG" in labels
+    many = PropertiesDialog(window, [copy(tmp_path, "clip.mp4", "a.mp4"), copy(tmp_path, "clip.mp4", "b.mp4")])
+    assert not many.tabs.isTabEnabled(2)

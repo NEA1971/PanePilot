@@ -52,6 +52,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.5.1" date="2026-11-14">
+      <description>
+        <p>The "Metadata" tab in the file properties now also shows photo and video metadata.</p>
+      </description>
+    </release>
     <release version="1.5.0" date="2026-11-14">
       <description>
         <p>Video metadata in the meta wizard: MP4, MOV, M4V, 3GP and WMV (MKV/WebM with mkvtoolnix, AVI and MTS read-only), thumbnail or still frame, duration, resolution and codecs, date shift and GPS removal; new help chapter on additional programs.</p>
