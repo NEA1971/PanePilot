@@ -49,6 +49,7 @@ class MetaWizardMixin:
         pane.meta_view.row_menu_requested.connect(self._meta_row_menu)
         pane.convert_requested.connect(self.meta_convert)
         pane.long_text_requested.connect(self._meta_long_text)
+        pane.photo_hint.linkActivated.connect(lambda topic: self.do_help(topic or "tools"))  # L-552
         return pane
 
     def _meta_pane(self):
@@ -136,16 +137,16 @@ class MetaWizardMixin:
         pane.apply_profile_buttons()
         pane.show_selection([])
 
-    def _meta_kind_chosen(self, kind: str, audio: int, photos: int) -> None:
+    def _meta_kind_chosen(self, kind: str, audio: int, photos: int, videos: int = 0) -> None:
         if self.meta_mode is None:
             return
         pane = self._meta_pane()
         if kind != mp.current():
             self._meta_apply_profile(kind)
-        pane.kind_switch.set_counts(kind, audio, photos)
+        pane.kind_switch.set_counts(kind, audio, photos, videos)
 
     def _meta_switch_kind(self, kind: str) -> None:
-        """Umschalter „Musik | Fotos“ (L-421)."""
+        """Umschalter „Musik | Fotos | Videos“ (L-421, L-520)."""
         if self.meta_mode is None or kind == mp.current():
             return
         pane = self._meta_pane()
@@ -474,7 +475,7 @@ class MetaWizardMixin:
         stored = self.settings.get(mp.setting("meta_presets")) or {}
         presets = stored.get(kind) if isinstance(stored, dict) else None
         if not isinstance(presets, list):
-            presets = (cv.PHOTO_PRESETS if mp.is_photo_mode() else cv.DEFAULT_PRESETS)[kind]
+            presets = (cv.DEFAULT_PRESETS if mp.is_audio_mode() else cv.PHOTO_PRESETS)[kind]
         return [p for p in presets if isinstance(p, dict) and isinstance(p.get("format"), str)]
 
     @staticmethod
@@ -498,6 +499,20 @@ class MetaWizardMixin:
                     return camera_name(it)
                 if name in ("width", "height"):
                     return str(getattr(rec, name) or "")
+                if name == "format":
+                    return rec.codec
+            if mp.is_video_mode():
+                rec = it.record
+                if name == "duration":
+                    return tg.format_length(rec.length) if rec.length else ""
+                if name == "resolution":
+                    return f"{rec.width}x{rec.height}" if rec.width else ""
+                if name in ("width", "height"):
+                    return str(getattr(rec, name) or "")
+                if name == "fps":
+                    return f"{rec.fps:.3f}".rstrip("0").rstrip(".") if rec.fps else ""
+                if name == "codec":
+                    return rec.vcodec
                 if name == "format":
                     return rec.codec
             return it.value(tg.EXTRA + name)

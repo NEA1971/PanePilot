@@ -779,7 +779,8 @@ class DateShiftDialog(QDialog):
         self.tree.setRootIsDecorated(False)
         self._rows = []
         for it in items[: self.PREVIEW]:
-            row = QTreeWidgetItem([it.display_name, it.value("datetaken") or t("shift.no_date"), ""])
+            old = it.value("datetaken") or t("shift.no_date")
+            row = QTreeWidgetItem([it.display_name, old, ""])
             self.tree.addTopLevelItem(row)
             self._rows.append((it, row))
         lay.addWidget(self.tree, 1)
@@ -806,13 +807,20 @@ class DateShiftDialog(QDialog):
     def _update(self, *_a) -> None:
         secs = self.seconds()
         for it, row in self._rows:
+            if it.readonly("datetaken") and it.value("datetaken"):
+                row.setText(2, t("shift.locked"))  # Videos ohne exiftool, WMV (v1.5)
+                continue
             new = shift_date(it.value("datetaken"), secs)
             row.setText(2, new if new is not None else "–")
-        ok = sum(1 for it in self.items if shift_date(it.value("datetaken"), 0) is not None)
-        missing = len(self.items) - ok
+        dated = [it for it in self.items if shift_date(it.value("datetaken"), 0) is not None]
+        locked = sum(1 for it in dated if it.readonly("datetaken"))
+        ok = len(dated) - locked
+        missing = len(self.items) - len(dated)
         text = t("shift.count", n=ok)
         if missing:
             text += " " + t("shift.missing", n=missing)
+        if locked:
+            text += " " + t("shift.locked_count", n=locked)
         self.summary.setText(text)
         self.btn_ok.setEnabled(secs != 0 and ok > 0)
 

@@ -295,9 +295,12 @@ def placeholder_menu(parent, kind: str, extra_labels: list[str], edit: QLineEdit
         if mp.is_photo_mode():
             for name in ("camera", "width", "height", "format"):
                 add(f"%{name}%", info, name)
+        if mp.is_video_mode():
+            for name in ("duration", "resolution", "width", "height", "fps", "codec", "format"):
+                add(f"%{name}%", info, name)
         funcs = menu.addMenu(t("conv.functions"))
         for name, sample in cv.FUNCTIONS.items():
-            if not mp.is_photo_mode():
+            if mp.is_audio_mode():
                 sample = sample.replace("%datetaken%", "%year%").replace("_hhmmss", "") if name == "date" else sample
             else:
                 sample = sample.replace("%track%", "%rating%").replace("%albumartist%,%albumartist%,%artist%",

@@ -149,6 +149,11 @@ class Settings:
         "meta_photo_custom_fields": [],
         "meta_photo_presets": {},
         "meta_photo_last_format": {},
+        "meta_video_layout": {},  # v1.5: Videos
+        "meta_video_sidebar": [],
+        "meta_video_custom_fields": [],
+        "meta_video_presets": {},
+        "meta_video_last_format": {},
         "meta_dateshift": {},  # Datum verschieben: letzte Eingabe
         "meta_last_format": {},  # Meta-Wizard: zuletzt benutzte Formatstrings (F-998)
         "meta_number": {},  # Meta-Wizard: letzte Einstellungen des Nummerierungs-Assistenten (v0.9.3)

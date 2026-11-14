@@ -14,10 +14,10 @@ KINDS = (TAG_TO_FILE, FILE_TO_TAG, TAG_TO_TAG)
 TAG_TO_TEXT, TEXT_TO_TAG, NUMBER, PLAYLIST = "tag2text", "text2tag", "number", "playlist"  # v0.9.3
 REPLAYGAIN = "replaygain"  # v0.9.6
 DISC, MUSICBRAINZ = "disc", "musicbrainz"  # v1.2
-DATESHIFT = "dateshift"  # v1.4: Aufnahmedatum verschieben (Fotos)
+DATESHIFT = "dateshift"  # v1.4: Aufnahmedatum verschieben (Fotos, ab v1.5 auch Videos)
 TOOLS = KINDS + (TAG_TO_TEXT, TEXT_TO_TAG, NUMBER, DISC, MUSICBRAINZ, PLAYLIST, REPLAYGAIN, DATESHIFT)
 AUDIO_ONLY = (NUMBER, DISC, MUSICBRAINZ, PLAYLIST, REPLAYGAIN)
-PHOTO_ONLY = (DATESHIFT,)
+PHOTO_ONLY = (DATESHIFT,)  # Fotos und Videos
 
 ALIASES = {"tracknumber": "track", "discnumber": "disc", "date": "year", "album artist": "albumartist",
            "band": "albumartist"}

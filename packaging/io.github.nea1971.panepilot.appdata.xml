@@ -19,6 +19,7 @@
       <li>Multi-rename with placeholders, counters, dates, regular expressions, preview and undo</li>
       <li>Meta wizard for music tags with covers, converters, MusicBrainz lookup, CSV import and export, playlists and ReplayGain</li>
       <li>Photo metadata (EXIF, IPTC, XMP) with preview, date shift and renaming by date taken</li>
+      <li>Video metadata (MP4, MOV, WMV, MKV) with thumbnail, duration, resolution and codecs</li>
       <li>Checksums with comparison and drag and drop of checksum files</li>
       <li>Configurable keyboard shortcuts, function-key bar and toolbar</li>
       <li>Seven languages and built-in help</li>
@@ -51,6 +52,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.5.0" date="2026-11-14">
+      <description>
+        <p>Video metadata in the meta wizard: MP4, MOV, M4V, 3GP and WMV (MKV/WebM with mkvtoolnix, AVI and MTS read-only), thumbnail or still frame, duration, resolution and codecs, date shift and GPS removal; new help chapter on additional programs.</p>
+      </description>
+    </release>
     <release version="1.4.0" date="2026-11-13">
       <description>
         <p>Photo metadata in the meta wizard: EXIF, IPTC and XMP for JPEG, PNG, TIFF and WebP (HEIC with exiftool, RAW read-only), preview, GPS removal, date shift and renaming by date taken.</p>

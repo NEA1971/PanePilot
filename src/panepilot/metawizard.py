@@ -67,6 +67,8 @@ def column_title(col: str) -> str:
     if col.startswith("i:"):
         return t(f"meta.info.{col[2:]}")
     if col == COVER:
+        if mp.is_video_mode():
+            return t("video.poster")
         return t("photo.preview") if mp.is_photo_mode() else t("meta.field.cover")
     return t(f"meta.field.{col}")
 
@@ -175,7 +177,8 @@ class MetaModel(QAbstractTableModel):
         return None
 
     def _alignment(self, col: str):
-        mode = self.align.get(col, "right" if col in ("i:bitrate", "i:samplerate", "i:size", "i:length", "rating", "iso")
+        mode = self.align.get(col, "right" if col in ("i:bitrate", "i:samplerate", "i:size", "i:length", "i:duration",
+                                                        "i:fps", "rating", "iso")
                               else "left")
         h = {"left": Qt.AlignmentFlag.AlignLeft, "center": Qt.AlignmentFlag.AlignHCenter,
              "right": Qt.AlignmentFlag.AlignRight}.get(mode, Qt.AlignmentFlag.AlignLeft)
@@ -189,8 +192,18 @@ class MetaModel(QAbstractTableModel):
             return item.folder()
         if col.startswith("i:"):
             what = col[2:]
-            if what == "length":
+            if what in ("length", "duration"):
                 return tg.format_length(rec.length) if rec.length else ""
+            if what == "resolution":
+                return f"{rec.width} × {rec.height}" if rec.width else ""
+            if what == "fps":
+                from .videotags import format_fps
+
+                return format_fps(rec.fps)
+            if what == "vcodec":
+                return rec.vcodec
+            if what == "acodec":
+                return rec.acodec
             if what == "bitrate":
                 return f"{round(rec.bitrate / 1000)} kbit/s" if rec.bitrate else ""
             if what == "samplerate":
@@ -209,8 +222,12 @@ class MetaModel(QAbstractTableModel):
 
     def sort_key(self, item: MetaItem, col: str):
         rec = item.record
-        if col == "i:length":
+        if col in ("i:length", "i:duration"):
             return float(rec.length)
+        if col == "i:fps":
+            return float(rec.fps)
+        if col == "i:resolution":
+            return float(rec.width * rec.height)
         if col == "i:bitrate":
             return float(rec.bitrate)
         if col == "i:samplerate":
@@ -493,7 +510,7 @@ class MetaView(QTreeView):
 
 # --- Einlesen im Hintergrund (F-904) ------------------------------------------------------------------
 class MetaScanThread(QThread):
-    kind_chosen = Signal(str, int, int)  # Art (audio/photo), Anzahl Musik, Anzahl Fotos (v1.4)
+    kind_chosen = Signal(str, int, int, int)  # Art, Anzahl Musik, Fotos, Videos (v1.4, v1.5)
     found = Signal(list)  # Liste von TagRecord
     progress = Signal(int, int)  # eingelesen, gesamt (gesamt = -1, solange noch gesucht wird)
     finished_scan = Signal(bool)  # vollständig
@@ -511,17 +528,14 @@ class MetaScanThread(QThread):
     def stop(self) -> None:
         self._stop = True
 
-    def _collect(self) -> tuple[list[str], list[str]]:
-        files: list[str] = []
-        photos: list[str] = []
+    def _collect(self) -> dict[str, list[str]]:
+        found: dict[str, list[str]] = {k: [] for k in mp.KINDS}
         queue: list[str] = []
         for p in self.paths:
             if os.path.isdir(p) and not os.path.islink(p):
                 queue.append(p)
-            elif tg.is_audio(p) and os.path.isfile(p):
-                files.append(p)
-            elif mp.accepts(p, mp.PHOTO) and os.path.isfile(p):
-                photos.append(p)
+            elif mp.kind_of(p) and os.path.isfile(p):
+                found[mp.kind_of(p)].append(p)
         last = time.monotonic()
         while queue and not self._stop:
             folder = queue.pop(0)
@@ -542,20 +556,22 @@ class MetaScanThread(QThread):
                 if is_dir:
                     if not de.is_symlink() and os.path.normpath(de.path) not in self.exclude:
                         queue.append(de.path)
-                elif tg.is_audio(de.name):
-                    files.append(de.path)
-                elif mp.accepts(de.name, mp.PHOTO):
-                    photos.append(de.path)
+                else:
+                    kind = mp.kind_of(de.name)
+                    if kind:
+                        found[kind].append(de.path)
             if time.monotonic() - last > 0.3:
-                self.progress.emit(len(files) + len(photos), -1)
+                self.progress.emit(sum(len(v) for v in found.values()), -1)
                 last = time.monotonic()
-        return files, photos
+        return found
 
     def run(self) -> None:
-        audio, photos = self._collect()
-        kind = self.kind or (mp.PHOTO if len(photos) > len(audio) else mp.AUDIO)
-        self.kind_chosen.emit(kind, len(audio), len(photos))
-        files = photos if kind == mp.PHOTO else audio
+        found = self._collect()
+        counts = {k: len(v) for k, v in found.items()}
+        # die Art mit den meisten Dateien; bei Gleichstand Musik vor Fotos vor Videos
+        kind = self.kind or max(mp.KINDS, key=lambda k: (counts[k], -mp.KINDS.index(k)))
+        self.kind_chosen.emit(kind, counts[mp.AUDIO], counts[mp.PHOTO], counts[mp.VIDEO])
+        files = found[kind]
         total = len(files)
         self.progress.emit(0, total)
         batch: list[tg.TagRecord] = []
@@ -705,7 +721,7 @@ class FieldBox(QComboBox):
         shown_values = distinct[:MAX_VALUES]
         for v in shown_values:
             self.addItem(v.replace("\n", " ⏎ ") if self.key != "lyrics" else v[:80], v)
-        if self.key == "genre" and not mp.is_photo_mode():
+        if self.key == "genre" and mp.is_audio_mode():
             for g in tg.STANDARD_GENRES:
                 if g not in shown_values:
                     self.addItem(g, g)
@@ -800,9 +816,14 @@ class CoverBox(QWidget):
         self.index = 0
         self.mixed = False
         self.enabled_for_selection = False
+        self.frame_data: bytes | None = None  # Standbild eines Videos (v1.5, L-522)
+        self._frame_proc = None
+        self._frame_for: tuple | None = None
+        self._frame_cache: dict[tuple, bytes] = {}
         self.show_pictures([], False, False)
 
     def show_pictures(self, pictures: list[tg.Picture], mixed: bool, enabled: bool) -> None:
+        self._stop_frame()
         self.pictures = pictures
         self.mixed = mixed
         self.enabled_for_selection = enabled
@@ -817,6 +838,7 @@ class CoverBox(QWidget):
         """Foto-Modus (L-423): Vorschaubild statt Cover, ohne Menü und Ablegen."""
         from .phototags import preview
 
+        self._stop_frame()
         self.pictures, self.mixed, self.enabled_for_selection = [], False, False
         for w in (self.btn_prev, self.btn_next, self.counter):
             w.setVisible(False)
@@ -831,6 +853,87 @@ class CoverBox(QWidget):
         else:
             self.image.setPixmap(QPixmap.fromImage(img))
         self.info.setText(t("photo.preview_of", name=os.path.basename(path)) if count > 1 else "")
+
+    # Videos: Poster oder Standbild (v1.5, L-522, L-523)
+    def show_video(self, items: list, enabled: bool) -> None:
+        covers = [it.pictures() for it in items]
+        fronts = [_front(p) for p in covers]
+        mixed = len({f.data if f else None for f in fronts}) > 1
+        self.show_pictures(covers[0] if covers and not mixed else [], mixed, enabled)
+        if items and not mixed and not self.pictures:
+            self._grab(items[-1].record, len(items))
+
+    def _stop_frame(self) -> None:
+        self.frame_data = None
+        self._frame_for = None
+        proc, self._frame_proc = self._frame_proc, None
+        if proc is not None:
+            try:
+                proc.finished.disconnect()
+            except (RuntimeError, TypeError):
+                pass
+            proc.kill()
+            proc.waitForFinished(500)
+            proc.deleteLater()
+
+    def _grab(self, rec, count: int) -> None:
+        from PySide6.QtCore import QProcess
+
+        from . import videotags as vt
+        from .util import child_environment
+
+        key = (rec.path, rec.mtime)
+        self._frame_for = key
+        self._frame_count = count
+        if key in self._frame_cache:
+            self._show_frame(self._frame_cache[key])
+            return
+        args = vt.frame_args(rec.path, rec.length, (self.SIZE - 4) * 2)
+        if args is None:
+            return
+        proc = QProcess(self)
+        proc.setProcessEnvironment(child_environment())
+        proc.finished.connect(lambda *_a, pr=proc, k=key: self._frame_done(pr, k))
+        self._frame_proc = proc
+        proc.start(args[0], args[1:])
+
+    def _frame_done(self, proc, key) -> None:
+        if proc is self._frame_proc:
+            self._frame_proc = None
+        data = bytes(proc.readAllStandardOutput().data())
+        proc.deleteLater()
+        if not data or key != self._frame_for:
+            return
+        if len(self._frame_cache) > 60:
+            self._frame_cache.pop(next(iter(self._frame_cache)))
+        self._frame_cache[key] = data
+        self._show_frame(data)
+
+    def _show_frame(self, data: bytes) -> None:
+        pm = QPixmap()
+        pm.loadFromData(QByteArray(data))
+        if pm.isNull():
+            return
+        self.frame_data = data
+        self.image.setPixmap(pm.scaled(self.SIZE - 4, self.SIZE - 4, Qt.AspectRatioMode.KeepAspectRatio,
+                                       Qt.TransformationMode.SmoothTransformation))
+        name = os.path.basename(self._frame_for[0]) if self._frame_for else ""
+        text = t("video.frame_info")
+        if getattr(self, "_frame_count", 1) > 1:
+            text += "\n" + t("photo.preview_of", name=name)
+        self.info.setText(text)
+
+    def frame_picture(self) -> tg.Picture | None:
+        """Das angezeigte Standbild als JPEG-Poster."""
+        if not self.frame_data:
+            return None
+        img = QImage.fromData(QByteArray(self.frame_data))
+        if img.isNull():
+            return None
+        buf = QBuffer()
+        buf.open(QIODevice.OpenModeFlag.WriteOnly)
+        img.save(buf, "JPEG", 90)
+        return tg.Picture(bytes(buf.data()), "image/jpeg", tg.FRONT_COVER, "")
 
     def _step(self, delta: int) -> None:
         if self.pictures:
@@ -866,6 +969,13 @@ class CoverBox(QWidget):
             return
         menu = QMenu(self)
         menu.addAction(t("meta.cover_replace")).triggered.connect(self.choose_file)
+        if self.frame_data and mp.is_video_mode():
+            def use_frame():
+                pic = self.frame_picture()
+                if pic is not None:
+                    self.replace_requested.emit(pic)
+
+            menu.addAction(t("video.frame_as_poster")).triggered.connect(use_frame)
         act_remove = menu.addAction(t("meta.cover_remove"))
         act_remove.setEnabled(bool(self.pictures) or self.mixed)
         act_remove.triggered.connect(lambda: self.remove_requested.emit(-1 if self.mixed else self.index))
@@ -928,7 +1038,7 @@ def picture_from_file(path: str) -> tg.Picture | None:
 
 
 class KindSwitch(QWidget):
-    """Umschalter „Musik | Fotos“, wenn ein Ordner beides enthält (L-421)."""
+    """Umschalter „Musik | Fotos | Videos“, wenn ein Ordner mehrere Arten enthält (L-421, L-520)."""
 
     changed = Signal(str)
 
@@ -936,29 +1046,30 @@ class KindSwitch(QWidget):
         super().__init__(parent)
         from PySide6.QtWidgets import QButtonGroup
 
-        self.btn_audio = QPushButton(self)
-        self.btn_photo = QPushButton(self)
+        self.buttons = {k: QPushButton(self) for k in mp.KINDS}
         group = QButtonGroup(self)
-        for b in (self.btn_audio, self.btn_photo):
-            b.setCheckable(True)
-            group.addButton(b)
-        group.setExclusive(True)
         lay = QHBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 4)
         lay.setSpacing(0)
-        lay.addWidget(self.btn_audio, 1)
-        lay.addWidget(self.btn_photo, 1)
-        self.btn_audio.clicked.connect(lambda: self.changed.emit(mp.AUDIO))
-        self.btn_photo.clicked.connect(lambda: self.changed.emit(mp.PHOTO))
+        for kind, b in self.buttons.items():
+            b.setCheckable(True)
+            group.addButton(b)
+            lay.addWidget(b, 1)
+            b.clicked.connect(lambda _c=False, k=kind: self.changed.emit(k))
+        group.setExclusive(True)
+        self.btn_audio, self.btn_photo, self.btn_video = (self.buttons[k] for k in mp.KINDS)
 
     def select(self, kind: str) -> None:
-        (self.btn_photo if kind == mp.PHOTO else self.btn_audio).setChecked(True)
+        self.buttons.get(kind, self.btn_audio).setChecked(True)
 
-    def set_counts(self, kind: str, audio: int, photos: int) -> None:
-        self.btn_audio.setText(t("photo.switch_audio", n=audio))
-        self.btn_photo.setText(t("photo.switch_photo", n=photos))
-        (self.btn_photo if kind == mp.PHOTO else self.btn_audio).setChecked(True)
-        self.setVisible(audio > 0 and photos > 0)
+    def set_counts(self, kind: str, audio: int, photos: int, videos: int = 0) -> None:
+        counts = {mp.AUDIO: audio, mp.PHOTO: photos, mp.VIDEO: videos}
+        keys = {mp.AUDIO: "photo.switch_audio", mp.PHOTO: "photo.switch_photo", mp.VIDEO: "video.switch_video"}
+        for k, b in self.buttons.items():
+            b.setText(t(keys[k], n=counts[k]))
+            b.setVisible(counts[k] > 0 or k == kind)
+        self.select(kind)
+        self.setVisible(sum(1 for n in counts.values() if n > 0) > 1)
 
 
 class MetaPane(ToolPane):
@@ -988,7 +1099,8 @@ class MetaPane(ToolPane):
         self.photo_hint = QLabel(self)  # HEIC ohne exiftool, RAW (v1.4)
         self.photo_hint.setWordWrap(True)
         self.photo_hint.setStyleSheet("color: gray;")
-        self.photo_hint.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.photo_hint.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+        self.photo_hint.setTextFormat(Qt.TextFormat.RichText)
         self.photo_hint.hide()
         self.kind_switch = KindSwitch(self)  # „Musik | Fotos“ (L-421)
         self.kind_switch.hide()
@@ -1156,6 +1268,8 @@ class MetaPane(ToolPane):
         if COVER in self.rows:
             if mp.is_photo_mode():
                 self.cover.show_preview(items[-1].record.path if items else None, len(items))
+            elif mp.is_video_mode():
+                self.cover.show_video(items, enabled and not all(it.readonly("title") for it in items))
             else:
                 covers = [it.pictures() for it in items]
                 fronts = [_front(p) for p in covers]
@@ -1175,6 +1289,15 @@ class MetaPane(ToolPane):
                 hint = t("photo.heic_hint")
             elif any(ph.is_raw(it.record.path) for it in items):
                 hint = t("photo.raw_hint")
+        if mp.is_video_mode() and items:
+            hint = video_hint([it.record for it in items])
+        if hint:
+            import html
+
+            text = html.escape(hint)
+            if hint not in (t("photo.raw_hint"), t("video.readonly_hint")):  # fehlendes Programm (L-552)
+                text += f' <a href="tools">{html.escape(t("help.tools_link"))}</a>'
+            hint = text
         self.photo_hint.setText(hint)
         self.photo_hint.setVisible(bool(hint))
 
@@ -1187,6 +1310,23 @@ class MetaPane(ToolPane):
         self.btn_discard.setEnabled(has_changes and not busy)
         self.btn_undo.setEnabled(can_undo and not busy)
         self.fields_host.setEnabled(not saving)
+
+
+def video_hint(records) -> str:
+    """Hinweis, welches Zusatzprogramm fehlt bzw. warum Felder grau sind (L-511, L-532, L-533, L-552)."""
+    from . import videotags as vt
+
+    if not vt.ffprobe():
+        return t("video.ffmpeg_hint")
+    if any(r.kind == vt.KIND_MKV for r in records) and not vt.mkvtoolnix():
+        return t("video.mkv_hint")
+    if any(r.kind == vt.KIND_RO for r in records):
+        return t("video.readonly_hint")
+    if any(r.kind == vt.KIND_MP4 for r in records) and not vt.exiftool():
+        return t("video.exiftool_hint")
+    if any(r.kind == vt.KIND_ASF for r in records):
+        return t("video.wmv_hint")
+    return ""
 
 
 def _front(pictures: list[tg.Picture]) -> tg.Picture | None:
