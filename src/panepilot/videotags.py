@@ -499,30 +499,155 @@ def _read_generic(rec, tags: dict) -> None:
         rec.labels[k] = key.upper()
 
 
-def _attached_pictures(path: str, info: dict | None) -> list:
-    """Eingebettete Bilder eines MKV (Anhänge „cover.jpg“ usw., von ffmpeg als Bildspur gemeldet)."""
+def _attached_pictures(path: str, info: dict | None = None) -> list:
+    """Eingebettete Bilder eines MKV (Anhänge „cover.jpg“ usw.).
+
+    Seit 1.6.1 liest PanePilot die Anhänge selbst aus der Datei: ffmpeg hat dafür das ganze Video gelesen,
+    was bei großen Dateien auf dem NAS das Einlesen im Meta-Wizard sehr langsam machte."""
     from . import tags as tg
 
     out = []
-    tool = ffmpeg()
-    if tool is None or info is None:
-        return out
-    for s in info.get("streams") or []:
-        disp = s.get("disposition") or {}
-        tags = s.get("tags") or {}
-        if not (disp.get("attached_pic") or s.get("codec_type") == "attachment"):
+    for name, mime, data in mkv_attachments(path):
+        if mime.startswith("image/"):
+            out.append(tg.Picture(data, mime, tg.FRONT_COVER, name))
+    return out
+
+
+# --- Matroska-Anhänge direkt lesen (nur Kopf, Sprungtabelle und Anhänge) -----------------------------------
+_EBML, _SEGMENT, _SEEKHEAD, _SEEK, _SEEKID, _SEEKPOS = 0x1A45DFA3, 0x18538067, 0x114D9B74, 0x4DBB, 0x53AB, 0x53AC
+_ATTACHMENTS, _ATTACHED, _FILENAME, _FILEMIME, _FILEDATA, _CLUSTER = 0x1941A469, 0x61A7, 0x466E, 0x4660, 0x465C, \
+    0x1F43B675
+_UNKNOWN = -1
+
+
+def _vint(fh, keep_marker: bool) -> tuple[int, int] | None:
+    first = fh.read(1)
+    if not first:
+        return None
+    b = first[0]
+    length = 1
+    mask = 0x80
+    while length <= 8 and not b & mask:
+        mask >>= 1
+        length += 1
+    if length > 8:
+        return None
+    rest = fh.read(length - 1)
+    if len(rest) != length - 1:
+        return None
+    value = b if keep_marker else b & (mask - 1)
+    all_ones = (b & (mask - 1)) == mask - 1 and all(x == 0xFF for x in rest)
+    for x in rest:
+        value = (value << 8) | x
+    if not keep_marker and all_ones:
+        return _UNKNOWN, length
+    return value, length
+
+
+def _element(fh) -> tuple[int, int, int] | None:
+    """(ID, Größe, Beginn der Daten) des Elements an der aktuellen Stelle."""
+    eid = _vint(fh, True)
+    size = _vint(fh, False)
+    if eid is None or size is None:
+        return None
+    return eid[0], size[0], fh.tell()
+
+
+def _children(fh, start: int, size: int):
+    end = start + size
+    pos = start
+    while pos < end:
+        fh.seek(pos)
+        el = _element(fh)
+        if el is None or el[1] == _UNKNOWN:
+            return
+        yield el
+        pos = el[2] + el[1]
+
+
+def mkv_attachments(path: str) -> list[tuple[str, str, bytes]]:
+    """Anhänge eines Matroska-Videos: (Dateiname, MIME-Typ, Daten). Liest nur wenige Kilobyte plus die Anhänge."""
+    try:
+        with open(path, "rb") as fh:
+            head = _element(fh)
+            if head is None or head[0] != _EBML:
+                return []
+            fh.seek(head[2] + head[1])
+            seg = _element(fh)
+            if seg is None or seg[0] != _SEGMENT:
+                return []
+            seg_start = seg[2]
+            seg_end = seg_start + seg[1] if seg[1] != _UNKNOWN else os.fstat(fh.fileno()).st_size
+            targets: list[int] = []
+            seekheads: list[int] = []
+            # 1. Elemente am Anfang des Segments bis zum ersten Cluster
+            pos = seg_start
+            while pos < seg_end:
+                fh.seek(pos)
+                el = _element(fh)
+                if el is None or el[0] == _CLUSTER or el[1] == _UNKNOWN:
+                    break
+                if el[0] == _ATTACHMENTS:
+                    return _read_attachments(fh, el[2], el[1])
+                if el[0] == _SEEKHEAD:
+                    seekheads.append(pos)
+                pos = el[2] + el[1]
+            # 2. Sprungtabelle(n): Position der Anhänge (auch eine zweite Sprungtabelle am Ende)
+            done: set[int] = set()
+            while seekheads:
+                at = seekheads.pop(0)
+                if at in done:
+                    continue
+                done.add(at)
+                fh.seek(at)
+                el = _element(fh)
+                if el is None or el[0] != _SEEKHEAD:
+                    continue
+                for sid, ssize, sstart in list(_children(fh, el[2], el[1])):
+                    if sid != _SEEK:
+                        continue
+                    ident = position = None
+                    for cid, csize, cstart in list(_children(fh, sstart, ssize)):
+                        fh.seek(cstart)
+                        raw = fh.read(csize)
+                        if cid == _SEEKID:
+                            ident = int.from_bytes(raw, "big")
+                        elif cid == _SEEKPOS:
+                            position = int.from_bytes(raw, "big")
+                    if ident == _ATTACHMENTS and position is not None:
+                        targets.append(seg_start + position)
+                    elif ident == _SEEKHEAD and position is not None:
+                        seekheads.append(seg_start + position)
+            for at in targets:
+                fh.seek(at)
+                el = _element(fh)
+                if el is not None and el[0] == _ATTACHMENTS:
+                    return _read_attachments(fh, el[2], el[1])
+    except (OSError, ValueError, OverflowError):
+        return []
+    return []
+
+
+def _read_attachments(fh, start: int, size: int) -> list[tuple[str, str, bytes]]:
+    out = []
+    for fid, fsize, fstart in list(_children(fh, start, size)):
+        if fid != _ATTACHED:
             continue
-        mime = tags.get("mimetype") or ("image/png" if s.get("codec_name") == "png" else "image/jpeg")
-        if not mime.startswith("image/"):
-            continue
-        try:
-            proc = _run([tool, "-v", "error", "-i", path, "-map", f"0:{s.get('index')}", "-c", "copy", "-f",
-                         "image2pipe", "-"], timeout=30, binary=True)
-        except (OSError, subprocess.TimeoutExpired):
-            continue
-        if proc.returncode == 0 and proc.stdout:
-            pic = tg.Picture(bytes(proc.stdout), mime, tg.FRONT_COVER, tags.get("filename", ""))
-            out.append(pic)
+        name = mime = ""
+        data = b""
+        for cid, csize, cstart in list(_children(fh, fstart, fsize)):
+            if cid in (_FILENAME, _FILEMIME):
+                fh.seek(cstart)
+                text = fh.read(csize).decode("utf-8", "replace").rstrip("\0")
+                if cid == _FILENAME:
+                    name = text
+                else:
+                    mime = text
+            elif cid == _FILEDATA and csize <= 50 * 1024 * 1024:
+                fh.seek(cstart)
+                data = fh.read(csize)
+        if data:
+            out.append((name, mime or "application/octet-stream", data))
     return out
 
 

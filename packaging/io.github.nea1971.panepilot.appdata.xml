@@ -52,6 +52,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.6.1" date="2026-11-14">
+      <description>
+        <p>Much faster reading of MKV videos with embedded cover images in the meta wizard.</p>
+      </description>
+    </release>
     <release version="1.6.0" date="2026-11-14">
       <description>
         <p>New: find duplicates – by identical content, same name without extension, or same name and size; check them and move them to the trash.</p>

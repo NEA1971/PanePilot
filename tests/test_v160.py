@@ -161,3 +161,33 @@ def test_window_flow(window, tmp_path, qtbot, monkeypatch):  # noqa: F811
     assert "[1]" in text and info.path in text
     win.close()
     assert window.settings.get("dup_geometry")
+
+
+# --- 1.6.1: MKV-Anhänge selbst lesen (statt ffmpeg, das das ganze Video gelesen hat) ---------------------------
+def test_mkv_attachments_read_directly(tmp_path, monkeypatch):
+    import shutil
+    import subprocess
+
+    import pytest
+
+    from panepilot import tags as tg
+    from panepilot import videotags as vt
+
+    if shutil.which("ffmpeg") is None:
+        pytest.skip("ffmpeg missing")
+    src = os.path.join(os.path.dirname(__file__), "data", "video", "clip.mkv")
+    png = os.path.join(os.path.dirname(__file__), "..", "docs", "screenshots", "ftp.png")
+    out = tmp_path / "Film.mkv"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", src, "-attach", png, "-metadata:s:t:0", "mimetype=image/png",
+                    "-metadata:s:t:0", "filename=cover.png", "-c", "copy", str(out)], check=True)
+    att = vt.mkv_attachments(str(out))
+    assert [(n, m) for n, m, _d in att] == [("cover.png", "image/png")]
+    assert att[0][2] == open(png, "rb").read()
+    assert vt.mkv_attachments(src) == [] and vt.mkv_attachments(str(tmp_path / "fehlt.mkv")) == []
+    # das Einlesen startet dafür kein ffmpeg mehr
+    calls = []
+    real = vt._run
+    monkeypatch.setattr(vt, "_run", lambda args, *a, **k: calls.append(args[0]) or real(args, *a, **k))
+    rec = tg.read_file(str(out))
+    assert len(rec.pictures) == 1 and rec.pictures[0].desc == "cover.png"
+    assert not any(os.path.basename(c) == "ffmpeg" for c in calls)
