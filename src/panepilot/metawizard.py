@@ -57,6 +57,7 @@ COVER = "cover"
 MAX_VALUES = 50  # F-921
 CHANGED_COLOR = QColor("#2E7D32")
 ERROR_COLOR = QColor("#D32F2F")
+WRONG_EXT_COLOR = QColor("#1E63C8")  # Endung passt nicht zum Inhalt (v1.5.3), blau und fett
 
 
 def column_title(col: str) -> str:
@@ -265,12 +266,24 @@ class MetaModel(QAbstractTableModel):
                 return QBrush(ERROR_COLOR)
             if item.changed:
                 return QBrush(CHANGED_COLOR)  # F-915
+            if item.record.wrong_ext:
+                return QBrush(WRONG_EXT_COLOR)
+            return None
+        if role == Qt.ItemDataRole.FontRole:
+            if item.record.wrong_ext and not (item.record.error or item.mark or item.changed):
+                from PySide6.QtGui import QFont
+
+                font = QFont()
+                font.setBold(True)
+                return font
             return None
         if role == Qt.ItemDataRole.ToolTipRole:
             if item.record.error:
                 return t("meta.read_error", reason=item.record.error)
             if item.mark:
                 return item.mark
+            if item.record.wrong_ext and not item.changed:
+                return t("video.wrong_ext", name=item.record.name, real=item.record.wrong_ext)
             if col == COL_FILENAME and item.pending_name:
                 return t("conv.old_name", name=item.record.name)
             if col == COL_PATH:

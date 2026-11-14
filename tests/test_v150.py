@@ -414,3 +414,32 @@ def test_mp4_named_mkv(tmp_path):
     rec = tg.write_file(rec, {"title": "Neu"})
     assert rec.fields["title"] == "Neu"
     assert tg.restore(path, snap).fields["title"] == "Strand"
+
+
+# --- 1.5.3: unpassende Endung blau und fett ---------------------------------------------------------------------
+@needs_ffprobe
+def test_wrong_extension_row_blue_bold(window, tmp_path, qtbot):  # noqa: F811
+    from PySide6.QtCore import Qt
+
+    from panepilot import metawizard as mw
+
+    folder = tmp_path / "Filme"
+    folder.mkdir()
+    copy(folder, "clip.mkv", "falsch.mp4")
+    copy(folder, "clip.mp4", "richtig.mp4")
+    pane = _open(window, qtbot, folder)
+    model = pane.meta_model
+    rows = {it.record.name: r for r, it in enumerate(model.items)}
+    wrong = model.index(rows["falsch.mp4"], 0)
+    right = model.index(rows["richtig.mp4"], 0)
+    assert model.data(wrong, Qt.ItemDataRole.ForegroundRole).color() == mw.WRONG_EXT_COLOR
+    assert model.data(wrong, Qt.ItemDataRole.FontRole).bold()
+    assert "MKV" in model.data(wrong, Qt.ItemDataRole.ToolTipRole)
+    assert model.data(right, Qt.ItemDataRole.ForegroundRole) is None
+    assert model.data(right, Qt.ItemDataRole.FontRole) is None
+    item = model.items[rows["falsch.mp4"]]
+    item.set("genre", "Test")  # vorgemerkt: grün statt blau
+    assert model.data(wrong, Qt.ItemDataRole.ForegroundRole).color() == mw.CHANGED_COLOR
+    assert model.data(wrong, Qt.ItemDataRole.FontRole) is None
+    item.pending.clear()
+    window.meta_close()

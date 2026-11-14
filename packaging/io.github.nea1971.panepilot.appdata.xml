@@ -52,6 +52,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.5.3" date="2026-11-14">
+      <description>
+        <p>Videos whose extension does not match their content are highlighted in bold blue in the meta wizard.</p>
+      </description>
+    </release>
     <release version="1.5.2" date="2026-11-14">
       <description>
         <p>Videos whose file extension does not match their content (e.g. an MKV video named .mp4) are now read correctly in the meta wizard.</p>
