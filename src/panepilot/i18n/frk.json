@@ -1164,5 +1164,7 @@
   "video.wmv_hint": "Bei WMV-Videos ko mer des Aufnahmedadum ned ändern.",
   "help.tools_link": "Mehr dazu: Hilf „Zusatzbrogramm“",
   "shift.locked": "ned änderbar",
-  "shift.locked_count": "{n} ko mer ned ändern (schau in die Seidnleisdn)."
+  "shift.locked_count": "{n} ko mer ned ändern (schau in die Seidnleisdn).",
+  "video.wrong_ext": "„{name}“ is eigentlich a {real}-Dadei – die Endung passt ned zum Inhalt. PanePilot liest’s trotzdem richtich; sauberer wär die passende Endung.",
+  "video.wrong_ext_many": "{n} Dadein ham a Endung, die ned zum Inhalt passt (schau in die Schbaldn „Format“). PanePilot liest’s trotzdem richtich."
 }

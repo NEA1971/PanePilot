@@ -73,6 +73,7 @@ class TagRecord:
     fps: float = 0.0  # Videos (v1.5)
     vcodec: str = ""
     acodec: str = ""
+    wrong_ext: str = ""  # tatsächliches Format, wenn die Endung nicht passt (v1.5.2)
     pictures: list[Picture] = field(default_factory=list)
     length: float = 0.0
     bitrate: int = 0

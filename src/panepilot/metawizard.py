@@ -1316,6 +1316,13 @@ def video_hint(records) -> str:
     """Hinweis, welches Zusatzprogramm fehlt bzw. warum Felder grau sind (L-511, L-532, L-533, L-552)."""
     from . import videotags as vt
 
+    wrong = [r for r in records if r.wrong_ext]
+    if wrong:  # Endung passt nicht zum Inhalt (v1.5.2)
+        r = wrong[0]
+        text = (t("video.wrong_ext", name=r.name, real=r.wrong_ext) if len(wrong) == 1
+                else t("video.wrong_ext_many", n=len(wrong)))
+        more = video_hint([r for r in records if not r.wrong_ext] + [_copy_ok(r) for r in wrong])
+        return text + (" " + more if more else "")
     if not vt.ffprobe():
         return t("video.ffmpeg_hint")
     if any(r.kind == vt.KIND_MKV for r in records) and not vt.mkvtoolnix():
@@ -1327,6 +1334,14 @@ def video_hint(records) -> str:
     if any(r.kind == vt.KIND_ASF for r in records):
         return t("video.wmv_hint")
     return ""
+
+
+def _copy_ok(rec):
+    import copy
+
+    r = copy.copy(rec)
+    r.wrong_ext = ""
+    return r
 
 
 def _front(pictures: list[tg.Picture]) -> tg.Picture | None:

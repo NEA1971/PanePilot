@@ -1164,5 +1164,7 @@
   "video.wmv_hint": "The date taken of WMV videos cannot be changed.",
   "help.tools_link": "More: help “Additional programs”",
   "shift.locked": "cannot be changed",
-  "shift.locked_count": "{n} cannot be changed (see the note in the sidebar)."
+  "shift.locked_count": "{n} cannot be changed (see the note in the sidebar).",
+  "video.wrong_ext": "“{name}” is actually a {real} file – the extension does not match the content. PanePilot still reads it correctly; the matching extension would be cleaner.",
+  "video.wrong_ext_many": "{n} files have an extension that does not match the content (see the “Format” column). PanePilot still reads them correctly."
 }

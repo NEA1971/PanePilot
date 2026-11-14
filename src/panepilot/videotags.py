@@ -75,6 +75,58 @@ def is_readonly_format(path: str) -> bool:
     return _ext(path) in READONLY_EXTENSIONS
 
 
+# --- Inhalt statt Endung (v1.5.2) ------------------------------------------------------------------------
+_ASF_GUID = bytes.fromhex("3026b2758e66cf11a6d900aa0062ce6c")
+_MP4_ATOMS = {b"ftyp", b"moov", b"mdat", b"free", b"wide", b"skip", b"pnot"}
+_CONTAINER_NAMES = {"mp4": "MP4", "asf": "WMV", "mkv": "MKV", "avi": "AVI", "ts": "MPEG-TS"}
+
+
+def _ext_container(path: str) -> str:
+    ext = _ext(path)
+    if ext in MP4_EXTENSIONS:
+        return "mp4"
+    if ext in ASF_EXTENSIONS:
+        return "asf"
+    if ext in MKV_EXTENSIONS:
+        return "mkv"
+    return "avi" if ext == ".avi" else "ts"
+
+
+def sniff(path: str) -> str | None:
+    """Art der Datei am Dateianfang erkennen: mp4, asf, mkv, avi, ts – None, wenn unbekannt."""
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(16)
+    except OSError:
+        return None
+    if head[:4] == b"\x1a\x45\xdf\xa3":
+        return "mkv"
+    if head[4:8] in _MP4_ATOMS:
+        return "mp4"
+    if head == _ASF_GUID:
+        return "asf"
+    if head[:4] == b"RIFF" and head[8:12] == b"AVI ":
+        return "avi"
+    if head[:1] == b"\x47" or head[4:5] == b"\x47":
+        return "ts"
+    return None
+
+
+def container(path: str) -> str:
+    """Tatsächliches Format: nach dem Inhalt, ersatzweise nach der Endung."""
+    return sniff(path) or _ext_container(path)
+
+
+def wrong_extension(path: str) -> str:
+    """Name des tatsächlichen Formats, wenn die Endung nicht dazu passt (z. B. MKV als .mp4), sonst ""."""
+    real = sniff(path)
+    if real is None or real == _ext_container(path):
+        return ""
+    if real == "mkv" and _ext(path) in MKV_EXTENSIONS:
+        return ""
+    return _CONTAINER_NAMES[real]
+
+
 # --- Zusatzprogramme ----------------------------------------------------------------------------------
 def ffprobe() -> str | None:
     return shutil.which("ffprobe")
@@ -280,14 +332,18 @@ def read_file(path: str):
     tags = _tags(info)
     if info is not None:
         _apply_probe(rec, info)
+    real = container(path)
+    rec.wrong_ext = wrong_extension(path)
+    if rec.wrong_ext:  # z. B. „MKV (.mp4)“ in der Spalte Format
+        rec.codec = f"{rec.wrong_ext} ({_ext(path)})"
     try:
-        if is_mp4(path):
+        if real == "mp4":
             rec.kind = KIND_MP4
             _read_mp4(rec)
-        elif _ext(path) in ASF_EXTENSIONS:
+        elif real == "asf":
             rec.kind = KIND_ASF
             _read_asf(rec)
-        elif is_mkv(path):
+        elif real == "mkv":
             rec.kind = KIND_MKV
             _read_mkv(rec, tags, info)
         else:

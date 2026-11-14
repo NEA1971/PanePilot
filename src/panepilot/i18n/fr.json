@@ -1164,5 +1164,7 @@
   "video.wmv_hint": "La date de prise de vue des vidéos WMV ne peut pas être modifiée.",
   "help.tools_link": "En savoir plus : aide « Programmes supplémentaires »",
   "shift.locked": "non modifiable",
-  "shift.locked_count": "{n} ne peuvent pas être modifiés (voir la remarque dans le panneau latéral)."
+  "shift.locked_count": "{n} ne peuvent pas être modifiés (voir la remarque dans le panneau latéral).",
+  "video.wrong_ext": "« {name} » est en réalité un fichier {real} – l’extension ne correspond pas au contenu. PanePilot le lit quand même correctement ; l’extension correcte serait plus propre.",
+  "video.wrong_ext_many": "{n} fichiers ont une extension qui ne correspond pas au contenu (voir la colonne « Format »). PanePilot les lit quand même correctement."
 }

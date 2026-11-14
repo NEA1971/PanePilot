@@ -372,3 +372,45 @@ def test_properties_metadata_tab_video_and_photo(window, tmp_path):  # noqa: F81
     assert "Xiaomi" in labels and "64 × 48" in labels and "JPEG" in labels
     many = PropertiesDialog(window, [copy(tmp_path, "clip.mp4", "a.mp4"), copy(tmp_path, "clip.mp4", "b.mp4")])
     assert not many.tabs.isTabEnabled(2)
+
+
+# --- 1.5.2: Endung passt nicht zum Inhalt ----------------------------------------------------------------------
+def test_sniff_container(tmp_path):
+    from panepilot import videotags as vt
+
+    assert vt.sniff(copy(tmp_path, "clip.mkv")) == "mkv" and vt.sniff(copy(tmp_path, "clip.mp4")) == "mp4"
+    assert vt.sniff(copy(tmp_path, "clip.wmv")) == "asf" and vt.sniff(copy(tmp_path, "clip.avi")) == "avi"
+    assert vt.wrong_extension(copy(tmp_path, "clip.mkv", "film.mp4")) == "MKV"
+    assert vt.wrong_extension(copy(tmp_path, "clip.mkv", "film.webm")) == ""  # WebM ist Matroska
+    assert vt.wrong_extension(copy(tmp_path, "clip.mp4", "film.mov")) == ""
+    empty = tmp_path / "leer.mp4"
+    empty.write_bytes(b"")
+    assert vt.sniff(str(empty)) is None and vt.container(str(empty)) == "mp4"
+
+
+@needs_ffprobe
+def test_mkv_named_mp4(tmp_path, monkeypatch):
+    from panepilot import metawizard as mw
+    from panepilot import tags as tg
+    from panepilot import videotags as vt
+
+    monkeypatch.setattr(vt, "mkvpropedit", lambda: None)
+    rec = tg.read_file(copy(tmp_path, "clip.mkv", "James Bond (1962).mp4"))
+    assert not rec.error and rec.kind == "video-mkv" and rec.fields["title"] == "Strand"
+    assert rec.wrong_ext == "MKV" and rec.codec == "MKV (.mp4)"
+    hint = mw.video_hint([rec])
+    assert "James Bond (1962).mp4" in hint and "MKV" in hint and "mkvtoolnix" in hint
+    other = tg.read_file(copy(tmp_path, "clip.mkv", "zwei.mp4"))
+    assert "2" in mw.video_hint([rec, other])
+
+
+def test_mp4_named_mkv(tmp_path):
+    from panepilot import tags as tg
+
+    path = copy(tmp_path, "clip.mp4", "film.mkv")
+    rec = tg.read_file(path)
+    assert not rec.error and rec.kind == "video-mp4" and rec.wrong_ext == "MP4" and rec.fields["title"] == "Strand"
+    snap = tg.snapshot(path, with_pictures=True)
+    rec = tg.write_file(rec, {"title": "Neu"})
+    assert rec.fields["title"] == "Neu"
+    assert tg.restore(path, snap).fields["title"] == "Strand"

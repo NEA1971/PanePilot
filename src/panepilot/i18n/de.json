@@ -1165,5 +1165,7 @@
   "video.wmv_hint": "Bei WMV-Videos lässt sich das Aufnahmedatum nicht ändern.",
   "help.tools_link": "Mehr dazu: Hilfe „Zusatzprogramme“",
   "shift.locked": "nicht änderbar",
-  "shift.locked_count": "{n} lassen sich nicht ändern (siehe Hinweis in der Seitenleiste)."
+  "shift.locked_count": "{n} lassen sich nicht ändern (siehe Hinweis in der Seitenleiste).",
+  "video.wrong_ext": "„{name}“ ist eigentlich eine {real}-Datei – die Endung passt nicht zum Inhalt. PanePilot liest sie trotzdem richtig; sauberer wäre die passende Endung.",
+  "video.wrong_ext_many": "{n} Dateien haben eine Endung, die nicht zum Inhalt passt (siehe Spalte „Format“). PanePilot liest sie trotzdem richtig."
 }

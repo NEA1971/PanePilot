@@ -1164,5 +1164,7 @@
   "video.wmv_hint": "Bei WMV-Videos gann mor des Uffnahmedadum ni ändorn.",
   "help.tools_link": "Mehr dazu: Hilfe „Zusatzbrogramme“",
   "shift.locked": "ni ändorbar",
-  "shift.locked_count": "{n} gann mor ni ändorn (guck in de Seitnleiste)."
+  "shift.locked_count": "{n} gann mor ni ändorn (guck in de Seitnleiste).",
+  "video.wrong_ext": "„{name}“ is eigentlich ne {real}-Dadei – de Endung passt ni zum Inhalt. PanePilot liest se trotzdem richtsch; saubrer wär de bassende Endung.",
+  "video.wrong_ext_many": "{n} Dadein ham ne Endung, die ni zum Inhalt passt (guck in de Schbalte „Format“). PanePilot liest se trotzdem richtsch."
 }
