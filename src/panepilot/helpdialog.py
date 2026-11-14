@@ -14,7 +14,7 @@ from PySide6.QtWidgets import QDialog, QDialogButtonBox, QHBoxLayout, QListWidge
 from .i18n import current_language, t
 from .resources import resource_path
 
-TOPICS = ("basics", "sidebars", "servers", "search", "rename", "metawizard", "checksums", "settings", "tools", "shortcuts")
+TOPICS = ("basics", "sidebars", "search", "rename", "metawizard", "checksums", "settings", "shortcuts")
 HELP_LANGUAGES = ("de", "en")
 
 

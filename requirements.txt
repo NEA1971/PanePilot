@@ -1,7 +1,2 @@
 PySide6-Essentials==6.9.3
 mutagen==1.47.0
-paramiko==5.1.0
-secretstorage==3.5.0
-pyexiv2==2.16.0
-pillow-heif==1.8.1
-pillow==13.0.0

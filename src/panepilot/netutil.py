@@ -131,12 +131,16 @@ class Task(QThread):
 
 def run_blocking(parent, fn, text: str, title: str):
     """Führt fn im Hintergrund aus, zeigt dabei ein Warte-Fenster. Liefert (Ergebnis, Fehlertext)."""
-    from PySide6.QtCore import QEventLoop
+    from PySide6.QtCore import QEventLoop, Qt
+    from PySide6.QtWidgets import QProgressDialog
 
-    from .dialogs import WaitDialog
+    from .i18n import t
 
-    dlg = WaitDialog(parent, title, text, delay=300)
-    task = Task(fn)
+    dlg = QProgressDialog(text, t("button.cancel"), 0, 0, parent)
+    dlg.setWindowTitle(title)
+    dlg.setWindowModality(Qt.WindowModality.WindowModal)
+    dlg.setMinimumDuration(300)
+    task = Task(fn, parent)
     out: dict = {}
     task.result.connect(lambda v: out.__setitem__("value", v))
     task.failed.connect(lambda e: out.__setitem__("error", e))
@@ -144,19 +148,14 @@ def run_blocking(parent, fn, text: str, title: str):
     task.finished.connect(loop.quit)
     dlg.canceled.connect(loop.quit)
     task.start()
-    if not task.isFinished():
-        loop.exec()
-    cancelled = dlg.wasCanceled() and not task.isFinished()
-    dlg.finish()
+    loop.exec()
+    cancelled = dlg.wasCanceled()
+    dlg.close()
     if cancelled:
         task.result.disconnect()
         task.failed.disconnect()
-        _running.append(task)
-        task.finished.connect(lambda: _running.remove(task) if task in _running else None)
+        task.finished.connect(task.deleteLater)
         return None, None
     task.wait()
     task.deleteLater()
     return out.get("value"), out.get("error")
-
-
-_running: list = []  # abgebrochene Abfragen laufen im Hintergrund zu Ende

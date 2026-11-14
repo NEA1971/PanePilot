@@ -89,7 +89,6 @@ def perm_string(mode: int) -> str:
     return stat.filemode(mode)
 
 EntryRole = Qt.ItemDataRole.UserRole + 1
-REMOTE_MIME = "application/x-panepilot-remote"  # Ziehen aus einem Server-Fenster (v1.3)
 
 
 @dataclass
@@ -110,7 +109,6 @@ class Entry:
     original_path: str = ""
     info_path: str = ""
     btime: float | None = None  # Erstellungszeit, wird erst bei Bedarf ermittelt (-1 = unbekannt)
-    remote: bool = False  # Eintrag auf einem Server (v1.3); path ist dann die Adresse (sftp://…/pfad)
 
     def birth_time(self) -> float:
         """Erstellungszeit in Sekunden oder -1, wenn das Dateisystem sie nicht liefert (F-513)."""
@@ -213,9 +211,6 @@ class FileListModel(QAbstractTableModel):
         self.trash_mode = False
         self.search_base: str | None = None  # Suchergebnisse (F-817): Startordner der Suche
         self.icon_column = COL_NAME  # Spalte, in der das Symbol steht (erste sichtbare Namensspalte)
-        self.remote_mode = False  # Server-Ordner (v1.3)
-        self.remote_rename = None  # Funktion (Entry, neuer Name) → Fehlertext oder None
-        self.remote_side = ""  # zum Ziehen zwischen den Fenstern
 
     # --- Laden ---------------------------------------------------------------
     @property
@@ -237,7 +232,6 @@ class FileListModel(QAbstractTableModel):
             entries.append(e)
         self.beginResetModel()
         self.search_base = None
-        self.remote_mode = False
         self.trash_mode = True
         self._dir = uri
         self._entries = entries
@@ -252,7 +246,6 @@ class FileListModel(QAbstractTableModel):
             self._set_folder_text(base, e)
         self.beginResetModel()
         self.trash_mode = False
-        self.remote_mode = False
         self.search_base = base
         self._dir = base
         self._entries = list(entries)
@@ -293,38 +286,7 @@ class FileListModel(QAbstractTableModel):
                 fresh.append(n)
         self.load_results(self.search_base, fresh)
 
-    def load_remote(self, base: str, path: str, items) -> None:
-        """Inhalt eines Ordners auf dem Server (v1.3); base wie „sftp://user@host“, path wie „/Fotos“."""
-        import posixpath
-
-        entries = []
-        for it in items:
-            hidden = it.name.startswith(".")
-            if hidden and not self._show_hidden:
-                continue
-            e = Entry(name=it.name, path=base + posixpath.join(path, it.name), is_dir=it.is_dir, size=it.size,
-                      mtime=it.mtime, is_link=it.is_link, hidden=hidden, mode=it.mode, uid=it.uid, gid=it.gid,
-                      btime=-1.0, remote=True)
-            e.type_text = t("type.folder") if it.is_dir else self._icons.type_text(it.name)
-            entries.append(e)
-        self.total_count = len(entries)
-        if self.accept is not None:
-            entries = [e for e in entries if self.accept(e.name, e.is_dir)]
-        self.beginResetModel()
-        self.search_base = None
-        self.trash_mode = False
-        self.remote_mode = True
-        self._dir = base + path
-        self._entries = entries
-        self._sort_entries()
-        if self._show_parent and path not in ("", "/"):
-            parent = posixpath.dirname(path.rstrip("/")) or "/"
-            self._entries.insert(0, Entry(name="..", path=base + parent, is_dir=True, is_parent=True, remote=True))
-        self.endResetModel()
-        self.headerDataChanged.emit(Qt.Orientation.Horizontal, 0, COLUMN_COUNT - 1)
-
     def load(self, path: str) -> None:
-        self.remote_mode = False
         self.search_base = None
         entries = scan_directory(path, self._show_hidden, self._icons)
         self.total_count = len(entries)
@@ -466,11 +428,6 @@ class FileListModel(QAbstractTableModel):
                 return perm_number(e.mode)
             if col == COL_PERM_STR:
                 return perm_string(e.mode)
-            if col in (COL_OWNER, COL_GROUP) and e.remote:
-                value = e.uid if col == COL_OWNER else e.gid
-                return str(value) if value >= 0 else ""
-            if col in (COL_PERM_NUM, COL_PERM_STR) and e.remote and not stat.S_IMODE(e.mode):
-                return ""
             if col == COL_OWNER:
                 return owner_name(e.uid)
             if col == COL_GROUP:
@@ -490,8 +447,8 @@ class FileListModel(QAbstractTableModel):
             if e.is_parent:
                 return self._icons.parent_entry()
             if e.is_dir:
-                return self._icons.folder() if self.trash_mode or e.remote else self._icons.dir_icon(e.path)
-            return self._icons.for_file(e.name if self.trash_mode or e.remote else e.path)
+                return self._icons.folder() if self.trash_mode else self._icons.dir_icon(e.path)
+            return self._icons.for_file(e.name if self.trash_mode else e.path)
         elif role == Qt.ItemDataRole.FontRole and col in (COL_PERM_NUM, COL_PERM_STR):
             from PySide6.QtGui import QFontDatabase
 
@@ -500,7 +457,7 @@ class FileListModel(QAbstractTableModel):
             return self.alignment(col)
         elif role == Qt.ItemDataRole.ForegroundRole and e.hidden:
             return QApplication.palette().color(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text)
-        elif role == Qt.ItemDataRole.ToolTipRole and not e.is_parent and not e.remote:
+        elif role == Qt.ItemDataRole.ToolTipRole and not e.is_parent:
             # F-430 ff.: die jeweils andere Darstellung als Infotext
             if col == COL_OWNER:
                 return t("tooltip.uid", uid=e.uid)
@@ -541,8 +498,6 @@ class FileListModel(QAbstractTableModel):
             return False
         e = self._entries[index.row()]
         new_name = str(value).strip()
-        if e.remote:
-            return self._set_remote_name(index, e, new_name)
         if index.column() == COL_NAME_STEM and new_name:
             # Umbenennen in der Spalte „ohne Endung“: die Endung bleibt erhalten
             ext = os.path.splitext(e.name)[1] if not e.is_dir else ""
@@ -567,27 +522,6 @@ class FileListModel(QAbstractTableModel):
         self.renamed.emit(new_name)
         return True
 
-    def _set_remote_name(self, index, e: Entry, new_name: str) -> bool:
-        if index.column() == COL_NAME_STEM and new_name and not e.is_dir:
-            new_name += os.path.splitext(e.name)[1]
-        if e.is_parent or not new_name or new_name == e.name:
-            return False
-        if "/" in new_name or new_name in (".", ".."):
-            self.rename_failed.emit(t("error.invalid_name", name=new_name))
-            return False
-        if any(x.name == new_name for x in self._entries) and new_name.casefold() != e.name.casefold():
-            self.rename_failed.emit(t("error.name_exists", name=new_name))
-            return False
-        error = self.remote_rename(e, new_name) if self.remote_rename is not None else "?"
-        if error:
-            self.rename_failed.emit(t("error.rename_failed", name=e.name, reason=error))
-            return False
-        e.path = e.path[: len(e.path) - len(e.name)] + new_name
-        e.name = new_name
-        self.dataChanged.emit(index, index)
-        self.renamed.emit(new_name)
-        return True
-
     def supportedDragActions(self):
         return Qt.DropAction.CopyAction | Qt.DropAction.MoveAction
 
@@ -595,18 +529,10 @@ class FileListModel(QAbstractTableModel):
         return Qt.DropAction.CopyAction | Qt.DropAction.MoveAction | Qt.DropAction.LinkAction
 
     def mimeTypes(self) -> list[str]:
-        return ["text/uri-list", REMOTE_MIME]
+        return ["text/uri-list"]
 
     def mimeData(self, indexes) -> QMimeData:
         rows = sorted({i.row() for i in indexes})
-        if self.remote_mode:
-            import json
-
-            md = QMimeData()
-            paths = [self._entries[r].path for r in rows if not self._entries[r].is_parent]
-            dirs = [self._entries[r].is_dir for r in rows if not self._entries[r].is_parent]
-            md.setData(REMOTE_MIME, json.dumps({"side": self.remote_side, "paths": paths, "dirs": dirs}).encode())
-            return md
         urls = [QUrl.fromLocalFile(self._entries[r].path) for r in rows if not self._entries[r].is_parent]
         md = QMimeData()
         md.setUrls(urls)

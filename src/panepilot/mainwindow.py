@@ -39,8 +39,6 @@ from .icons import IconProvider, app_icon
 from .operations import OperationController
 from .mounts import MountManager
 from .metacontrol import META_ALLOWED, MODE_META, MetaWizardMixin
-from .remotecontrol import MODE_SERVERS, REMOTE_BLOCKED, RemoteMixin
-from .remotefs import is_remote_uri
 from .favsets import FavoriteSets
 from .sidebars import MODE_FAVORITES, MODE_OFF, MODE_TREE, SIDEBARS, SidebarHost, SidebarPane
 
@@ -190,7 +188,7 @@ class KeyFilter(QObject):
         return False
 
 
-class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
+class MainWindow(MetaWizardMixin, QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.settings = Settings()
@@ -211,7 +209,6 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         self.last_sidebar_mode: dict[str, str] = {s: MODE_FAVORITES for s in SIDES}
         self.ops = OperationController(self)
         self.ops.finished.connect(self._on_operation_finished)
-        self._init_remote()  # Server (v1.3)
         self.active_side = "left"
         self.rename_mode = None  # dict mit dem vorherigen Zustand, solange „Mehrfach umbenennen“ läuft
         self.tool_mode: dict[str, dict] = {}  # Seite → {"mode", "sidebar", "inner"} für Suche/Prüfsummen
@@ -279,7 +276,6 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         sidebar = SidebarHost({
             MODE_FAVORITES: lambda n=name: self._make_favorites_view(n),
             MODE_TREE: lambda n=name: self._make_tree_view(n),
-            MODE_SERVERS: lambda n=name: self._make_server_view(n),
             MODE_RENAME: lambda n=name: self._make_rename_pane(n),
             MODE_SEARCH: lambda n=name: self._make_search_pane(n),
             MODE_CHECKSUM: lambda n=name: self._make_checksum_pane(n),
@@ -297,9 +293,6 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         panel.path_changed.connect(lambda p, n=name: self._on_panel_path_changed(n, p))
         panel.context_menu_requested.connect(lambda pos, n=name: self._file_context_menu(n, pos))
         panel.drop_requested.connect(self._on_drop)
-        panel.remote_drop_requested.connect(self.remote_drop_from_server)
-        panel.remote_open_requested.connect(lambda e, p=panel: self.remote_open(p, e))
-        panel.remote_closed.connect(lambda sess, n=name: self._on_remote_closed(n, sess))
         panel.open_file_requested.connect(self._open_file)
         panel.message.connect(lambda title, text: show_error(self, title, text))
         panel.filter_changed.connect(lambda n=name: self._on_filter_changed(n))
@@ -522,9 +515,6 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         from .propdialog import PropertiesDialog
 
         panel = self.active
-        if panel.in_remote:
-            self.remote_properties(panel)
-            return
         entries = [e for e in panel.target_entries() if not e.is_parent]
         paths = [e.path for e in entries] or ([panel.current_path] if not panel.in_trash else [])
         if not paths:
@@ -879,7 +869,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
             self._update_title()
             self._update_nav_actions()
         tree = self.tree_view(side)
-        if tree is not None and not is_remote_uri(path):
+        if tree is not None:
             tree.select_path(path)
 
     def _open_tree_path(self, side: str, path: str) -> None:
@@ -942,8 +932,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         a = self.qactions
 
         m = mb.addMenu(t("menu.file"))
-        for aid in ("open", "edit_text", "open_with_other", "open_terminal", "server_manager", None, "new_folder",
-                    "new_textfile",
+        for aid in ("open", "edit_text", "open_with_other", "open_terminal", None, "new_folder", "new_textfile",
                     "rename", "multi_rename", "rename_undo", None, "search", "checksums", "dir_list", "properties", None,
                     "copy", "move", None, "delete", "delete_permanent", None):
             m.addSeparator() if aid is None else m.addAction(a[aid])
@@ -1093,12 +1082,6 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
             return
         if self.active.in_trash and action_id in self.TRASH_BLOCKED:
             return
-        if self.active.in_remote and action_id in REMOTE_BLOCKED:
-            show_info(self, t("srv.title"), t("srv.not_on_server"))
-            return
-        if action_id == "swap_panels" and (self.active.in_remote or self.other.in_remote):
-            show_info(self, t("srv.title"), t("srv.not_on_server"))
-            return
         if IS_WINDOWS and action_id in WINDOWS_DISABLED_ACTIONS:
             return
         if action_id in ("copy", "move", "copy_direct", "move_direct") and self.other.in_trash and not self.active.in_trash:
@@ -1127,8 +1110,6 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         self._update_nav_actions()
 
     def _copy_or_move(self, move: bool, ask: bool = True) -> None:
-        if self.remote_transfer(move, ask):  # mit Server-Fenster (v1.3)
-            return
         entries = self.active.target_entries()
         if not entries:
             return
@@ -1173,6 +1154,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
     def do_dir_list(self, folder: str | None = None) -> None:
         import datetime as _dt
 
+        from PySide6.QtWidgets import QProgressDialog
 
         from . import dirlist, util
         from .i18n import current_language
@@ -1192,9 +1174,9 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
             return
         if not path.lower().endswith(".txt"):
             path += ".txt"
-        from .dialogs import WaitDialog
-
-        progress = WaitDialog(self, t("dirlist.title"), t("dirlist.reading"))
+        progress = QProgressDialog(t("dirlist.reading"), t("button.cancel"), 0, 0, self)
+        progress.setWindowTitle(t("dirlist.title"))
+        progress.setMinimumDuration(400)
         worker = dirlist.DirListThread(folder, opts["files"], opts["depth"], opts["hidden"], self)
         progress.canceled.connect(worker.cancel)
         worker.progress.connect(lambda n: progress.setLabelText(t("dirlist.reading_n", n=n)))
@@ -1205,7 +1187,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         worker.finished.connect(loop.quit)
         worker.start()
         loop.exec()
-        progress.finish()
+        progress.close()
         if "error" in result:
             show_error(self, t("dirlist.title"), t("dirlist.failed", reason=result["error"]))
             return
@@ -1404,9 +1386,6 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         if "/" in name or name in (".", ".."):
             show_error(self, t("title.new_folder"), t("error.invalid_name", name=name))
             return
-        if panel.in_remote:
-            self.remote_new_folder(panel, name)
-            return
         path = os.path.join(panel.current_path, name)
         try:
             os.mkdir(path)
@@ -1427,9 +1406,6 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         if self.active.in_trash:
             self.do_trash_purge()  # im Papierkorb gibt es nur endgültiges Löschen
             return
-        if self.active.in_remote:
-            self.do_delete_permanent()  # auf dem Server gibt es keinen Papierkorb
-            return
         entries = self.active.target_entries()
         if not entries:
             return
@@ -1447,9 +1423,6 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
             return
         entries = self.active.target_entries()
         if not entries:
-            return
-        if self.active.in_remote:
-            self.remote_delete(self.active, entries)
             return
         what = t("dialog.one_item", name=entries[0].name) if len(entries) == 1 else t("dialog.n_items", n=len(entries))
         key = "dialog.delete_confirm_one" if len(entries) == 1 else "dialog.delete_confirm"
@@ -1990,9 +1963,6 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         self.set_active_side(side)
         menu = QMenu(self)
         a = self.qactions
-        if self.sides[side].panel.in_remote:
-            self.remote_file_menu(side, pos)
-            return
         if self.sides[side].panel.in_trash:
             # Kontextmenü im Papierkorb (F-408)
             if self.active.target_entries():
@@ -2311,8 +2281,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
     def _sidebar_switch_actions(self, menu: QMenu, side: str, current: str) -> None:
         """Umschaltung der Seitenleiste im Kontextmenü (F-240)."""
         menu.addSeparator()
-        for mode, key in ((MODE_FAVORITES, "sidebar.switch_favorites"), (MODE_TREE, "sidebar.switch_tree"),
-                          (MODE_SERVERS, "sidebar.switch_servers")):
+        for mode, key in ((MODE_FAVORITES, "sidebar.switch_favorites"), (MODE_TREE, "sidebar.switch_tree")):
             if mode != current:
                 act = menu.addAction(t(key))
                 act.triggered.connect(lambda _c=False, m=mode: self.set_sidebar_mode(side, m))
@@ -2362,9 +2331,6 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
 
     # --- Drag & Drop / Operationen ---------------------------------------------------------------
     def _on_drop(self, paths: list[str], target: str, action) -> None:
-        if is_remote_uri(target):
-            self.remote_drop(paths, target, action)
-            return
         if is_trash_uri(target):
             self._trash_paths(paths)
             return
@@ -2529,7 +2495,6 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
                 s.panel.navigate(nearest_existing_dir(path))
             history = st.get("history")
             if isinstance(history, list) and all(isinstance(h, str) for h in history):
-                history = [h for h in history if not is_remote_uri(h)]
                 pos = st.get("history_pos", len(history) - 1)
                 s.panel.set_history_state(history, pos if isinstance(pos, int) else len(history) - 1)
             inner = st.get("inner")
@@ -2557,18 +2522,11 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         sides_state = {}
         for name, s in self.sides.items():
             history, pos = s.panel.history_state()
-            local_path = s.panel.current_path
-            if is_remote_uri(local_path) or not local_path:  # Server-Ordner nicht merken (v1.3)
-                local = [h for h in history[: max(pos, 0) + 1] if not is_remote_uri(h)]
-                local_path = local[-1] if local else str(Path.home())
-            keep = [i for i, h in enumerate(history) if not is_remote_uri(h)]
-            pos = max([j for j, i in enumerate(keep) if i <= pos], default=-1)
-            history = [history[i] for i in keep]
             pane = self._fav_pane(name)
             view = pane.view if pane is not None else None
             col, order = s.panel.sort_state()
             sides_state[name] = {
-                "path": local_path,
+                "path": s.panel.current_path,
                 "sort": [col, order],
                 "header": s.panel.header_state(),
                 "header_columns": COLUMN_COUNT,
@@ -2614,11 +2572,6 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
                 event.ignore()
                 return
             self.ops.wait_all()
-        if self.transfers_busy() and not confirm(self, t("title.quit"), t("srv.quit_transfers"), yes_key="button.quit",
-                                                 default_yes=False):
-            event.ignore()
-            return
-        self.shutdown_remote()
         if not skip:
             self.save_state()
         QApplication.instance().removeEventFilter(self.key_filter)

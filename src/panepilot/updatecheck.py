@@ -12,7 +12,9 @@ import os
 import re
 from dataclasses import dataclass
 
-from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QTextBrowser, QVBoxLayout
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QProgressDialog, QPushButton, QTextBrowser,
+                               QVBoxLayout)
 
 from . import __version__, netutil
 from .i18n import t
@@ -129,9 +131,10 @@ def download_release(parent, release: Release, target: str) -> bool:
 
     from .dialogs import show_error
 
-    from .dialogs import WaitDialog
-
-    dlg = WaitDialog(parent, t("update.title"), t("update.downloading", name=release.asset_name), 100, delay=0)
+    dlg = QProgressDialog(t("update.downloading", name=release.asset_name), t("button.cancel"), 0, 100, parent)
+    dlg.setWindowTitle(t("update.title"))
+    dlg.setWindowModality(Qt.WindowModality.WindowModal)
+    dlg.setMinimumDuration(0)
     state = {"cancel": False}
     dlg.canceled.connect(lambda: state.__setitem__("cancel", True))
 
@@ -158,7 +161,8 @@ def download_release(parent, release: Release, target: str) -> bool:
     loop.exec()
     task.wait()
     cancelled = state["cancel"]
-    dlg.finish()
+    dlg.canceled.disconnect()
+    dlg.close()  # close() meldet selbst „canceled“, deshalb vorher auswerten
     task.deleteLater()
     if cancelled:
         return False

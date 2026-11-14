@@ -14,10 +14,7 @@ KINDS = (TAG_TO_FILE, FILE_TO_TAG, TAG_TO_TAG)
 TAG_TO_TEXT, TEXT_TO_TAG, NUMBER, PLAYLIST = "tag2text", "text2tag", "number", "playlist"  # v0.9.3
 REPLAYGAIN = "replaygain"  # v0.9.6
 DISC, MUSICBRAINZ = "disc", "musicbrainz"  # v1.2
-DATESHIFT = "dateshift"  # v1.4: Aufnahmedatum verschieben (Fotos, ab v1.5 auch Videos)
-TOOLS = KINDS + (TAG_TO_TEXT, TEXT_TO_TAG, NUMBER, DISC, MUSICBRAINZ, PLAYLIST, REPLAYGAIN, DATESHIFT)
-AUDIO_ONLY = (NUMBER, DISC, MUSICBRAINZ, PLAYLIST, REPLAYGAIN)
-PHOTO_ONLY = (DATESHIFT,)  # Fotos und Videos
+TOOLS = KINDS + (TAG_TO_TEXT, TEXT_TO_TAG, NUMBER, DISC, MUSICBRAINZ, PLAYLIST, REPLAYGAIN)
 
 ALIASES = {"tracknumber": "track", "discnumber": "disc", "date": "year", "album artist": "albumartist",
            "band": "albumartist"}
@@ -34,7 +31,6 @@ FUNCTIONS = {
     "replace": "$replace(%title%,alt,neu)",
     "trim": "$trim(%title%)",
     "if": "$if(%albumartist%,%albumartist%,%artist%)",
-    "date": "$date(%datetaken%,JJJJ-MM-TT_hhmmss)",
 }
 
 DEFAULT_PRESETS = {
@@ -46,16 +42,6 @@ DEFAULT_PRESETS = {
     TEXT_TO_TAG: [{"name": "", "format": "%track%. %title%", "desc": ""},
                   {"name": "", "format": "%track% - %title%", "desc": ""},
                   {"name": "", "format": "%title%", "desc": ""}],
-}
-
-
-# Vorlagen im Foto-Modus (v1.4)
-PHOTO_PRESETS = {
-    TAG_TO_FILE: [{"name": "", "format": "$date(%datetaken%,JJJJ-MM-TT_hhmmss)", "desc": ""},
-                  {"name": "", "format": "$date(%datetaken%,JJJJ-MM-TT_hhmmss) %title%", "desc": ""}],
-    FILE_TO_TAG: [{"name": "", "format": "%title%", "desc": ""}],
-    TAG_TO_TAG: [{"name": "", "format": "%title%", "desc": ""}],
-    TEXT_TO_TAG: [{"name": "", "format": "%title%", "desc": ""}],
 }
 
 
@@ -91,32 +77,7 @@ def _int(arg: str, fn: str) -> int:
         raise FormatError(f"${fn}: {arg}") from None
 
 
-def _date(args: list[str], get) -> str:
-    """$date(Wert,Format): Datum umformatieren; ohne Wert gilt das Änderungsdatum der Datei (v1.4)."""
-    import datetime as dt
-
-    from .multirename import format_date
-    from .phototags import parse_date
-
-    value = args[0].strip()
-    fmt = args[1] if len(args) > 1 and args[1].strip() else "JJJJ-MM-TT"
-    when = parse_date(value) if value else None
-    if when is None and re.fullmatch(r"\d{4}", value):
-        when = dt.datetime(int(value), 1, 1)
-    if when is None and value:
-        return value  # unbekannte Schreibweise unverändert
-    if when is None:
-        try:
-            ts = float(get("_mtime") or 0)
-        except ValueError:
-            ts = 0
-        if not ts:
-            return ""
-        return format_date(ts, fmt)
-    return format_date(when.timestamp(), fmt)
-
-
-def _call(name: str, args: list[str], get=lambda _n: "") -> str:
+def _call(name: str, args: list[str]) -> str:
     def need(n: int) -> None:
         if len(args) < n:
             raise FormatError(f"${name}()")
@@ -154,9 +115,6 @@ def _call(name: str, args: list[str], get=lambda _n: "") -> str:
     if name == "if":
         need(2)
         return args[1] if args[0].strip() else (args[2] if len(args) > 2 else "")
-    if name == "date":
-        need(1)
-        return _date(args, get)
     raise FormatError(f"${name}")
 
 
@@ -189,7 +147,7 @@ class _Parser:
                 if self.pos >= len(t) or t[self.pos] != ")":
                     raise FormatError(f"${m.group(1)}(")
                 self.pos += 1
-                out.append(_call(m.group(1), args, self.get))
+                out.append(_call(m.group(1), args))
             elif c == "'":
                 end = self.pos + 1
                 buf = []

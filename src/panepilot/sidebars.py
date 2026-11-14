@@ -16,7 +16,6 @@ from PySide6.QtWidgets import QStackedWidget, QWidget
 MODE_OFF = "off"
 MODE_FAVORITES = "favorites"
 MODE_TREE = "tree"
-MODE_SERVERS = "servers"  # v1.3
 
 
 @dataclass(frozen=True)
@@ -29,7 +28,6 @@ class SidebarDef:
 SIDEBARS: tuple[SidebarDef, ...] = (
     SidebarDef(MODE_FAVORITES, "sidebar.favorites", True),
     SidebarDef(MODE_TREE, "sidebar.tree", True),
-    SidebarDef(MODE_SERVERS, "sidebar.servers", True),
     SidebarDef(MODE_OFF, "sidebar.off", True),
 )
 

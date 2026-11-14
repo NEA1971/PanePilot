@@ -16,8 +16,6 @@ python3 -m PyInstaller --noconfirm --clean --onedir --windowed \
   --add-data "src/panepilot/i18n/*.json:panepilot/i18n" \
   --add-data "src/panepilot/icons:panepilot/icons" \
   --add-data "src/panepilot/help:panepilot/help" \
-  --collect-all pyexiv2 \
-  --collect-all pillow_heif \
   --exclude-module tkinter \
   --exclude-module pytest \
   packaging/launcher.py

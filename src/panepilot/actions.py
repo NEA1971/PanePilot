@@ -50,7 +50,6 @@ ACTION_DEFS: tuple[ActionDef, ...] = (
     ActionDef("new_textfile", "action.new_textfile", (), "window"),  # Standard: Umschalt+F4 (F-645)
     ActionDef("open_terminal", "action.open_terminal", (), "window"),  # v1.1
     ActionDef("dir_list", "action.dir_list", (), "window"),  # v1.1
-    ActionDef("server_manager", "action.server_manager", (), "window"),  # v1.3
     ActionDef("edit_text", "action.edit_text", (), "window"),
     ActionDef("open_with_other", "action.open_with_other", (), "window"),
     ActionDef("rename", "action.rename", (), "window"),
