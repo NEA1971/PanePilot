@@ -114,7 +114,8 @@ def read_text_file(path: str, extra_labels: list[str]) -> TextData:
         text = raw.decode("latin-1")
     lines = text.splitlines()
     first = next((ln for ln in lines if ln.strip()), "")
-    delimiter = "\t" if "\t" in first else (";" if ";" in first else None)
+    # Tabulator, Semikolon oder (ab v1.7.1) Komma – LibreOffice speichert CSV standardmäßig mit Komma
+    delimiter = "\t" if "\t" in first else (";" if ";" in first else ("," if "," in first else None))
     lookup = column_lookup(extra_labels)
     if delimiter:
         table = list(csv.reader(io.StringIO(text), delimiter=delimiter))
@@ -238,10 +239,12 @@ class ImportDialog(QDialog):
         grid.addWidget(self.list_right, 1, 1)
         for col, side in ((0, "left"), (1, "right")):
             b = QHBoxLayout()
-            for text, fn in ((t("meta.field_up"), lambda s=side: self._move(s, -1)),
-                             (t("meta.field_down"), lambda s=side: self._move(s, 1)),
-                             (t("textimp.insert_skip"), lambda s=side: self._insert_skip(s)),
-                             (t("textimp.remove_skip"), lambda s=side: self._remove_skip(s))):
+            # „_c“ fängt das Argument von clicked(bool) ab – sonst landete es in „s“, und alle Knöpfe der
+            # linken Seite wirkten auf die rechte (Fehler bis v1.7.0)
+            for text, fn in ((t("meta.field_up"), lambda _c=False, s=side: self._move(s, -1)),
+                             (t("meta.field_down"), lambda _c=False, s=side: self._move(s, 1)),
+                             (t("textimp.insert_skip"), lambda _c=False, s=side: self._insert_skip(s)),
+                             (t("textimp.remove_skip"), lambda _c=False, s=side: self._remove_skip(s))):
                 btn = QPushButton(text, self)
                 btn.clicked.connect(fn)
                 b.addWidget(btn)

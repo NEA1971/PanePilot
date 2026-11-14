@@ -119,3 +119,28 @@ def test_custom_field_case_merged(window, tmp_path, qtbot, monkeypatch):  # noqa
     assert model.text(model.items[0], "x:SEASON") == "S01"
     assert tg.custom_key("video-mkv", "Season") == "x:SEASON"
     window.meta_close()
+
+
+def test_text_import_left_buttons_and_comma_csv(tmp_path):
+    from PySide6.QtWidgets import QPushButton
+
+    from panepilot.metaextras import ImportDialog, TextData, read_text_file
+
+    class It:
+        def __init__(self, n):
+            self.display_name = n
+
+        def folder(self):
+            return ""
+
+    items = [It(f"f{i}.mkv") for i in range(3)]
+    dlg = ImportDialog(None, items, TextData(None, [["Kopf"], ["a"], ["b"], ["c"]]), [], "%title%", lambda *a: None)
+    left_insert = [b for b in dlg.findChildren(QPushButton) if b.text() == "Platzhalter einfügen"][0]
+    dlg.list_left.setCurrentRow(0)
+    left_insert.click()  # wirkt jetzt links: Kopfzeile steht einem Platzhalter gegenüber
+    assert dlg.left[0] is None and dlg.right[:2] == [0, 1]
+    csv = tmp_path / "liste.csv"
+    csv.write_text("Dateiname,Titel,SEASON,EPISODE\nf1.mkv,\"Tigh Me Up, Tigh Me Down\",S01,E09\n", encoding="utf-8")
+    data = read_text_file(str(csv), [])
+    assert data.header == ["filename", "title", "x:SEASON", "x:EPISODE"]
+    assert data.rows[0][1] == "Tigh Me Up, Tigh Me Down"
