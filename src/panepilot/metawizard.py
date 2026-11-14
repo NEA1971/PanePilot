@@ -320,7 +320,8 @@ class MetaModel(QAbstractTableModel):
         out: list[str] = []
         for k in keys:
             if k.startswith(tg.EXTRA):
-                k = by_label.get(tg.label_of(k).casefold(), k)
+                label = tg.label_of(k).casefold()
+                k = by_label.setdefault(label, k)  # auch ohne Datei mit diesem Feld nur eine Spalte je Name
             if k not in out:
                 out.append(k)
         return out
@@ -351,6 +352,14 @@ class MetaModel(QAbstractTableModel):
             if name.casefold() not in seen:
                 seen.add(name.casefold())
                 found[tg.EXTRA + name] = name
+        # auch Felder, die nur als Spalte im gespeicherten Layout stehen (v1.7.2) – sonst ließen sie sich weder
+        # abwählen noch im Feld-Editor bearbeiten, wenn keine Datei im Ordner sie hat
+        for col in self.columns:
+            if col.startswith(tg.EXTRA):
+                label = tg.label_of(col)
+                if label.casefold() not in seen:
+                    seen.add(label.casefold())
+                    found[col] = label
         return dict(sorted(found.items(), key=lambda kv: kv[1].casefold()))
 
     def changed_items(self) -> list[MetaItem]:

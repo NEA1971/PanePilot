@@ -437,7 +437,8 @@ class MetaWizardMixin:
         pane = self._meta_pane()
         model = pane.meta_model
         items = [it for it in model.items if not it.record.error]
-        rows = collect_fields(items, model.custom_fields)
+        layout_fields = [tg.label_of(c) for c in [*model.columns, *pane.layout_keys] if c.startswith(tg.EXTRA)]
+        rows = collect_fields(items, [*model.custom_fields, *layout_fields])
         dlg = FieldEditorDialog(self, rows, len(items))
         if dlg.exec() != dlg.DialogCode.Accepted:
             return
@@ -456,6 +457,14 @@ class MetaWizardMixin:
                 for k in matches(it, row):
                     it.set(k, None)
             custom = [c for c in custom if c.casefold() != row.label.casefold()]
+            if row.key.startswith(tg.EXTRA):  # Spalte und Seitenleisten-Feld gleich mit entfernen (v1.7.2)
+                gone = row.label.casefold()
+                keep = [c for c in model.columns if not (c.startswith(tg.EXTRA) and tg.label_of(c).casefold() == gone)]
+                if keep and keep != model.columns:
+                    pane.meta_view.set_columns(keep)
+                lay = [k for k in pane.layout_keys if not (k.startswith(tg.EXTRA) and tg.label_of(k).casefold() == gone)]
+                if lay != pane.layout_keys:
+                    pane.set_layout(lay)
         for row, new_name in dlg.renames():
             for it in items:
                 for k in matches(it, row):

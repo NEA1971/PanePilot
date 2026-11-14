@@ -144,3 +144,43 @@ def test_text_import_left_buttons_and_comma_csv(tmp_path):
     data = read_text_file(str(csv), [])
     assert data.header == ["filename", "title", "x:SEASON", "x:EPISODE"]
     assert data.rows[0][1] == "Tigh Me Up, Tigh Me Down"
+
+
+# --- 1.7.2: Feld nur im Layout (keine Datei im Ordner hat es) -------------------------------------------------------
+def test_layout_only_fields_merged_and_editable(window, tmp_path, qtbot, monkeypatch):  # noqa: F811
+    from panepilot import metadialogs
+
+    folder = tmp_path / "Serie1980"
+    folder.mkdir()
+    shutil.copy(os.path.join(VIDEO, "clip.mp4"), folder / "S01E01.mp4")
+    window.settings.set("meta_video_custom_fields", [])
+    window.settings.set("meta_video_layout", {"columns": ["filename", "x:SEASON", "x:Season", "x:Episode"]})
+    pane = _open(window, qtbot, folder)
+    model = pane.meta_model
+    assert model.columns == ["filename", "x:SEASON", "x:Episode"]  # eine Spalte je Name
+    assert set(model.extra_keys().values()) == {"SEASON", "Episode"}  # im Spaltenmenü abwählbar
+    seen = {}
+
+    class FakeEditor:
+        DialogCode = metadialogs.FieldEditorDialog.DialogCode
+
+        def __init__(self, parent, rows, n):
+            seen["labels"] = {r.label for r in rows}
+            self.rows = rows
+
+        def exec(self):
+            return self.DialogCode.Accepted
+
+        def deletions(self):
+            return [r for r in self.rows if r.label == "Episode"]
+
+        def renames(self):
+            return []
+
+        def new_fields(self):
+            return []
+    monkeypatch.setattr(metadialogs, "FieldEditorDialog", FakeEditor)
+    window.meta_field_editor()
+    assert {"SEASON", "Episode"} <= seen["labels"]  # im Feld-Editor sichtbar
+    assert model.columns == ["filename", "x:SEASON"]  # gelöschtes Feld: Spalte weg
+    window.meta_close()
