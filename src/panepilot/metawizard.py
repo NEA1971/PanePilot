@@ -524,6 +524,7 @@ class MetaView(QTreeView):
 # --- Einlesen im Hintergrund (F-904) ------------------------------------------------------------------
 class MetaScanThread(QThread):
     kind_chosen = Signal(str, int, int, int)  # Art, Anzahl Musik, Fotos, Videos (v1.4, v1.5)
+    counted = Signal(int, int, int)  # beim Suchen: bisher gefundene Musik, Fotos, Videos (v1.6.3)
     found = Signal(list)  # Liste von TagRecord
     progress = Signal(int, int)  # eingelesen, gesamt (gesamt = -1, solange noch gesucht wird)
     finished_scan = Signal(bool)  # vollständig
@@ -575,7 +576,9 @@ class MetaScanThread(QThread):
                         found[kind].append(de.path)
             if time.monotonic() - last > 0.3:
                 self.progress.emit(sum(len(v) for v in found.values()), -1)
+                self.counted.emit(len(found[mp.AUDIO]), len(found[mp.PHOTO]), len(found[mp.VIDEO]))
                 last = time.monotonic()
+        self.counted.emit(len(found[mp.AUDIO]), len(found[mp.PHOTO]), len(found[mp.VIDEO]))
         return found
 
     WORKERS = 6  # v1.6.2: mehrere Dateien gleichzeitig lesen (über das Netzwerk viel schneller)
@@ -1362,6 +1365,19 @@ class MetaPane(ToolPane):
         self.btn_discard.setEnabled(has_changes and not busy)
         self.btn_undo.setEnabled(can_undo and not busy)
         self.fields_host.setEnabled(not saving)
+
+
+def found_text(audio: int, photos: int, videos: int) -> str:
+    """„3246 Bilder und 432 Musikdateien“ – nur die Arten, die vorkommen (v1.6.3)."""
+    parts = []
+    for n, key in ((audio, "audio"), (photos, "photo"), (videos, "video")):
+        if n:
+            parts.append(t(f"meta.count_{key}_one" if n == 1 else f"meta.count_{key}", n=n))
+    if not parts:
+        return ""
+    if len(parts) == 1:
+        return parts[0]
+    return t("meta.list_and", first=", ".join(parts[:-1]), last=parts[-1])
 
 
 def video_hint(records) -> str:

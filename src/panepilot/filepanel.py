@@ -539,15 +539,24 @@ class FilePanel(QWidget):
         QTimer.singleShot(0, lambda: self.select_names([name], current=name))
 
     def select_names(self, names: list[str], current: str | None = None) -> None:
+        """Markiert die genannten Einträge in einem Schritt (v1.6.3: vorher je Name einzeln, bei vielen
+        markierten Dateien dauerte das z. B. beim Schließen des Meta-Wizards sehr lange)."""
+        from PySide6.QtCore import QItemSelection
+
         sel = self.view.selectionModel()
-        sel.clearSelection()
-        for name in names:
-            row = self.model.row_of(name)
-            if row >= 0:
-                sel.select(
-                    self.model.index(row, self.model.icon_column),
-                    QItemSelectionModel.SelectionFlag.Select | QItemSelectionModel.SelectionFlag.Rows,
-                )
+        rows_of = self.model.rows_by_name()
+        rows = sorted({rows_of[n] for n in names if n in rows_of})
+        selection = QItemSelection()
+        col = self.model.icon_column
+        start = prev = None
+        for row in rows + [None]:  # zusammenhängende Zeilen als ein Bereich
+            if row is not None and prev is not None and row == prev + 1:
+                prev = row
+                continue
+            if start is not None:
+                selection.select(self.model.index(start, col), self.model.index(prev, col))
+            start = prev = row
+        sel.select(selection, QItemSelectionModel.SelectionFlag.ClearAndSelect | QItemSelectionModel.SelectionFlag.Rows)
         if current:
             row = self.model.row_of(current)
             if row >= 0:

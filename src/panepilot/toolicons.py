@@ -454,7 +454,23 @@ def icon_gear() -> QIcon:
     return _paint_icon(draw)
 
 
+def icon_meta_wizard() -> QIcon:
+    """Meta-Wizard (v1.6.3): Kästchen mit „</>“ – steht für Metadaten aller Art, nicht nur Musik."""
+    fg, accent = _colors()
+
+    def draw(p: QPainter) -> None:
+        p.setPen(_pen(fg, 1.6))
+        p.setBrush(QColor(255, 255, 255, 0))
+        p.drawRoundedRect(QRectF(2.5, 3.5, 19, 17), 2.5, 2.5)
+        p.setPen(_pen(accent, 1.9))
+        p.drawPolyline([QPointF(9, 8.5), QPointF(5.8, 12), QPointF(9, 15.5)])  # <
+        p.drawPolyline([QPointF(15, 8.5), QPointF(18.2, 12), QPointF(15, 15.5)])  # >
+        p.drawLine(QPointF(13.3, 7.5), QPointF(10.7, 16.5))  # /
+    return _paint_icon(draw)
+
+
 _PAINTED = {
+    "meta_wizard": icon_meta_wizard,
     "back": icon_back,
     "forward": icon_forward,
     "toggle_single": icon_single,

@@ -119,10 +119,11 @@ class MetaWizardMixin:
         thread.kind_chosen.connect(self._meta_kind_chosen)
         thread.found.connect(lambda recs, b=mm["base"]: self._meta_found(recs, b))
         thread.progress.connect(self._meta_progress)
+        thread.counted.connect(self._meta_counted)
         thread.finished_scan.connect(self._meta_scan_done)
         mm["scan"] = thread
         self._meta_update_state()
-        pane.summary.setText(t("meta.collecting", n=0))
+        pane.summary.setText(t("meta.searching"))
         thread.start()
 
     def _meta_apply_profile(self, kind: str) -> None:
@@ -186,9 +187,18 @@ class MetaWizardMixin:
             return
         pane = self._meta_pane()
         if total < 0:
-            pane.summary.setText(t("meta.collecting", n=done))
+            return  # Text beim Suchen kommt aus _meta_counted (v1.6.3)
         else:
             pane.summary.setText(t("meta.reading", done=done, total=total))
+
+    def _meta_counted(self, audio: int, photos: int, videos: int) -> None:
+        """Beim Suchen: „Dateien werden gesucht … 3246 Bilder und 432 Musikdateien gefunden“ (v1.6.3)."""
+        if self.meta_mode is None or self.meta_mode.get("scan") is None:
+            return
+        from .metawizard import found_text
+
+        found = found_text(audio, photos, videos)
+        self._meta_pane().summary.setText(t("meta.collecting", found=found) if found else t("meta.searching"))
 
     def _meta_scan_done(self, complete: bool) -> None:
         if self.meta_mode is None:

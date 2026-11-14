@@ -270,3 +270,48 @@ def test_hang_log(tmp_path, monkeypatch):
         faulthandler.cancel_dump_traceback_later()
     text = open(path, encoding="utf-8").read()
     assert "PanePilot gestartet" in text and "test_hang_log" in text
+
+
+# --- 1.6.3 ----------------------------------------------------------------------------------------------------
+def test_refresh_with_many_selected_is_fast(window, tmp_path):  # noqa: F811
+    root = tmp_path / "viele"
+    root.mkdir()
+    for i in range(1500):
+        (root / f"datei {i:04d}.mp4").write_bytes(b"")
+    panel = window.sides["left"].panel
+    panel.navigate(str(root))
+    panel.view.selectAll()
+    assert len(panel.selected_entries()) == 1500
+    t0 = time.monotonic()
+    panel.refresh()
+    assert time.monotonic() - t0 < 3
+    assert len(panel.selected_entries()) == 1500
+    panel.select_names(["datei 0003.mp4", "datei 0004.mp4", "datei 0010.mp4", "fehlt"], current="datei 0010.mp4")
+    assert [e.name for e in panel.selected_entries()] == ["datei 0003.mp4", "datei 0004.mp4", "datei 0010.mp4"]
+    assert panel.current_entry().name == "datei 0010.mp4"
+    panel.select_names([])
+    assert panel.selected_entries() == []
+
+
+def test_meta_found_text_and_icon(window, tmp_path, qtbot):  # noqa: F811
+    from panepilot.metawizard import found_text
+    from panepilot.toolicons import action_icon
+
+    assert found_text(432, 3246, 0) == "432 Musikdateien und 3246 Bilder"
+    assert found_text(0, 1, 0) == "1 Bild" and found_text(0, 0, 0) == ""
+    assert found_text(1, 2, 3) == "1 Musikdatei, 2 Bilder und 3 Videos"
+    seen = []
+    folder = tmp_path / "gemischt"
+    folder.mkdir()
+    import shutil
+    shutil.copy(os.path.join(os.path.dirname(__file__), "data", "video", "clip.mp4"), folder / "a.mp4")
+    window.sides["left"].panel.navigate(str(folder))
+    window.set_active_side("left")
+    window.trigger("meta_wizard")
+    pane = window._meta_pane()
+    seen.append(pane.summary.text())
+    qtbot.waitUntil(lambda: window.meta_mode.get("scan") is None, timeout=10000)
+    assert seen[0] in ("Dateien werden gesucht …", "Dateien werden gesucht … 1 Video gefunden")
+    assert pane.summary.text().startswith("1 Dateien eingelesen") or "eingelesen" in pane.summary.text()
+    window.meta_close()
+    assert not action_icon("meta_wizard").isNull()

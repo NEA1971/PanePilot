@@ -413,6 +413,12 @@ class FileListModel(QAbstractTableModel):
     def entries(self) -> list[Entry]:
         return list(self._entries)
 
+    def rows_by_name(self) -> dict[str, int]:
+        out: dict[str, int] = {}
+        for i, e in enumerate(self._entries):
+            out.setdefault(e.name, i)
+        return out
+
     def row_of(self, name: str) -> int:
         for i, e in enumerate(self._entries):
             if e.name == name:
