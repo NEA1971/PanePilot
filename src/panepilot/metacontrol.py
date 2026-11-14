@@ -550,9 +550,16 @@ class MetaWizardMixin:
         return get
 
     def _meta_target(self, field_name: str) -> str:
+        """Feld zu einem Platzhalternamen; eigene Felder ohne Rücksicht auf Groß-/Kleinschreibung (v1.7.3)."""
         from . import tags as tg
 
-        return field_name if field_name in mp.fields() else tg.EXTRA + field_name
+        if field_name in mp.fields():
+            return field_name
+        if self.meta_mode is not None:
+            for key, label in self._meta_pane().meta_model.extra_keys().items():
+                if label.casefold() == field_name.casefold():
+                    return key
+        return tg.EXTRA + field_name
 
     def _meta_compute(self, kind: str, fmt: str, field: str, items):
         """Ergebnis je Titel: (Titel, Werte bzw. Name oder None, Fehler)."""

@@ -232,12 +232,29 @@ def pattern_fields(fmt: str) -> list[str]:
     return [canonical(m) for m in re.findall(r"%([^%]+)%", fmt)]
 
 
+def _known_names() -> set[str]:
+    from . import phototags as ph
+    from . import tags as tg
+    from . import videotags as vt
+
+    return {*tg.FIELDS, *ph.FIELDS, *vt.FIELDS, *ALIASES.values(), DUMMY}
+
+
+def field_name(raw: str) -> str:
+    """Name aus einem Platzhalter: bekannte Felder klein (z. B. „Title“ → „title“), eigene Felder in der
+    geschriebenen Schreibweise (v1.7.3: „%Season%“ bleibt „Season“ und landet im vorhandenen Feld „Season“)."""
+    name = canonical(raw)
+    if name in _known_names() or name.startswith("_"):
+        return name
+    return raw.strip()
+
+
 def compile_pattern(fmt: str) -> tuple[re.Pattern, list[str]]:
     parts = re.split(r"(%[^%]+%)", fmt)
     regex, names = "", []
     for i, part in enumerate(parts):
         if part.startswith("%") and part.endswith("%") and len(part) > 2:
-            name = canonical(part[1:-1])
+            name = field_name(part[1:-1])
             last = all(not p for p in parts[i + 1:])
             group = "(.+)" if last else "(.+?)"
             regex += group

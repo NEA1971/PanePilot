@@ -103,8 +103,19 @@ class MetaItem:
     def display_name(self) -> str:
         return self.pending_name or self.record.name
 
-    def value(self, key: str) -> str:
+    def _key(self, key: str) -> str:
+        """Schlüssel in dieser Datei; ein vorgemerktes eigenes Feld wird auch bei anderer Groß-/Kleinschreibung
+        gefunden (v1.7.3: „Season“ und „season“ sind dasselbe Feld)."""
         key = tg.resolve_key(self.record, key)
+        if key.startswith(tg.EXTRA) and key not in self.pending and key not in self.record.fields:
+            want = tg.label_of(key).casefold()
+            for k in self.pending:
+                if k.startswith(tg.EXTRA) and tg.label_of(k).casefold() == want:
+                    return k
+        return key
+
+    def value(self, key: str) -> str:
+        key = self._key(key)
         if key in self.pending:
             v = self.pending[key]
             return "" if v is None else v
@@ -114,7 +125,7 @@ class MetaItem:
         return self.pending_pictures if self.pending_pictures is not None else self.record.pictures
 
     def set(self, key: str, value: str | None) -> None:
-        key = tg.resolve_key(self.record, key)
+        key = self._key(key)
         exists = key in self.record.fields or key in self.record.data
         old = self.record.fields.get(key)
         if value is None or value == "":

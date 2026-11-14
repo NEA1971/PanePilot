@@ -184,3 +184,31 @@ def test_layout_only_fields_merged_and_editable(window, tmp_path, qtbot, monkeyp
     assert {"SEASON", "Episode"} <= seen["labels"]  # im Feld-Editor sichtbar
     assert model.columns == ["filename", "x:SEASON"]  # gelöschtes Feld: Spalte weg
     window.meta_close()
+
+
+# --- 1.7.3: %Season% füllt das vorhandene Feld „Season“ -----------------------------------------------------------
+def test_file_to_tag_custom_field_keeps_case(window, tmp_path, qtbot):  # noqa: F811
+    from panepilot import convert as cv
+
+    assert cv.parse_filename("BSG 1980 S01E06 Spaceball", "%dummy% S%Season%E%Episode% %title%") == \
+        {"Season": "01", "Episode": "06", "title": "Spaceball"}
+    assert cv.parse_filename("01 - x", "%Track% - %Title%") == {"track": "01", "title": "x"}
+    folder = tmp_path / "BSG"
+    folder.mkdir()
+    shutil.copy(os.path.join(VIDEO, "clip.mp4"), folder / "BSG 1980 S01E06 Spaceball.mp4")
+    window.settings.set("meta_video_custom_fields", ["Season", "Episode"])
+    window.settings.set("meta_video_layout", {"columns": ["filename", "title", "x:Season", "x:Episode"]})
+    pane = _open(window, qtbot, folder)
+    it = pane.meta_model.items[0]
+    res = window._meta_compute("file2tag", "%dummy% S%Season%E%Episode% %title%", "", [it])
+    assert window._meta_target("Season") == "x:Season" and window._meta_target("season") == "x:Season"
+    for name, v in res[0][1].items():
+        it.set(window._meta_target(name), v)
+    model = pane.meta_model
+    assert model.text(it, "x:Season") == "01" and model.text(it, "x:Episode") == "06"
+    it.set("x:season", "02")  # andere Schreibweise: dasselbe vorgemerkte Feld
+    assert model.text(it, "x:Season") == "02" and len([k for k in it.pending if "eason" in k]) == 1
+    window.meta_save()
+    qtbot.waitUntil(lambda: window.meta_mode.get("save") is None, timeout=10000)
+    assert it.record.fields.get("x:----:com.apple.iTunes:Season") == "02"
+    window.meta_close()
