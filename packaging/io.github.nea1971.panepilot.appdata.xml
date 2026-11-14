@@ -52,6 +52,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.6.3" date="2026-11-14">
+      <description>
+        <p>Folders with many selected files reload much faster, the meta wizard shows which kinds of files it found, and it has a new icon.</p>
+      </description>
+    </release>
     <release version="1.6.2" date="2026-11-14">
       <description>
         <p>Find duplicates by the ID in the file name, number of checked files, comma as pattern separator, renaming including the extension in the "Name (without extension)" column, and faster reading of music and videos in the meta wizard.</p>
