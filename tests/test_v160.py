@@ -264,9 +264,15 @@ def test_hang_log(tmp_path, monkeypatch):
 
     create_app([])
     path = start_hang_log(0.2)
+    from PySide6.QtCore import QTimer
+    from PySide6.QtWidgets import QApplication
+
     try:
         time.sleep(0.6)  # Oberfläche „hängt“
     finally:
+        timer = QApplication.instance().findChild(QTimer, "panepilotHangLog")
+        timer.stop()
+        timer.deleteLater()
         faulthandler.cancel_dump_traceback_later()
     text = open(path, encoding="utf-8").read()
     assert "PanePilot gestartet" in text and "test_hang_log" in text

@@ -72,6 +72,7 @@ def start_hang_log(seconds: float = 5.0):
         faulthandler.dump_traceback_later(seconds, repeat=True, file=fh)
 
     timer = QTimer(QApplication.instance())
+    timer.setObjectName("panepilotHangLog")
     timer.setInterval(1000)
     timer.timeout.connect(arm)  # solange die Oberfläche arbeitet, wird die Uhr immer wieder zurückgesetzt
     timer.start()
