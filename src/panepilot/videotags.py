@@ -661,65 +661,83 @@ def mkv_set_simple(root: ET.Element, name: str, value: str | None) -> None:
         root.remove(tag)
 
 
-def _write_mkv(rec, changes: dict, datetaken, pictures) -> None:
-    from . import tags as tg
+def _mkv_date_args(datetaken) -> list[str]:
+    if datetaken is None or datetaken == "":
+        return ["--delete", "date"]
+    when = _date_value(datetaken).astimezone(dt.timezone.utc)
+    return ["--set", "date=" + when.strftime("%Y-%m-%dT%H:%M:%SZ")]
 
+
+def _mkv_tags_args(root: ET.Element, tmp: str) -> list[str]:
+    if not root.findall("Tag"):
+        return ["--tags", "all:"]
+    out = os.path.join(tmp, "tags.xml")
+    ET.ElementTree(root).write(out, encoding="utf-8", xml_declaration=True)
+    return ["--tags", f"all:{out}"]
+
+
+def _mkv_picture_args(old: list, new: list, tmp: str) -> list[str]:
+    args = []
+    for p in old:
+        if p.desc:
+            args += ["--delete-attachment", f"name:{p.desc}"]
+    for i, p in enumerate(new):
+        ext = ".png" if p.mime == "image/png" else ".jpg"
+        name = ("cover" if i == 0 else f"cover_{i}") + ext
+        src = os.path.join(tmp, f"{i}_{name}")
+        with open(src, "wb") as fh:
+            fh.write(p.data)
+        args += ["--attachment-name", name, "--attachment-mime-type", p.mime, "--add-attachment", src]
+    return args
+
+
+def _mkv_run(path: str, groups: list[list[str]]) -> None:
+    """Jede Art von Änderung in einem eigenen Aufruf: mkvpropedit verrechnet sich sonst manchmal beim
+    Verschieben mehrerer Bereiche und verweigert dann das Schreiben („data … corrupted“)."""
     tool = mkvpropedit()
     if tool is None:
         raise OSError("mkvpropedit")
-    args = [tool, rec.path]
+    for group in groups:
+        if not group:
+            continue
+        proc = _run([tool, path, *group], timeout=120)
+        if proc.returncode not in (0, 1):  # 1 = nur Warnungen
+            raise _fail(proc, "mkvpropedit")
+
+
+def _write_mkv(rec, changes: dict, datetaken, pictures) -> None:
+    from . import tags as tg
+
+    info: list[str] = []
+    tag_changes: dict = {}
+    for field, value in changes.items():
+        if field == "title":
+            info += ["--set", f"title={value}"] if value is not None else ["--delete", "title"]
+            if "TITLE" in {k.upper() for k in _mkv_simple_names(rec)}:
+                tag_changes["TITLE"] = value
+            continue
+        if field.startswith(tg.EXTRA):
+            tag_changes[field[len(tg.EXTRA):]] = value
+            continue
+        keys = _MKV.get(field)
+        if not keys:
+            continue
+        if value is None:
+            for k in keys:
+                tag_changes[k] = None
+        else:
+            tag_changes[rec.sources.get(field) or keys[0]] = value
+    if datetaken is not ...:
+        info += _mkv_date_args(datetaken)
     with tempfile.TemporaryDirectory(prefix="panepilot-") as tmp:
-        tag_changes = {}
-        for field, value in changes.items():
-            if field == "title":
-                args += ["--edit", "info"] + (["--set", f"title={value}"] if value is not None else ["--delete", "title"])
-                if "TITLE" in {k.upper() for k in _mkv_simple_names(rec)}:
-                    tag_changes["TITLE"] = value
-                continue
-            if field.startswith(tg.EXTRA):
-                tag_changes[field[len(tg.EXTRA):]] = value
-                continue
-            keys = _MKV.get(field)
-            if not keys:
-                continue
-            if value is None:
-                for k in keys:
-                    tag_changes[k] = None
-            else:
-                tag_changes[rec.sources.get(field) or keys[0]] = value
-        if datetaken is not ...:
-            args += ["--edit", "info"]
-            if datetaken is None:
-                args += ["--delete", "date"]
-            else:
-                when = _date_value(datetaken).astimezone(dt.timezone.utc)
-                args += ["--set", "date=" + when.strftime("%Y-%m-%dT%H:%M:%SZ")]
+        tags: list[str] = []
         if tag_changes:
             root = _mkv_read_xml(rec.path)
             for name, value in tag_changes.items():
                 mkv_set_simple(root, name, value)
-            if root.findall("Tag"):
-                out = os.path.join(tmp, "tags.xml")
-                ET.ElementTree(root).write(out, encoding="utf-8", xml_declaration=True)
-                args += ["--tags", f"all:{out}"]
-            else:
-                args += ["--tags", "all:"]
-        if pictures is not None:
-            for p in rec.pictures:
-                if p.desc:
-                    args += ["--delete-attachment", f"name:{p.desc}"]
-            for i, p in enumerate(pictures):
-                ext = ".png" if p.mime == "image/png" else ".jpg"
-                name = ("cover" if i == 0 else f"cover_{i}") + ext
-                src = os.path.join(tmp, name)
-                with open(src, "wb") as fh:
-                    fh.write(p.data)
-                args += ["--attachment-name", name, "--attachment-mime-type", p.mime, "--add-attachment", src]
-        if len(args) == 2:
-            return
-        proc = _run(args, timeout=120)
-        if proc.returncode not in (0, 1):
-            raise _fail(proc, "mkvpropedit")
+            tags = _mkv_tags_args(root, tmp)
+        pics = _mkv_picture_args(rec.pictures, pictures, tmp) if pictures is not None else []
+        _mkv_run(rec.path, [["--edit", "info", *info] if info else [], tags, pics])
 
 
 def _mkv_simple_names(rec) -> list[str]:
@@ -762,37 +780,12 @@ def restore(path: str, snap: tuple):
 
 def _mkv_restore(rec, inner, datetaken) -> None:
     _k, xml, title, pictures = inner
-    tool = mkvpropedit()
-    if tool is None:
-        raise OSError("mkvpropedit")
     with tempfile.TemporaryDirectory(prefix="panepilot-") as tmp:
-        args = [tool, rec.path, "--edit", "info"]
-        args += ["--set", f"title={title}"] if title else ["--delete", "title"]
-        if datetaken:
-            when = _date_value(datetaken).astimezone(dt.timezone.utc)
-            args += ["--set", "date=" + when.strftime("%Y-%m-%dT%H:%M:%SZ")]
-        else:
-            args += ["--delete", "date"]
-        root = ET.fromstring(xml)
-        if root.findall("Tag"):
-            out = os.path.join(tmp, "tags.xml")
-            ET.ElementTree(root).write(out, encoding="utf-8", xml_declaration=True)
-            args += ["--tags", f"all:{out}"]
-        else:
-            args += ["--tags", "all:"]
-        if pictures is not None:
-            for p in rec.pictures:
-                if p.desc:
-                    args += ["--delete-attachment", f"name:{p.desc}"]
-            for i, p in enumerate(pictures):
-                name = p.desc or (("cover" if i == 0 else f"cover_{i}") + (".png" if p.mime == "image/png" else ".jpg"))
-                src = os.path.join(tmp, f"{i}_{name}")
-                with open(src, "wb") as fh:
-                    fh.write(p.data)
-                args += ["--attachment-name", name, "--attachment-mime-type", p.mime, "--add-attachment", src]
-        proc = _run(args, timeout=120)
-        if proc.returncode not in (0, 1):
-            raise _fail(proc, "mkvpropedit")
+        info = ["--edit", "info"] + (["--set", f"title={title}"] if title else ["--delete", "title"])
+        info += _mkv_date_args(datetaken)
+        tags = _mkv_tags_args(ET.fromstring(xml), tmp)
+        pics = _mkv_picture_args(rec.pictures, pictures, tmp) if pictures is not None else []
+        _mkv_run(rec.path, [info, tags, pics])
 
 
 def _restore_special(rec, special: dict) -> None:

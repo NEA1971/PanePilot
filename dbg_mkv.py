@@ -26,3 +26,8 @@ except Exception as e:
     p = orig_run(["mkvpropedit", path, "--edit", "info", "--set", "title=Strand"]); print("title only", p.returncode, p.stdout[-300:])
     p = orig_run(["mkvpropedit", path, "--tags", "all:"]); print("tags clear", p.returncode, p.stdout[-300:])
 info("end")
+# Mehrfach hintereinander: Titel, Poster, eigene Felder, Datum
+for n in range(4):
+    rec = tg.read_file(path)
+    rec = tg.write_file(rec, {"title": f"T{n}" * (n + 1), "x:ORT": "X" * (50 * n + 1), "datetaken": f"2026-07-0{n+1} 10:00:00"}, [pic] if n % 2 == 0 else [])
+    print("loop", n, rec.fields.get("title"), rec.fields.get("x:ORT", "")[:5], rec.fields.get("datetaken"), len(rec.pictures))
