@@ -42,6 +42,8 @@ THEME_NAMES: dict[str, tuple[str, ...]] = {
     # v1.1
     "open_terminal": ("utilities-terminal", "terminal", "org.gnome.Terminal"),
     "dir_list": ("view-list-text", "text-x-generic", "x-office-document"),
+    # v1.6
+    "find_duplicates": ("edit-copy", "edit-find-replace", "edit-find"),
 }
 
 _cache: dict[str, QIcon] = {}

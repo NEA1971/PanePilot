@@ -15,7 +15,7 @@
     <ul>
       <li>Two panels with folder tree, nested favourites and a drive overview</li>
       <li>FTP and SFTP client with server list, transfer queue and import from FileZilla</li>
-      <li>Search by file name and content</li>
+      <li>Search by file name and content, find duplicates</li>
       <li>Multi-rename with placeholders, counters, dates, regular expressions, preview and undo</li>
       <li>Meta wizard for music tags with covers, converters, MusicBrainz lookup, CSV import and export, playlists and ReplayGain</li>
       <li>Photo metadata (EXIF, IPTC, XMP) with preview, date shift and renaming by date taken</li>
@@ -52,6 +52,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.6.0" date="2026-11-14">
+      <description>
+        <p>New: find duplicates – by identical content, same name without extension, or same name and size; check them and move them to the trash.</p>
+      </description>
+    </release>
     <release version="1.5.3" date="2026-11-14">
       <description>
         <p>Videos whose extension does not match their content are highlighted in bold blue in the meta wizard.</p>

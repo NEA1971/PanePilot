@@ -944,7 +944,8 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         m = mb.addMenu(t("menu.file"))
         for aid in ("open", "edit_text", "open_with_other", "open_terminal", "server_manager", None, "new_folder",
                     "new_textfile",
-                    "rename", "multi_rename", "rename_undo", None, "search", "checksums", "dir_list", "properties", None,
+                    "rename", "multi_rename", "rename_undo", None, "search", "find_duplicates", "checksums", "dir_list",
+                    "properties", None,
                     "copy", "move", None, "delete", "delete_permanent", None):
             m.addSeparator() if aid is None else m.addAction(a[aid])
         # Einstellungen als Untermenü direkt über „Beenden“ (v0.9.10, vorher eigenes Menü)
@@ -1169,6 +1170,21 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         folder = folder or self._plain_folder() or str(Path.home())
         if not util.open_terminal(folder):
             show_error(self, t("action.open_terminal"), t("error.no_terminal"))
+
+    def do_find_duplicates(self, folder: str | None = None) -> None:
+        """Duplikate suchen (v1.6): eigenes Fenster, der Ordner des anderen Fensters ist wählbar (L-622)."""
+        from .duplicates import DuplicateWindow
+
+        folder = folder or self._plain_folder() or str(Path.home())
+        other = self.other.current_path
+        if self.other.in_trash or self.other.search_mode or self.other.remote is not None \
+                or not os.path.isdir(other) or os.path.normpath(other) == os.path.normpath(folder):
+            other = None
+        win = DuplicateWindow(self, folder, other)
+        win.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        win.show()
+        win.raise_()
+        win.activateWindow()
 
     def do_dir_list(self, folder: str | None = None) -> None:
         import datetime as _dt
@@ -2027,6 +2043,8 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
             lambda _c=False, f=folder: self.do_open_terminal(f))
         menu.addAction(a["dir_list"].icon(), a["dir_list"].text()).triggered.connect(
             lambda _c=False, f=folder: self.do_dir_list(f))
+        menu.addAction(a["find_duplicates"].icon(), a["find_duplicates"].text()).triggered.connect(
+            lambda _c=False, f=folder: self.do_find_duplicates(f))  # v1.6 (L-602)
         entry = self.sides[side].panel.current_entry()
         if entry is not None and entry.is_dir and not entry.is_parent and self.mounts.entry_for_mount_point(entry.path):
             self._mount_actions(menu, entry.path)

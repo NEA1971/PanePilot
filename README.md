@@ -16,6 +16,7 @@ PanePilot brings together what usually takes three or four programs: a classic t
 - **File operations**: copy, move, rename, trash, archives (compress / extract), drag & drop to and from other applications, “Open with”, properties, “Open terminal here”, directory listings as text file
 - **FTP/SFTP client**: servers in a sidebar, FTP, FTP over TLS and SFTP shown in the normal file panel, transfer queue with progress, passwords in the system keyring, import from FileZilla
 - **Search** by name (wildcards, several patterns) and by content, with depth limit; results appear as a normal panel
+- **Find duplicates**: same content (checksum), same name without extension or same name and size; check and move to trash
 - **Multi-rename** with placeholders, counters, dates, search & replace (text, wildcards, regular expressions), live preview, profiles and undo
 - **Meta wizard** for music tags (MP3, FLAC, Ogg, Opus, M4A, WMA, WAV), photo and video metadata:
   - edit tags and covers for many files at once
@@ -85,7 +86,7 @@ PanePilot is free software, licensed under the [GNU General Public License v3.0 
 
 Er vereint, wofür man sonst drei oder vier Programme braucht:
 - Dateimanager mit zwei Fenstern, Ordnerbaum, Favoriten und Laufwerken
-- Suche nach Namen und Inhalt
+- Suche nach Namen und Inhalt, Duplikate finden
 - Mehrfach-Umbenennen mit Vorschau
 - **FTP/SFTP-Client** mit Serverliste in der Seitenleiste und Übertragungsliste
 - **Meta-Wizard** für Musik-Tags wie MP3TAG (mit MusicBrainz, ReplayGain und Playlists) und für Foto- und Video-Metadaten

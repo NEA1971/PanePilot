@@ -59,6 +59,7 @@ ACTION_DEFS: tuple[ActionDef, ...] = (
     ActionDef("rename_undo", "action.rename_undo", (), "window"),
     ActionDef("search", "action.search", ("Ctrl+F",), "window"),
     ActionDef("checksums", "action.checksums", (), "window"),
+    ActionDef("find_duplicates", "action.find_duplicates", (), "window"),  # v1.6
     ActionDef("properties", "action.properties", ("Alt+Return",), "window"),
     ActionDef("settings_dialog", "action.settings_dialog", (), "window"),
     ActionDef("backup_now", "action.backup_now", (), "window"),

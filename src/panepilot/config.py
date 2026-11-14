@@ -135,6 +135,8 @@ class Settings:
         "recent_filters": [],  # zuletzt benutzte Filter (F-604)
         "multirename_last": {},  # zuletzt benutzte Umbenennen-Einstellungen (F-732)
         "search_last": {},  # zuletzt benutzte Suche (F-819)
+        "dup_last": {},  # Duplikate suchen: letzte Einstellungen (v1.6, L-650)
+        "dup_geometry": [],
         "size_unit": "auto",  # F-844: auto, B, KB, MB, GB, KiB, MiB, GiB
         "backup_dir": "",  # leer = Standard (…/PanePilot/Backups)
         "backup_keep": 30,  # Anzahl automatischer Sicherungen (F-853)
