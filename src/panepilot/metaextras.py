@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import convert as cv
+from . import metaprofile as mp
 from . import tags as tg
 from .dialogs import free_window
 from .i18n import t
@@ -87,10 +88,10 @@ def write_table(path: str, header: list[str], rows: list[list[str]]) -> None:
 # --- Import (Textdatei → Tag) ---------------------------------------------------------------------------
 def column_lookup(extra_labels: list[str]) -> dict[str, str]:
     """Spaltenüberschrift (Anzeigename oder Kennung) → Spalte."""
-    from .metawizard import INFO_COLUMNS, column_title
+    from .metawizard import column_title
 
     lookup: dict[str, str] = {}
-    for c in ("filename", "path", *tg.FIELDS, *INFO_COLUMNS):
+    for c in ("filename", "path", *mp.fields(), *mp.info_columns()):
         lookup[column_title(c).casefold()] = c
         lookup[c.casefold()] = c
     for label in extra_labels:
@@ -139,7 +140,7 @@ def row_values(data: TextData, row: list[str], fmt: str) -> dict[str, str | None
         values = {}
         for name, v in parsed.items():
             if not name.startswith("_"):
-                values[name if name in tg.FIELDS else tg.EXTRA + name] = v
+                values[name if name in mp.fields() else tg.EXTRA + name] = v
         return {k: (None if is_remove(v) else v) for k, v in values.items() if v.strip()}
     values: dict[str, str | None] = {}
     for col, cell in zip(data.header, row):
@@ -719,3 +720,117 @@ class DiscDialog(QDialog):
         if len(self.items) > 6:
             lines.append("…")
         self.preview.setText(t("number.preview") + "\n" + "\n".join(lines))
+
+
+# --- Datum verschieben (v1.4, L-450 ff.) -------------------------------------------------------------------
+def shift_date(value: str, seconds: int) -> str | None:
+    """Aufnahmedatum um seconds verschieben; None, wenn es keins gibt bzw. es nicht lesbar ist."""
+    import datetime as dt
+
+    from .phototags import parse_date
+
+    when = parse_date(value)
+    if when is None:
+        return None
+    return (when + dt.timedelta(seconds=seconds)).strftime("%Y-%m-%d %H:%M:%S")
+
+
+class DateShiftDialog(QDialog):
+    """Aufnahmedatum mehrerer Fotos verschieben – mit Hinweis und Vorschau."""
+
+    PREVIEW = 12
+
+    def __init__(self, parent, items, last: dict) -> None:
+        super().__init__(parent)
+        from PySide6.QtWidgets import QComboBox, QGridLayout, QSpinBox, QTreeWidget, QTreeWidgetItem
+
+        free_window(self)
+        self.setWindowTitle(t("shift.title"))
+        self.resize(640, 520)
+        self.items = items
+        lay = QVBoxLayout(self)
+        hint = QLabel(t("shift.hint"), self)
+        hint.setWordWrap(True)
+        lay.addWidget(hint)
+        grid = QGridLayout()
+        self.sign = QComboBox(self)
+        self.sign.addItem("+", 1)
+        self.sign.addItem("−", -1)
+        self.sign.setCurrentIndex(1 if last.get("sign") == -1 else 0)
+        grid.addWidget(QLabel(t("shift.direction"), self), 0, 0)
+        grid.addWidget(self.sign, 0, 1)
+        self.spins = {}
+        for col, (key, maximum) in enumerate((("days", 3650), ("hours", 23), ("minutes", 59), ("seconds", 59))):
+            spin = QSpinBox(self)
+            spin.setRange(0, maximum)
+            try:
+                spin.setValue(int(last.get(key, 0)))
+            except (TypeError, ValueError):
+                pass
+            grid.addWidget(QLabel(t(f"shift.{key}"), self), 1, col)
+            grid.addWidget(spin, 2, col)
+            self.spins[key] = spin
+            spin.valueChanged.connect(self._update)
+        self.sign.currentIndexChanged.connect(self._update)
+        lay.addLayout(grid)
+        lay.addWidget(QLabel(t("shift.preview"), self))
+        self.tree = QTreeWidget(self)
+        self.tree.setHeaderLabels([t("shift.col_file"), t("shift.col_old"), t("shift.col_new")])
+        self.tree.setRootIsDecorated(False)
+        self._rows = []
+        for it in items[: self.PREVIEW]:
+            old = it.value("datetaken") or t("shift.no_date")
+            row = QTreeWidgetItem([it.display_name, old, ""])
+            self.tree.addTopLevelItem(row)
+            self._rows.append((it, row))
+        lay.addWidget(self.tree, 1)
+        self.summary = QLabel(self)
+        lay.addWidget(self.summary)
+        box = QDialogButtonBox(self)
+        self.btn_ok = box.addButton(t("button.ok"), QDialogButtonBox.ButtonRole.AcceptRole)
+        box.addButton(t("button.cancel"), QDialogButtonBox.ButtonRole.RejectRole)
+        box.accepted.connect(self.accept)
+        box.rejected.connect(self.reject)
+        lay.addWidget(box)
+        self._update()
+        for i in range(3):
+            self.tree.resizeColumnToContents(i)
+
+    def seconds(self) -> int:
+        s = self.spins
+        total = ((s["days"].value() * 24 + s["hours"].value()) * 60 + s["minutes"].value()) * 60 + s["seconds"].value()
+        return total * int(self.sign.currentData())
+
+    def settings(self) -> dict:
+        return {"sign": int(self.sign.currentData()), **{k: s.value() for k, s in self.spins.items()}}
+
+    def _update(self, *_a) -> None:
+        secs = self.seconds()
+        for it, row in self._rows:
+            if it.readonly("datetaken") and it.value("datetaken"):
+                row.setText(2, t("shift.locked"))  # Videos ohne exiftool, WMV (v1.5)
+                continue
+            new = shift_date(it.value("datetaken"), secs)
+            row.setText(2, new if new is not None else "–")
+        dated = [it for it in self.items if shift_date(it.value("datetaken"), 0) is not None]
+        locked = sum(1 for it in dated if it.readonly("datetaken"))
+        ok = len(dated) - locked
+        missing = len(self.items) - len(dated)
+        text = t("shift.count", n=ok)
+        if missing:
+            text += " " + t("shift.missing", n=missing)
+        if locked:
+            text += " " + t("shift.locked_count", n=locked)
+        self.summary.setText(text)
+        self.btn_ok.setEnabled(secs != 0 and ok > 0)
+
+    def changes(self) -> list[tuple[object, str]]:
+        secs = self.seconds()
+        out = []
+        for it in self.items:
+            if it.readonly("datetaken"):
+                continue
+            new = shift_date(it.value("datetaken"), secs)
+            if new is not None:
+                out.append((it, new))
+        return out

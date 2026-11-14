@@ -7,6 +7,7 @@ Each panel can have a sidebar on its outer side. You choose its content via **Vi
   - Right-click: mount, unmount, safely remove.
   - EFI and internal system partitions are deliberately not shown.
 - **Favourites**: your remembered folders, with groups. Right-click to rename, edit and delete.
+- **FTP servers**: FTP and SFTP servers, see [FTP servers](servers.md).
 - **Checksums**: see [Checksums](checksums.md).
 - **Multi-rename** and **Meta wizard** take one side of the window when needed, see [Multi-rename](rename.md) and [Meta wizard](metawizard.md).
 

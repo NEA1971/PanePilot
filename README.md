@@ -14,11 +14,13 @@ PanePilot brings together what usually takes three or four programs: a classic t
 
 - **Two panels** with folder tree, nested favourites, drive overview (including network shares and USB drives that are not mounted yet), filters, column profiles and a single-panel view
 - **File operations**: copy, move, rename, trash, archives (compress / extract), drag & drop to and from other applications, “Open with”, properties, “Open terminal here”, directory listings as text file
+- **FTP/SFTP client**: servers in a sidebar, FTP, FTP over TLS and SFTP shown in the normal file panel, transfer queue with progress, passwords in the system keyring, import from FileZilla
 - **Search** by name (wildcards, several patterns) and by content, with depth limit; results appear as a normal panel
 - **Multi-rename** with placeholders, counters, dates, search & replace (text, wildcards, regular expressions), live preview, profiles and undo
-- **Meta wizard** for music tags (MP3, FLAC, Ogg, Opus, M4A, WMA, WAV):
+- **Meta wizard** for music tags (MP3, FLAC, Ogg, Opus, M4A, WMA, WAV) and photo metadata:
   - edit tags and covers for many files at once
   - converters: file name ↔ tag, tag → tag, text/CSV export and import, track and disc numbering
+  - **photo metadata** (EXIF, IPTC, XMP): title, keywords, rating, date taken, GPS removal, date shift, rename by date taken
   - **MusicBrainz** lookup: album search, track assignment, field selection and cover (Cover Art Archive)
   - M3U8 playlists
   - **ReplayGain** (EBU R128, via ffmpeg)
@@ -84,7 +86,8 @@ Er vereint, wofür man sonst drei oder vier Programme braucht:
 - Dateimanager mit zwei Fenstern, Ordnerbaum, Favoriten und Laufwerken
 - Suche nach Namen und Inhalt
 - Mehrfach-Umbenennen mit Vorschau
-- **Meta-Wizard** für Musik-Tags wie MP3TAG, mit MusicBrainz, ReplayGain und Playlists
+- **FTP/SFTP-Client** mit Serverliste in der Seitenleiste und Übertragungsliste
+- **Meta-Wizard** für Musik-Tags wie MP3TAG (mit MusicBrainz, ReplayGain und Playlists) und für Foto-Metadaten
 - **Prüfsummen** zum Vergleichen von Downloads
 
 Die Oberfläche gibt es komplett auf Deutsch, die Hilfe mit F1 ebenfalls.

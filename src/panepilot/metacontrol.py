@@ -7,6 +7,7 @@ import os
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QApplication, QDialog, QFileDialog, QMessageBox
 
+from . import metaprofile as mp
 from .dialogs import ErrorListDialog, _msgbox, show_error
 from .i18n import t
 
@@ -48,6 +49,7 @@ class MetaWizardMixin:
         pane.meta_view.row_menu_requested.connect(self._meta_row_menu)
         pane.convert_requested.connect(self.meta_convert)
         pane.long_text_requested.connect(self._meta_long_text)
+        pane.photo_hint.linkActivated.connect(lambda topic: self.do_help(topic or "tools"))  # L-552
         return pane
 
     def _meta_pane(self):
@@ -61,7 +63,6 @@ class MetaWizardMixin:
         panel = self.active
         if panel.in_trash or panel.search_mode:
             return
-        from .metawizard import MetaScanThread
 
         if paths is None:
             marked = [e for e in panel.selected_entries() if not e.is_parent]
@@ -77,14 +78,11 @@ class MetaWizardMixin:
         s.sidebar.set_mode(MODE_META)
         pane = self._meta_pane()
         view = pane.meta_view
-        pane.meta_model.beginResetModel()
-        pane.meta_model.items = []
-        pane.meta_model.endResetModel()
-        pane.meta_model.custom_fields = [n for n in (self.settings.get("meta_custom_fields") or [])
-                                         if isinstance(n, str)]
-        pane.extra_keys = pane.meta_model.extra_keys()
-        pane.set_layout(self.settings.get("meta_sidebar") or [])
-        view.restore_layout(self.settings.get("meta_layout") or {})
+        if not getattr(pane, "_kind_switch_connected", False):
+            pane.kind_switch.changed.connect(self._meta_switch_kind)
+            pane._kind_switch_connected = True
+        pane.kind_switch.hide()
+        self._meta_apply_profile(mp.AUDIO)
         total = sum(s.splitter.sizes())
         s.splitter.setSizes([400, max(total - 400, 200)])
         s.panel.set_custom_view(view)
@@ -100,18 +98,79 @@ class MetaWizardMixin:
         self._meta_save_shortcut.setEnabled(True)
         # Einlesen im Hintergrund (F-904); weitere Freigaben unterhalb nicht betreten (F-905)
         base = panel.current_path
-        exclude = {mp for mp in self.mounts.network_mount_points()
-                   if not any(os.path.normpath(p) == mp or os.path.normpath(p).startswith(mp + os.sep) for p in paths)}
-        thread = MetaScanThread(paths, bool(self.settings.get("show_hidden")), panel.model.accept, exclude, self)
-        thread.found.connect(lambda recs, b=base: self._meta_found(recs, b))
+        exclude = {m for m in self.mounts.network_mount_points()
+                   if not any(os.path.normpath(p) == m or os.path.normpath(p).startswith(m + os.sep) for p in paths)}
+        self.meta_mode.update({"base": base, "paths": paths, "exclude": exclude, "accept": panel.model.accept})
+        self._meta_start_scan(None)
+        view.setFocus()
+
+    def _meta_start_scan(self, kind: str | None) -> None:
+        """Einlesen starten; kind=None: die Art mit den meisten Dateien (L-421)."""
+        from .metawizard import MetaScanThread
+
+        mm = self.meta_mode
+        pane = self._meta_pane()
+        pane.meta_model.beginResetModel()
+        pane.meta_model.items = []
+        pane.meta_model.endResetModel()
+        mm["undo"] = None
+        thread = MetaScanThread(mm["paths"], bool(self.settings.get("show_hidden")), mm["accept"], mm["exclude"],
+                                self, kind=kind)
+        thread.kind_chosen.connect(self._meta_kind_chosen)
+        thread.found.connect(lambda recs, b=mm["base"]: self._meta_found(recs, b))
         thread.progress.connect(self._meta_progress)
         thread.finished_scan.connect(self._meta_scan_done)
-        self.meta_mode["scan"] = thread
-        self.meta_mode["base"] = base
+        mm["scan"] = thread
         self._meta_update_state()
         pane.summary.setText(t("meta.collecting", n=0))
         thread.start()
-        view.setFocus()
+
+    def _meta_apply_profile(self, kind: str) -> None:
+        """Felder, Spalten, Seitenleiste und Konverter für Musik bzw. Fotos (v1.4)."""
+        mp.set_current(kind)
+        pane = self._meta_pane()
+        pane.meta_model.custom_fields = [n for n in (self.settings.get(mp.setting("meta_custom_fields")) or [])
+                                         if isinstance(n, str)]
+        pane.extra_keys = pane.meta_model.extra_keys()
+        pane.set_layout(self.settings.get(mp.setting("meta_sidebar")) or [])
+        pane.meta_view.restore_layout(self.settings.get(mp.setting("meta_layout")) or {})
+        pane.apply_profile_buttons()
+        pane.show_selection([])
+
+    def _meta_kind_chosen(self, kind: str, audio: int, photos: int, videos: int = 0) -> None:
+        if self.meta_mode is None:
+            return
+        pane = self._meta_pane()
+        if kind != mp.current():
+            self._meta_apply_profile(kind)
+        pane.kind_switch.set_counts(kind, audio, photos, videos)
+
+    def _meta_switch_kind(self, kind: str) -> None:
+        """Umschalter „Musik | Fotos | Videos“ (L-421, L-520)."""
+        if self.meta_mode is None or kind == mp.current():
+            return
+        pane = self._meta_pane()
+        if self.meta_mode.get("save") is not None or self.meta_mode.get("rg") is not None:
+            pane.kind_switch.select(mp.current())
+            return
+        if pane.meta_model.changed_items():
+            from .dialogs import confirm
+
+            if not confirm(self, t("meta.title"), t("photo.switch_discard"), yes_key="meta.discard",
+                           default_yes=False):
+                pane.kind_switch.select(mp.current())
+                return
+        old = self.meta_mode.get("scan")
+        if old is not None:
+            for sig in (old.kind_chosen, old.found, old.progress, old.finished_scan):
+                try:
+                    sig.disconnect()
+                except (RuntimeError, TypeError):
+                    pass
+            old.stop()
+            old.wait(3000)
+        self._meta_apply_profile(kind)
+        self._meta_start_scan(kind)
 
     def _meta_found(self, records, base: str) -> None:
         if self.meta_mode is None:
@@ -338,7 +397,7 @@ class MetaWizardMixin:
         has = bool(pane.meta_view.selected_items())
         menu = QMenu(self)
         has_any = bool(pane.meta_model.items)
-        for kind in cv.TOOLS:
+        for kind in mp.tools():
             if kind == cv.TAG_TO_TEXT:
                 menu.addSeparator()
             act = menu.addAction(t(f"conv.{kind}"))
@@ -393,7 +452,7 @@ class MetaWizardMixin:
             if name.casefold() not in {c.casefold() for c in custom}:
                 custom.append(name)
         model.custom_fields = custom
-        self.settings.set("meta_custom_fields", custom)
+        self.settings.set(mp.setting("meta_custom_fields"), custom)
         pane.extra_keys = model.extra_keys()
         model.rows_changed()
         pane.show_selection(pane.meta_view.selected_items())
@@ -413,10 +472,10 @@ class MetaWizardMixin:
     def _meta_presets(self, kind: str) -> list[dict]:
         from . import convert as cv
 
-        stored = self.settings.get("meta_presets") or {}
+        stored = self.settings.get(mp.setting("meta_presets")) or {}
         presets = stored.get(kind) if isinstance(stored, dict) else None
         if not isinstance(presets, list):
-            presets = cv.DEFAULT_PRESETS[kind]
+            presets = (cv.DEFAULT_PRESETS if mp.is_audio_mode() else cv.PHOTO_PRESETS)[kind]
         return [p for p in presets if isinstance(p, dict) and isinstance(p.get("format"), str)]
 
     @staticmethod
@@ -428,8 +487,34 @@ class MetaWizardMixin:
                 return os.path.splitext(it.display_name)[0]
             if name == "_folder":
                 return os.path.basename(os.path.dirname(it.record.path))
-            if name in tg.FIELDS:
+            if name == "_mtime":
+                return str(it.record.mtime or "")
+            if name in mp.fields():
                 return it.value(name)
+            if mp.is_photo_mode():
+                rec = it.record
+                if name == "camera":
+                    from .metawizard import camera_name
+
+                    return camera_name(it)
+                if name in ("width", "height"):
+                    return str(getattr(rec, name) or "")
+                if name == "format":
+                    return rec.codec
+            if mp.is_video_mode():
+                rec = it.record
+                if name == "duration":
+                    return tg.format_length(rec.length) if rec.length else ""
+                if name == "resolution":
+                    return f"{rec.width}x{rec.height}" if rec.width else ""
+                if name in ("width", "height"):
+                    return str(getattr(rec, name) or "")
+                if name == "fps":
+                    return f"{rec.fps:.3f}".rstrip("0").rstrip(".") if rec.fps else ""
+                if name == "codec":
+                    return rec.vcodec
+                if name == "format":
+                    return rec.codec
             return it.value(tg.EXTRA + name)
 
         return get
@@ -437,7 +522,7 @@ class MetaWizardMixin:
     def _meta_target(self, field_name: str) -> str:
         from . import tags as tg
 
-        return field_name if field_name in tg.FIELDS else tg.EXTRA + field_name
+        return field_name if field_name in mp.fields() else tg.EXTRA + field_name
 
     def _meta_compute(self, kind: str, fmt: str, field: str, items):
         """Ergebnis je Titel: (Titel, Werte bzw. Name oder None, Fehler)."""
@@ -483,7 +568,6 @@ class MetaWizardMixin:
         if self.meta_mode is None or self.meta_mode.get("save") is not None:
             return
         from . import convert as cv
-        from . import tags as tg
         from .metadialogs import ConverterDialog
         from .metawizard import column_title
 
@@ -492,6 +576,7 @@ class MetaWizardMixin:
                 return
             {cv.TAG_TO_TEXT: self.meta_export_text, cv.TEXT_TO_TAG: self.meta_import_text,
              cv.NUMBER: self.meta_number, cv.DISC: self.meta_disc, cv.MUSICBRAINZ: self.meta_musicbrainz,
+             cv.DATESHIFT: self.meta_dateshift,
              cv.PLAYLIST: self.meta_playlist, cv.REPLAYGAIN: self.meta_replaygain}[kind]()
             return
         pane = self._meta_pane()
@@ -500,7 +585,7 @@ class MetaWizardMixin:
             return
         model = pane.meta_model
         extra_labels = list(model.extra_keys().values())
-        last = (self.settings.get("meta_last_format") or {}).get(kind, "")
+        last = (self.settings.get(mp.setting("meta_last_format")) or {}).get(kind, "")
 
         def preview(fmt: str, field: str):
             # (OK erlaubt, Text, Warnung): ein unpassender erster Titel sperrt OK nicht, Formatfehler schon
@@ -523,21 +608,21 @@ class MetaWizardMixin:
                 return True, "\n".join(f"{column_title(self._meta_target(n))}: {v}" for n, v in value.items()), False
             return True, value or t("conv.empty_removes"), False
 
-        fields = [(k, column_title(k)) for k in tg.FIELDS] + [(k, label) for k, label in model.extra_keys().items()]
-        last_field = (self.settings.get("meta_last_format") or {}).get("tag2tag_field", "title")
+        fields = [(k, column_title(k)) for k in mp.fields()] + [(k, label) for k, label in model.extra_keys().items()]
+        last_field = (self.settings.get(mp.setting("meta_last_format")) or {}).get("tag2tag_field", "title")
         dlg = ConverterDialog(self, kind, self._meta_presets(kind), last, extra_labels, preview, fields, last_field)
         accepted = dlg.exec() == dlg.DialogCode.Accepted
-        stored = dict(self.settings.get("meta_presets") or {})
+        stored = dict(self.settings.get(mp.setting("meta_presets")) or {})
         stored[kind] = dlg.presets
-        self.settings.set("meta_presets", stored)
+        self.settings.set(mp.setting("meta_presets"), stored)
         if not accepted:
             return
         fmt, field = dlg.format_string(), dlg.field()
-        lastmap = dict(self.settings.get("meta_last_format") or {})
+        lastmap = dict(self.settings.get(mp.setting("meta_last_format")) or {})
         lastmap[kind] = fmt
         if kind == cv.TAG_TO_TAG:
             lastmap["tag2tag_field"] = field
-        self.settings.set("meta_last_format", lastmap)
+        self.settings.set(mp.setting("meta_last_format"), lastmap)
         try:
             results = self._meta_compute(kind, fmt, field, items)
         except cv.FormatError as exc:
@@ -621,15 +706,15 @@ class MetaWizardMixin:
         from . import convert as cv
         from .metadialogs import placeholder_menu
 
-        last = (self.settings.get("meta_last_format") or {}).get(cv.TEXT_TO_TAG, "")
+        last = (self.settings.get(mp.setting("meta_last_format")) or {}).get(cv.TEXT_TO_TAG, "")
         dlg = ImportDialog(self, items, data, self._meta_presets(cv.TEXT_TO_TAG), last,
                            lambda edit, button: placeholder_menu(dlg, cv.FILE_TO_TAG, labels, edit, button))
         if dlg.exec() != dlg.DialogCode.Accepted:
             return
         if data.header is None:
-            lastmap = dict(self.settings.get("meta_last_format") or {})
+            lastmap = dict(self.settings.get(mp.setting("meta_last_format")) or {})
             lastmap[cv.TEXT_TO_TAG] = dlg.format_string()
-            self.settings.set("meta_last_format", lastmap)
+            self.settings.set(mp.setting("meta_last_format"), lastmap)
         try:
             pairs = dlg.pairs()
         except cv.FormatError as exc:
@@ -677,6 +762,23 @@ class MetaWizardMixin:
             for key, value in values.items():
                 if not it.readonly(key):
                     it.set(key, value)
+        self._meta_refresh()
+
+    def meta_dateshift(self) -> None:
+        """Aufnahmedatum verschieben (v1.4, L-450 ff.)."""
+        from .metaextras import DateShiftDialog
+
+        items = self._meta_targets()
+        if not items:
+            return
+        dlg = DateShiftDialog(self, items, self.settings.get("meta_dateshift") or {})
+        if dlg.exec() != dlg.DialogCode.Accepted:
+            return
+        self.settings.set("meta_dateshift", dlg.settings())
+        changes = dlg.changes()
+        for it, value in changes:
+            it.set("datetaken", value)
+        self._meta_pane().summary.setText(t("shift.done", n=len(changes)))
         self._meta_refresh()
 
     def meta_musicbrainz(self) -> None:
@@ -903,14 +1005,15 @@ class MetaWizardMixin:
         s.panel.refresh()
         self._update_nav_actions()
         s.panel.view.setFocus()
+        mp.set_current(mp.AUDIO)  # erst nach dem Speichern der Einstellungen
 
     def _meta_save_layout(self) -> None:
         side = self.meta_mode["side"] if self.meta_mode is not None else None
         pane = self.sides[side].sidebar.widget_for(MODE_META) if side else None
         if pane is None:
             return
-        self.settings.set("meta_layout", pane.meta_view.layout_state())
-        self.settings.set("meta_sidebar", list(pane.layout_keys))
+        self.settings.set(mp.setting("meta_layout"), pane.meta_view.layout_state())
+        self.settings.set(mp.setting("meta_sidebar"), list(pane.layout_keys))
 
     def meta_selected_paths(self) -> list[str]:
         if self.meta_mode is None:

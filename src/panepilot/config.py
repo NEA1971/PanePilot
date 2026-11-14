@@ -143,6 +143,18 @@ class Settings:
         "meta_sidebar": [],  # Meta-Wizard: Felder der Seitenleiste (F-926)
         "meta_custom_fields": [],  # Meta-Wizard: eigene Felder aus dem Feld-Editor (F-975)
         "meta_presets": {},  # Meta-Wizard: Vorlagen der Konverter (F-998)
+        # Foto-Modus des Meta-Wizards (v1.4): eigene Einstellungen
+        "meta_photo_layout": {},
+        "meta_photo_sidebar": [],
+        "meta_photo_custom_fields": [],
+        "meta_photo_presets": {},
+        "meta_photo_last_format": {},
+        "meta_video_layout": {},  # v1.5: Videos
+        "meta_video_sidebar": [],
+        "meta_video_custom_fields": [],
+        "meta_video_presets": {},
+        "meta_video_last_format": {},
+        "meta_dateshift": {},  # Datum verschieben: letzte Eingabe
         "meta_last_format": {},  # Meta-Wizard: zuletzt benutzte Formatstrings (F-998)
         "meta_number": {},  # Meta-Wizard: letzte Einstellungen des Nummerierungs-Assistenten (v0.9.3)
         "meta_playlist_relative": True,

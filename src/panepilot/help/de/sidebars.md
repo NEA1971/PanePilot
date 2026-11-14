@@ -7,6 +7,7 @@ Jedes Panel kann links bzw. rechts eine Seitenleiste haben. Was darin steht, wä
   - Rechtsklick: Einbinden, Aushängen, Sicher entfernen.
   - EFI- und interne Systempartitionen werden bewusst nicht angezeigt.
 - **Favoriten**: deine gemerkten Ordner, mit Gruppen. Rechtsklick zum Umbenennen, Bearbeiten und Löschen.
+- **FTP-Server**: FTP- und SFTP-Server, siehe [FTP-Server](servers.md).
 - **Prüfsummen**: siehe [Prüfsummen](checksums.md).
 - **Mehrfach umbenennen** und **Meta-Wizard** belegen bei Bedarf eine Seite des Fensters, siehe [Mehrfach umbenennen](rename.md) und [Meta-Wizard](metawizard.md).
 

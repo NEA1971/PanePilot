@@ -33,6 +33,18 @@ def is_audio(path: str) -> bool:
     return os.path.splitext(path)[1].lower() in AUDIO_EXTENSIONS
 
 
+def is_photo(path: str) -> bool:
+    from .phototags import is_photo as _p
+
+    return _p(path)
+
+
+def is_video(path: str) -> bool:
+    from .videotags import is_video as _v
+
+    return _v(path)
+
+
 @dataclass
 class Picture:
     data: bytes
@@ -55,6 +67,12 @@ class TagRecord:
     readonly: set[str] = field(default_factory=set)  # Zusatzfelder, die nur angezeigt werden
     fixed: set[str] = field(default_factory=set)  # Zusatzfelder mit festem Namen (nur löschbar)
     data: dict[str, str] = field(default_factory=dict)  # Datenfelder → Anzeigename (F-972)
+    removable: set[str] = field(default_factory=set)  # Felder, die sich nur entfernen lassen (Fotos, v1.4)
+    width: int = 0  # Fotos (v1.4), Videos (v1.5)
+    height: int = 0
+    fps: float = 0.0  # Videos (v1.5)
+    vcodec: str = ""
+    acodec: str = ""
     pictures: list[Picture] = field(default_factory=list)
     length: float = 0.0
     bitrate: int = 0
@@ -77,6 +95,8 @@ class TagRecord:
 def label_of(key: str) -> str:
     """Anzeigename eines Zusatzfelds aus seinem Schlüssel."""
     raw = key[len(EXTRA):] if key.startswith(EXTRA) else key
+    if raw.startswith("Xmp.panepilot."):  # eigene Felder bei Fotos (v1.4)
+        return raw[len("Xmp.panepilot."):]
     if raw.startswith("TXXX:"):
         return raw[5:]
     if raw.startswith("----:"):
@@ -461,7 +481,8 @@ def _open(path: str):
 
     ext = os.path.splitext(path)[1].lower()
     cls = {".mp3": MP3, ".flac": FLAC, ".ogg": OggVorbis, ".oga": OggVorbis, ".opus": OggOpus,
-           ".m4a": MP4, ".wma": ASF, ".wav": WAVE}.get(ext)
+           ".m4a": MP4, ".wma": ASF, ".wav": WAVE, ".mp4": MP4, ".mov": MP4, ".m4v": MP4, ".3gp": MP4,
+           ".3g2": MP4, ".wmv": ASF, ".asf": ASF}.get(ext)
     try:
         audio = cls(path) if cls else None
     except mutagen.MutagenError:
@@ -481,6 +502,14 @@ def _kind(audio) -> tuple[str, str]:
 
 
 def read_file(path: str) -> TagRecord:
+    if is_photo(path):
+        from . import phototags
+
+        return phototags.read_file(path)
+    if is_video(path):
+        from . import videotags
+
+        return videotags.read_file(path)
     rec = TagRecord(path)
     try:
         st = os.stat(path)
@@ -523,6 +552,14 @@ def write_file(rec: TagRecord, changes: dict[str, str | None], pictures: list[Pi
     """
     import mutagen
 
+    if rec.kind == "photo":
+        from . import phototags
+
+        return phototags.write_file(rec, changes)
+    if rec.kind.startswith("video"):
+        from . import videotags
+
+        return videotags.write_file(rec, changes, pictures)
     audio = _open(rec.path)
     kind, _codec = _kind(audio)
     if audio.tags is None:
@@ -568,8 +605,12 @@ def custom_key(kind: str, name: str) -> str:
         return f"{EXTRA}TXXX:{name}"
     if kind == "vorbis":
         return EXTRA + name.upper()
-    if kind == "mp4":
+    if kind in ("mp4", "video-mp4"):
         return f"{EXTRA}{_FF}{name}"
+    if kind == "video-mkv":
+        return EXTRA + name.strip().upper().replace(" ", "_")
+    if kind == "photo":
+        return f"{EXTRA}Xmp.panepilot.{name.strip().replace(' ', '_')}"
     return EXTRA + name
 
 
@@ -622,6 +663,25 @@ def snapshot(path: str, with_pictures: bool) -> tuple:
     """Kompletter Tag einer Datei (ohne Bilder, wenn sie nicht geändert werden), zum Wiederherstellen."""
     import copy
 
+    if is_photo(path):
+        from . import phototags
+
+        return phototags.snapshot(path)
+    if is_video(path):
+        from . import videotags
+
+        return videotags.snapshot(path, with_pictures)
+    return mutagen_snapshot(path, with_pictures)
+
+
+def mutagen_snapshot(path: str, with_pictures: bool) -> tuple:
+    """(Art, Inhalt, FLAC-Bilder, Bilder gehören dazu)."""
+    return _mutagen_snapshot(path, with_pictures) + (with_pictures,)
+
+
+def _mutagen_snapshot(path: str, with_pictures: bool) -> tuple:
+    import copy
+
     audio = _open(path)
     kind, _codec = _kind(audio)
     tags = audio.tags
@@ -646,13 +706,28 @@ def snapshot(path: str, with_pictures: bool) -> tuple:
 
 def restore(path: str, snap: tuple) -> TagRecord:
     """Schreibt einen Schnappschuss zurück; Bilder bleiben unangetastet, wenn sie nicht darin sind."""
-    kind, content, pics = snap
+    kind = snap[0]
+    if kind == "photo":
+        from . import phototags
+
+        return phototags.restore(path, snap)
+    if kind == "video":
+        from . import videotags
+
+        return videotags.restore(path, snap)
+    mutagen_restore(path, snap)
+    return read_file(path)
+
+
+def mutagen_restore(path: str, snap: tuple) -> None:
+    kind, content, pics = snap[:3]
+    had = len(snap) > 3 and snap[3]  # Bilder gehören zum Schnappschuss: auch „keine Bilder“ wiederherstellen
     audio = _open(path)
     if audio.tags is None:
         audio.add_tags()
     tags = audio.tags
     if kind == "id3":
-        keep_pics = not any(f.FrameID == "APIC" for f in content or [])
+        keep_pics = not had and not any(f.FrameID == "APIC" for f in content or [])
         for k in list(tags.keys()):
             if not (keep_pics and k.startswith("APIC")):
                 del tags[k]
@@ -661,7 +736,7 @@ def restore(path: str, snap: tuple) -> TagRecord:
         audio.save(v2_version=3)
     elif kind == "vorbis":
         has_pics = any(k.upper() == _VORBIS_PICTURE for k, _v in content or [])
-        keep = [(k, v) for k, v in tags if k.upper() == _VORBIS_PICTURE and not has_pics]
+        keep = [(k, v) for k, v in tags if k.upper() == _VORBIS_PICTURE and not has_pics and not had]
         tags.clear()
         for k, v in keep + list(content or []):
             tags.append((k, v))
@@ -671,7 +746,7 @@ def restore(path: str, snap: tuple) -> TagRecord:
                 audio.add_picture(p)
         audio.save()
     elif kind == "mp4":
-        covr = tags.get("covr") if "covr" not in (content or {}) else None
+        covr = tags.get("covr") if "covr" not in (content or {}) and not had else None
         tags.clear()
         tags.update(content or {})
         if covr:
@@ -679,14 +754,13 @@ def restore(path: str, snap: tuple) -> TagRecord:
         audio.save()
     elif kind == "asf":
         has_pics = any(k == "WM/Picture" for k, _v in content or [])
-        keep = tags.get("WM/Picture") if not has_pics and "WM/Picture" in tags else None
+        keep = tags.get("WM/Picture") if not has_pics and not had and "WM/Picture" in tags else None
         tags.clear()
         for k, v in content or []:
             tags[k] = v
         if keep:
             tags["WM/Picture"] = keep
         audio.save()
-    return read_file(path)
 
 
 def format_length(seconds: float) -> str:

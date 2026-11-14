@@ -1,6 +1,6 @@
 # Meta wizard
 
-**Meta wizard …** (Ctrl+T) edits the tags of music files (MP3, FLAC, Ogg, Opus, M4A, WMA, WAV), similar to MP3TAG.
+**Meta wizard …** (Ctrl+T) edits the tags of music files (MP3, FLAC, Ogg, Opus, M4A, WMA, WAV), similar to MP3TAG, and the metadata of photos (see below).
 
 ## Basics
 - The track list shows the files of the current folder with their tags. Choose columns by right-clicking the column headers; you can also create your own fields there.
@@ -22,3 +22,29 @@
 - **ReplayGain …**: measures the loudness with ffmpeg (EBU R128) and adds track and album values. The target loudness is in the [Settings](settings.md). This requires ffmpeg to be installed.
 
 The meta wizard closes with its “Close” button or when you call it again. Pending changes are only lost after a confirmation.
+
+## Photos
+If the folder contains photos, the meta wizard shows their metadata (EXIF, IPTC, XMP). If music and photos are mixed, choose what to show with **“Music | Photos”** at the top; the kind with more files is preselected.
+- **Read and write**: JPEG, PNG, TIFF, WebP. **HEIC/HEIF** (phone photos) only if the **exiftool** program is installed (`sudo apt install libimage-exiftool-perl`), otherwise read-only. **RAW** files (CR2, NEF, ARW, DNG …) are read-only.
+- **Edit**: title, description, keywords (separated by “;”), rating (0–5), author, copyright and date taken. PanePilot writes each field to all the usual places (XMP, IPTC, EXIF) so that e.g. digiKam or the image viewer finds it.
+- **Camera, lens, exposure, aperture, ISO, focal length, flash, orientation and GPS** cannot be changed but can be removed with `< remove >` – e.g. the GPS position before sharing photos. **Show on map** opens the position in OpenStreetMap.
+- **Custom fields** are added via the column headers as for music. They are stored as XMP; other programs usually read them but do not show them in their normal view – for things that should be visible everywhere, keywords are the better place.
+- Instead of the cover, the sidebar shows a **preview**.
+- **Converters** for photos: tag → file name, file name → tag, tag → tag, tag → text file/CSV, text file → tag and **Shift date …**.
+  - Placeholders: `%datetaken%`, `%make%`, `%model%`, `%lens%`, `%iso%`, `%title%`, `%rating%`, `%author%` …, plus `%camera%`, `%width%`, `%height%`.
+  - `$date(%datetaken%,JJJJ-MM-TT_hhmmss)` reformats the date, e.g. to `2026-11-08_150012` (JJJJ = year, MM = month, TT = day, hh/mm/ss = time). Without a date taken, the file’s modification date is used.
+  - **Shift date …** moves the date taken by days, hours, minutes and seconds, e.g. if the camera clock was wrong. Photos without a date taken are skipped.
+
+## Videos
+If the folder contains videos, the meta wizard shows their metadata. If several kinds are mixed, choose what to show with **“Music | Photos | Videos”** at the top; the kind with the most files is preselected. Files ending in `.mp4` always count as video, `.m4a` as music.
+- **Read and write**: MP4, MOV, M4V, 3GP and WMV. **MKV and WebM** only if the **mkvtoolnix** package is installed (`sudo apt install mkvtoolnix`), otherwise read-only. **AVI** and **MTS/M2TS** (camcorders) are read-only.
+- **Edit**: title, description, author, copyright, genre, year and date taken, plus **custom fields** as for music.
+- **Duration, resolution, frame rate, video and audio codec and bitrate** are read with the **ffmpeg** program (`sudo apt install ffmpeg`). Without ffmpeg this information is missing.
+- **Date taken and GPS**: for MP4/MOV the date taken can only be changed, and GPS only removed, with **exiftool** (`sudo apt install libimage-exiftool-perl`). For MKV/WebM mkvtoolnix changes the date. For WMV the date cannot be changed. **Show on map** opens the position in OpenStreetMap.
+- **Thumbnail (poster)**: the sidebar shows the thumbnail stored in the video. If there is none, it shows a still frame from the video (at about 10 % of the running time). Right-click to replace, remove or save the thumbnail; **“Use still frame as thumbnail”** stores the frame shown as the poster in the video.
+- **Converters** for videos: as for photos, i.e. tag → file name, file name → tag, tag → tag, tag → text file/CSV, text file → tag and **Shift date …**.
+  - Placeholders: `%datetaken%`, `%title%`, `%author%`, `%genre%`, `%year%` …, plus `%duration%`, `%resolution%`, `%width%`, `%height%`, `%fps%`, `%codec%` and `%format%`.
+  - `$date(%datetaken%,JJJJ-MM-TT_hhmmss)` gives e.g. `2026-11-08_150012.mp4`.
+  - Videos usually store the date taken in universal time (UTC); PanePilot shows it in the computer’s local time.
+
+The chapter **Additional programs** lists the programs PanePilot can use.
