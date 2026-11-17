@@ -171,6 +171,7 @@ class SettingsDialog(QDialog):
         # Reiter „Meta-Wizard“: ReplayGain
         page = self._page("meta", t("settings.tab_meta"))
         page.add_section(t("settings.sec_replaygain"), self._replaygain_section())
+        page.add_section(t("settings.sec_online"), self._online_section())
         box = QDialogButtonBox(self)
         box.addButton(t("button.ok"), QDialogButtonBox.ButtonRole.AcceptRole).setDefault(True)
         box.addButton(t("button.cancel"), QDialogButtonBox.ButtonRole.RejectRole)
@@ -494,6 +495,53 @@ class SettingsDialog(QDialog):
         form.setContentsMargins(0, 0, 0, 0)
         form.addRow(t("settings.size_unit"), self.unit_box)
         return w
+
+    # --- Online-Daten für Filme (v1.9, L-922) -------------------------------------------------
+    def _online_section(self) -> QWidget:
+        from PySide6.QtWidgets import QLineEdit
+
+        from . import moviedb as md
+        from . import servers as sv
+
+        w = QWidget(self)
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        row = QHBoxLayout()
+        row.addWidget(QLabel(t("settings.tmdb_key"), w))
+        self.tmdb_key = QLineEdit(md.load_key(), w)
+        self.tmdb_key.setEchoMode(QLineEdit.EchoMode.PasswordEchoOnEdit)
+        self.tmdb_key.setPlaceholderText(t("settings.tmdb_key_placeholder"))
+        self.tmdb_key.setClearButtonEnabled(True)
+        row.addWidget(self.tmdb_key, 1)
+        self.btn_tmdb_check = QPushButton(t("settings.tmdb_check"), w)
+        self.btn_tmdb_check.clicked.connect(self._check_tmdb)
+        row.addWidget(self.btn_tmdb_check)
+        lay.addLayout(row)
+        lay.addWidget(self._hint(t("settings.tmdb_hint"), w))
+        lang = QLabel("ℹ " + t("settings.online_language", lang=md.language()), w)  # L-930: Info zur Sprache
+        lang.setWordWrap(True)
+        lay.addWidget(lang)
+        if not sv.keyring_available():
+            lay.addWidget(self._hint(t("settings.tmdb_no_keyring"), w))
+        lay.addWidget(self._hint(t("online.tmdb_notice"), w))
+        return w
+
+    def _check_tmdb(self) -> None:
+        from . import moviedb as md
+        from . import netutil
+        from .dialogs import show_error, show_info
+
+        key = self.tmdb_key.text().strip()
+        title = t("settings.tmdb_check")
+        if not key:
+            show_error(self, title, t("settings.tmdb_empty"))
+            return
+        _v, error = netutil.run_blocking(self, lambda: md.Tmdb(key).check() or True, t("online.checking"), title)
+        if error:
+            show_error(self, title, t("online.bad_key") if error == "401" else
+                       t("online.no_connection", reason=error))
+        elif _v:
+            show_info(self, title, t("settings.tmdb_ok"))
 
     def _replaygain_section(self) -> QWidget:
         from PySide6.QtWidgets import QDoubleSpinBox
@@ -930,6 +978,10 @@ class SettingsDialog(QDialog):
         s.set("size_unit", self.unit_box.currentData())
         s.set("replaygain_target", round(self.rg_target.value(), 1))
         s.set("update_check", self.update_check.isChecked())
+        from . import moviedb as md
+
+        if self.tmdb_key.text().strip() != md.load_key():
+            md.store_key(self.tmdb_key.text())
         # Spaltenprofile schreiben
         for name in self._deleted:
             try:

@@ -118,7 +118,11 @@ def tools() -> tuple[str, ...]:
     from . import convert as cv
 
     if _current == DOC:  # L-851: weder Musik-Konverter noch „Datum verschieben“
-        return tuple(k for k in cv.TOOLS if k not in cv.AUDIO_ONLY and k not in cv.PHOTO_ONLY)
-    if _current in (PHOTO, VIDEO):
-        return tuple(k for k in cv.TOOLS if k not in cv.AUDIO_ONLY)
-    return tuple(k for k in cv.TOOLS if k not in cv.PHOTO_ONLY)
+        skip = cv.AUDIO_ONLY + cv.PHOTO_ONLY + cv.VIDEO_ONLY
+    elif _current == VIDEO:
+        skip = cv.AUDIO_ONLY
+    elif _current == PHOTO:
+        skip = cv.AUDIO_ONLY + cv.VIDEO_ONLY
+    else:
+        skip = cv.PHOTO_ONLY + cv.VIDEO_ONLY
+    return tuple(k for k in cv.TOOLS if k not in skip)

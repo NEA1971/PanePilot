@@ -616,7 +616,7 @@ class MetaWizardMixin:
                 return
             {cv.TAG_TO_TEXT: self.meta_export_text, cv.TEXT_TO_TAG: self.meta_import_text,
              cv.NUMBER: self.meta_number, cv.DISC: self.meta_disc, cv.MUSICBRAINZ: self.meta_musicbrainz,
-             cv.DATESHIFT: self.meta_dateshift,
+             cv.DATESHIFT: self.meta_dateshift, cv.ONLINE: self.meta_online,
              cv.PLAYLIST: self.meta_playlist, cv.REPLAYGAIN: self.meta_replaygain}[kind]()
             return
         pane = self._meta_pane()
@@ -874,6 +874,60 @@ class MetaWizardMixin:
                 others = [p for p in it.pictures() if p.ptype != tg.FRONT_COVER]
                 it.set_pictures([tg.Picture(cover_data, cover_mime(cover_data), tg.FRONT_COVER, "")] + others)
         self._meta_pane().summary.setText(t("mb.done", n=len(changes)))
+        self._meta_refresh()
+
+    def meta_online(self) -> None:
+        """Film-Daten von TMDb bzw. Wikidata holen (v1.9, L-900 ff.)."""
+        from . import moviedb as md
+        from . import tags as tg
+        from .mbdialogs import cover_mime
+        from .moviedialogs import ChoiceDialog, ReviewDialog, error_text, make_job, run_lookup
+
+        items = self._meta_targets()
+        if not items:
+            return
+        title = t("online.title")
+        key = md.load_key()
+        service = md.service(key)
+        jobs = [make_job(it) for it in items]
+        error = run_lookup(self, service, jobs)
+        if error:
+            show_error(self, title, error_text(error))
+            return
+        open_choices = [j for j in jobs if j.hits and j.movie is None]
+        chosen = []
+        for n, job in enumerate(open_choices, 1):
+            dlg = ChoiceDialog(self, job.item.display_name, job.hits, n, len(open_choices))
+            res = dlg.exec()
+            if res == QDialog.DialogCode.Accepted and dlg.selected() is not None:
+                hit = dlg.selected()
+                job.imdb, job.tmdb, job.qid = hit.imdb, hit.tmdb, hit.qid
+                job.hits = []
+                chosen.append(job)
+            elif res == ChoiceDialog.SKIP:
+                job.hits, job.reason = [], t("online.skipped")
+            else:  # Abbrechen: restliche Auswahl überspringen
+                for rest in open_choices[n - 1:]:
+                    rest.hits, rest.reason = [], t("online.skipped")
+                break
+        if chosen:
+            error = run_lookup(self, service, chosen)
+            if error:
+                show_error(self, title, error_text(error))
+                return
+        review = ReviewDialog(self, jobs, service.source)
+        if review.exec() != QDialog.DialogCode.Accepted:
+            return
+        changes = review.changes()
+        for it, values, poster in changes:
+            it.mark = ""
+            for k, value in values.items():
+                if not it.readonly(k):
+                    it.set(k, value)
+            if poster:
+                others = [p for p in it.pictures() if p.ptype != tg.FRONT_COVER]
+                it.set_pictures([tg.Picture(poster, cover_mime(poster), tg.FRONT_COVER, "")] + others)
+        self._meta_pane().summary.setText(t("online.done", n=len(changes)))
         self._meta_refresh()
 
     def meta_playlist(self) -> None:

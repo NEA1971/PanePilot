@@ -54,6 +54,30 @@ If the folder contains videos, the meta wizard shows their metadata. If several 
   - `$date(%datetaken%,JJJJ-MM-TT_hhmmss)` gives e.g. `2026-11-08_150012.mp4`.
   - Videos usually store the date taken in universal time (UTC); PanePilot shows it in the computer’s local time.
 
+## Online data for movies
+In video mode the button **“Online data (movies) …”** fetches title, year, genre, plot summary, director and poster from the internet for the selected videos (without a selection for all shown).
+- **How PanePilot knows which movie it is**, in this order:
+  1. custom fields `imdbid` or `themoviedb`
+  2. an ID in the file name in Jellyfin style, e.g. `Alien (1979) [imdbid-tt0078748].mkv` or `[tmdbid-348]`
+  3. otherwise a search for title and year from the file name, e.g. `Alien (1979).mkv`. If there is exactly one match with that year it is used, otherwise you choose the movie from a list (or “Skip”).
+- **Sources:**
+  - **TMDB** (The Movie Database) if an API key is entered in the settings: all data including plot summary and poster.
+  - **Wikidata** if no key is entered: no account needed, but no plot summary and no poster.
+- **Language:** title, plot summary and genre come in the **program language** (German for Franconian and Saxon). If there is no version in that language, English is used.
+- **Overview:** before applying, PanePilot shows “field – current – new” for each movie. Only fields that are empty so far are checked; existing values are only overwritten if you tick them. The buttons “All fields” and “Only empty fields” set the ticks for all movies.
+- **Apply** marks the values in green; nothing is written until **“Save tags”**, and “Undo” works as usual.
+- A missing ID is added: a movie with `imdbid` also gets `themoviedb` and vice versa. If the original title differs from the title, it goes into the field `originaltitle`. The poster (about 500 pixels wide) is stored as cover in MP4, MKV and WMV.
+- AVI files cannot be tagged; they appear in the overview with “format is read-only”.
+- TV series (season, episode) are not supported yet.
+
+### Getting a TMDB API key
+1. Create a free account on **themoviedb.org** and confirm the e-mail.
+2. Click the profile picture at the top right → **Settings** → **API** and request a key (“Developer”, personal use). The application details are informal, e.g. “PanePilot, private movie collection”.
+3. Copy the **API key** (32 characters) or the long **API read access token**.
+4. In PanePilot: **Settings → Meta wizard → Online data for movies**, paste the key, **“Check”**, then **OK**.
+
+The key is only stored in your keyring, not in the settings files. This product uses the TMDB API but is not endorsed or certified by TMDB.
+
 ## Documents
 Office files and PDFs can be tagged in the meta wizard as well. In mixed folders choose **“Documents”** in the **“Music | Photos | Videos | Documents”** switch at the top. No additional programs are needed.
 - **Read and write**: Word, Excel and PowerPoint (DOCX, XLSX, PPTX, also DOCM, XLSM, PPTM), LibreOffice/OpenDocument (ODT, ODS, ODP, ODG) and **PDF**.

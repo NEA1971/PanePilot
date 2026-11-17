@@ -15,9 +15,11 @@ TAG_TO_TEXT, TEXT_TO_TAG, NUMBER, PLAYLIST = "tag2text", "text2tag", "number", "
 REPLAYGAIN = "replaygain"  # v0.9.6
 DISC, MUSICBRAINZ = "disc", "musicbrainz"  # v1.2
 DATESHIFT = "dateshift"  # v1.4: Aufnahmedatum verschieben (Fotos, ab v1.5 auch Videos)
-TOOLS = KINDS + (TAG_TO_TEXT, TEXT_TO_TAG, NUMBER, DISC, MUSICBRAINZ, PLAYLIST, REPLAYGAIN, DATESHIFT)
+ONLINE = "online"  # v1.9: Film-Daten von TMDb/Wikidata
+TOOLS = KINDS + (TAG_TO_TEXT, TEXT_TO_TAG, NUMBER, DISC, MUSICBRAINZ, PLAYLIST, REPLAYGAIN, DATESHIFT, ONLINE)
 AUDIO_ONLY = (NUMBER, DISC, MUSICBRAINZ, PLAYLIST, REPLAYGAIN)
 PHOTO_ONLY = (DATESHIFT,)  # Fotos und Videos
+VIDEO_ONLY = (ONLINE,)
 
 ALIASES = {"tracknumber": "track", "discnumber": "disc", "date": "year", "album artist": "albumartist",
            "band": "albumartist"}

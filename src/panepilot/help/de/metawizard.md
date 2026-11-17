@@ -54,6 +54,30 @@ Enthält der Ordner Videos, zeigt der Meta-Wizard deren Metadaten. Sind mehrere 
   - `$date(%datetaken%,JJJJ-MM-TT_hhmmss)` ergibt z. B. `2026-11-08_150012.mp4`.
   - Das Aufnahmedatum steht in Videos meist in Weltzeit (UTC); PanePilot zeigt es in der Ortszeit des Rechners an.
 
+## Online-Daten für Filme
+Im Video-Modus holt der Knopf **„Online-Daten (Filme) …“** Titel, Jahr, Genre, Inhaltsangabe, Regie und Poster aus dem Internet, für die markierten Videos (ohne Markierung für alle angezeigten).
+- **Woher PanePilot weiß, welcher Film es ist**, in dieser Reihenfolge:
+  1. eigene Felder `imdbid` bzw. `themoviedb`
+  2. Kennung im Dateinamen im Jellyfin-Stil, z. B. `Alien (1979) [imdbid-tt0078748].mkv` oder `[tmdbid-348]`
+  3. sonst Suche über Titel und Jahr aus dem Dateinamen, z. B. `Alien (1979).mkv`. Gibt es genau einen Treffer mit diesem Jahr, wird er genommen, sonst wählst du den Film aus einer Liste (oder „Überspringen“).
+- **Quellen:**
+  - **TMDb** (The Movie Database), wenn in den Einstellungen ein API-Schlüssel eingetragen ist: alle Angaben einschließlich Inhaltsangabe und Poster.
+  - **Wikidata**, wenn kein Schlüssel eingetragen ist: kein Konto nötig, aber ohne Inhaltsangabe und Poster.
+- **Sprache:** Titel, Inhaltsangabe und Genre kommen in der **Programmsprache** (bei Fränkisch und Sächsisch auf Deutsch). Gibt es keine Fassung in dieser Sprache, wird Englisch genommen.
+- **Übersicht:** Vor dem Übernehmen zeigt PanePilot je Film „Feld – bisher – neu“. Angehakt sind nur Felder, die bisher leer sind; vorhandene Werte werden nur überschrieben, wenn du das Häkchen setzt. Die Knöpfe „Alle Felder“ und „Nur leere Felder“ setzen die Häkchen für alle Filme.
+- **Übernehmen** merkt die Werte grün vor; geschrieben wird erst mit **„Tag speichern“**, „Rückgängig“ funktioniert wie immer.
+- Fehlt eine Kennung, wird sie ergänzt: Ein Film mit `imdbid` bekommt auch `themoviedb` und umgekehrt. Weicht der Originaltitel vom Titel ab, kommt er ins Feld `originaltitle`. Das Poster (etwa 500 Pixel breit) wird bei MP4, MKV und WMV als Cover gespeichert.
+- AVI-Dateien lassen sich nicht beschriften; sie erscheinen in der Übersicht mit „Format nur lesbar“.
+- Serien (Staffel, Folge) werden noch nicht unterstützt.
+
+### TMDb-API-Schlüssel beantragen
+1. Auf **themoviedb.org** ein kostenloses Konto anlegen und die E-Mail bestätigen.
+2. Oben rechts auf das Profilbild → **Einstellungen** → **API** und dort einen Schlüssel beantragen („Developer“, private Nutzung). Die Angaben zur Anwendung sind formlos, z. B. „PanePilot, private Filmsammlung“.
+3. Den **API-Schlüssel** (32 Zeichen) oder das lange **API-Lesezugriffstoken** kopieren.
+4. In PanePilot: **Einstellungen → Meta-Wizard → Online-Daten für Filme**, Schlüssel einfügen, **„Prüfen“**, dann **OK**.
+
+Der Schlüssel wird nur in deinem Schlüsselbund gespeichert, nicht in den Einstellungsdateien. Dieses Produkt nutzt die TMDb-API, ist aber nicht von TMDb unterstützt oder zertifiziert.
+
 ## Dokumente
 Auch Office-Dateien und PDFs lassen sich im Meta-Wizard beschriften. Bei gemischten Ordnern wählt man oben **„Dokumente“** im Umschalter **„Musik | Fotos | Videos | Dokumente“**. Zusatzprogramme sind dafür nicht nötig.
 - **Lesen und schreiben**: Word, Excel und PowerPoint (DOCX, XLSX, PPTX, auch DOCM, XLSM, PPTM), LibreOffice/OpenDocument (ODT, ODS, ODP, ODG) und **PDF**.
