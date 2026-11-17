@@ -257,20 +257,23 @@ class Wikidata:
         return data.get("results", {}).get("bindings", [])
 
     def _query(self, where: str) -> str:
-        return f"""SELECT ?item ?itemLabel ?orig ?date ?genreLabel ?dirLabel ?imdb ?tmdb WHERE {{
+        return f"""SELECT ?item ?itemLabel ?orig ?date ?genreLabel ?links ?dirLabel ?imdb ?tmdb WHERE {{
   {where}
   OPTIONAL {{ ?item wdt:P1476 ?orig . }}
   OPTIONAL {{ ?item wdt:P577 ?date . }}
-  OPTIONAL {{ ?item wdt:P136 ?genre . ?genre wdt:P31 wd:Q201658 . }}
+  OPTIONAL {{ ?item wdt:P136 ?genre . ?genre wikibase:sitelinks ?links . }}
   OPTIONAL {{ ?item wdt:P57 ?dir . }}
   OPTIONAL {{ ?item wdt:P345 ?imdb . }}
   OPTIONAL {{ ?item wdt:P4947 ?tmdb . }}
   SERVICE wikibase:label {{ bd:serviceParam wikibase:language "{self._labels()}". }}
 }}"""
 
-    @staticmethod
-    def _movies(rows) -> dict[str, Movie]:
+    MAX_GENRES = 3
+
+    @classmethod
+    def _movies(cls, rows) -> dict[str, Movie]:
         out: dict[str, Movie] = {}
+        weight: dict[tuple[str, str], int] = {}
         for r in rows:
             qid = r["item"]["value"].rsplit("/", 1)[-1]
             m = out.setdefault(qid, Movie(SOURCE_WIKIDATA))
@@ -285,12 +288,15 @@ class Wikidata:
             g = v("genreLabel")
             if g and not re.fullmatch(r"Q\d+", g) and g not in m.genres:
                 m.genres.append(g)
+                weight[(qid, g)] = int(v("links") or 0) if v("links").isdigit() else 0
             d = v("dirLabel")
             if d and not re.fullmatch(r"Q\d+", d) and d not in m.directors:
                 m.directors.append(d)
             m.imdb = m.imdb or clean_imdb(v("imdb"))
             m.tmdb = m.tmdb or clean_tmdb(v("tmdb"))
             m.poster_url = qid  # Wikidata-Kennung merken (kein Poster, L-921)
+        for qid, m in out.items():  # Wikidata kennt sehr viele Genres; die allgemeinsten (meiste Sprachen) nehmen
+            m.genres = sorted(m.genres, key=lambda g: -weight.get((qid, g), 0))[:cls.MAX_GENRES]
         return out
 
     def load(self, imdb: str = "", tmdb: str = "", qid: str = "") -> Movie | None:
