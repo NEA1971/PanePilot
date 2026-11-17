@@ -16,10 +16,12 @@ REPLAYGAIN = "replaygain"  # v0.9.6
 DISC, MUSICBRAINZ = "disc", "musicbrainz"  # v1.2
 DATESHIFT = "dateshift"  # v1.4: Aufnahmedatum verschieben (Fotos, ab v1.5 auch Videos)
 ONLINE = "online"  # v1.9: Film-Daten von TMDb/Wikidata
-TOOLS = KINDS + (TAG_TO_TEXT, TEXT_TO_TAG, NUMBER, DISC, MUSICBRAINZ, PLAYLIST, REPLAYGAIN, DATESHIFT, ONLINE)
+TRACKS = "tracks"  # v1.11: Spuren von MKV-Dateien bearbeiten
+TOOLS = KINDS + (TAG_TO_TEXT, TEXT_TO_TAG, NUMBER, DISC, MUSICBRAINZ, PLAYLIST, REPLAYGAIN, DATESHIFT, ONLINE,
+                 TRACKS)
 AUDIO_ONLY = (NUMBER, DISC, MUSICBRAINZ, PLAYLIST, REPLAYGAIN)
 PHOTO_ONLY = (DATESHIFT,)  # Fotos und Videos
-VIDEO_ONLY = (ONLINE,)
+VIDEO_ONLY = (ONLINE, TRACKS)
 
 ALIASES = {"tracknumber": "track", "discnumber": "disc", "date": "year", "album artist": "albumartist",
            "band": "albumartist"}

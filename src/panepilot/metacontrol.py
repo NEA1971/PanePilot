@@ -617,6 +617,7 @@ class MetaWizardMixin:
             {cv.TAG_TO_TEXT: self.meta_export_text, cv.TEXT_TO_TAG: self.meta_import_text,
              cv.NUMBER: self.meta_number, cv.DISC: self.meta_disc, cv.MUSICBRAINZ: self.meta_musicbrainz,
              cv.DATESHIFT: self.meta_dateshift, cv.ONLINE: self.meta_online,
+             cv.TRACKS: self.meta_tracks,
              cv.PLAYLIST: self.meta_playlist, cv.REPLAYGAIN: self.meta_replaygain}[kind]()
             return
         pane = self._meta_pane()
@@ -876,12 +877,84 @@ class MetaWizardMixin:
         self._meta_pane().summary.setText(t("mb.done", n=len(changes)))
         self._meta_refresh()
 
+    def meta_tracks(self) -> None:
+        """Ton- und Untertitelspuren von MKV-Dateien bearbeiten (v1.11, L-1100 ff.)."""
+        from . import mkvtracks as mt
+        from . import netutil
+        from . import tags as tg
+        from .dialogs import confirm, show_info
+        from .trackdialog import TrackDialog
+
+        title = t("tracks.title")
+        items = self._meta_targets()
+        mkv = [it for it in items if it.record.kind == "video-mkv"]
+        if not mkv:
+            show_info(self, title, t("tracks.only_mkv"))  # L-1101
+            return
+        if not mt.available():
+            show_error(self, title, t("tracks.no_tool"))
+            return
+        files, error = netutil.run_blocking(self, lambda: [mt.read(it.record.path) for it in mkv],
+                                            t("tracks.reading"), title)
+        if error or files is None:
+            if error:
+                show_error(self, title, error)
+            return
+        broken = [f for f in files if f.error]
+        files = [f for f in files if not f.error and f.tracks]
+        if not files:
+            show_error(self, title, "\n".join(f"{os.path.basename(f.path)}: {f.error}" for f in broken) or
+                       t("tracks.none"))
+            return
+        dlg = TrackDialog(self, files)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        edits, missing = dlg.edits()
+        if not edits:
+            return
+        n_tracks = sum(len(v) for v in edits.values())
+        text = t("tracks.confirm", files=len(edits), tracks=n_tracks)
+        others = len(items) - len(mkv)
+        if others:
+            text += "\n\n" + t("tracks.skipped_other", n=others)
+        if missing:
+            text += "\n\n" + t("tracks.skipped_missing") + "\n" + "\n".join(missing[:15])
+            if len(missing) > 15:
+                text += "\n…"
+        if not confirm(self, title, text, yes_key="online.apply"):
+            return
+
+        def run():
+            errs = []
+            for path, changes in edits.items():
+                try:
+                    mt.write(path, changes)
+                except OSError as exc:
+                    errs.append((os.path.basename(path), str(exc)))
+            return errs, {path: tg.read_file(path) for path in edits}
+
+        result, error = netutil.run_blocking(self, run, t("tracks.writing"), title)
+        if error:
+            show_error(self, title, error)
+            return
+        if result is None:
+            return
+        errs, recs = result
+        for it in mkv:
+            rec = recs.get(it.record.path)
+            if rec is not None and not rec.error:
+                it.record = rec  # Spalten „Audiospuren“ und „Untertitel“ neu (L-1106)
+        if errs:
+            show_error(self, title, "\n".join(f"{n}: {e}" for n, e in errs))
+        self._meta_pane().summary.setText(t("tracks.done", n=len(edits) - len(errs)))
+        self._meta_refresh()
+
     def meta_online(self) -> None:
         """Film-Daten von TMDb bzw. Wikidata holen (v1.9, L-900 ff.)."""
         from . import moviedb as md
         from . import tags as tg
         from .mbdialogs import cover_mime
-        from .moviedialogs import ChoiceDialog, ReviewDialog, error_text, make_job, run_lookup
+        from .moviedialogs import ChoiceDialog, ReviewDialog, error_text, make_jobs, run_lookup
 
         items = self._meta_targets()
         if not items:
@@ -889,26 +962,46 @@ class MetaWizardMixin:
         title = t("online.title")
         key = md.load_key()
         service = md.service(key)
-        jobs = [make_job(it) for it in items]
+        jobs = make_jobs(items)
         error = run_lookup(self, service, jobs)
         if error:
             show_error(self, title, error_text(error))
             return
-        open_choices = [j for j in jobs if j.hits and j.movie is None]
+        # offene Auswahl: Filme einzeln, Serien einmal je Serie (L-911, L-1111)
+        open_choices: list = [j for j in jobs if j.hits and j.movie is None]
+        for job in jobs:
+            g = job.group
+            if g is not None and g.hits and not g.tmdb and g not in open_choices:
+                open_choices.append(g)
         chosen = []
-        for n, job in enumerate(open_choices, 1):
-            dlg = ChoiceDialog(self, job.item.display_name, job.hits, n, len(open_choices))
+
+        def skip(entry):
+            if hasattr(entry, "item"):
+                entry.hits, entry.reason = [], t("online.skipped")
+            else:
+                entry.hits = []
+                for j in jobs:
+                    if j.group is entry:
+                        j.reason = t("online.skipped")
+
+        for n, entry in enumerate(open_choices, 1):
+            label = entry.item.display_name if hasattr(entry, "item") else entry.name
+            dlg = ChoiceDialog(self, label, entry.hits, n, len(open_choices))
             res = dlg.exec()
             if res == QDialog.DialogCode.Accepted and dlg.selected() is not None:
                 hit = dlg.selected()
-                job.imdb, job.tmdb, job.qid = hit.imdb, hit.tmdb, hit.qid
-                job.hits = []
-                chosen.append(job)
+                if hasattr(entry, "item"):
+                    entry.imdb, entry.tmdb, entry.qid = hit.imdb, hit.tmdb, hit.qid
+                    entry.hits = []
+                    chosen.append(entry)
+                else:
+                    entry.tmdb, entry.hits = hit.tmdb, []
+                    chosen += [j for j in jobs if j.group is entry]
             elif res == ChoiceDialog.SKIP:
-                job.hits, job.reason = [], t("online.skipped")
+                skip(entry)
             else:  # Abbrechen: restliche Auswahl überspringen
                 for rest in open_choices[n - 1:]:
-                    rest.hits, rest.reason = [], t("online.skipped")
+                    skip(rest)
                 break
         if chosen:
             error = run_lookup(self, service, chosen)

@@ -32,6 +32,7 @@ SECRET_ID, SECRET_KIND = "tmdb", "apikey"
 
 # Eigene Felder (L-931); vorhandene Felder mit anderer Schreibweise werden weiter benutzt (L-932)
 F_IMDB, F_TMDB, F_ORIG = "imdbid", "themoviedb", "originaltitle"
+F_SERIES, F_SEASON, F_EPISODE = "Series", "Season", "Episode"  # v1.11 (L-1113)
 
 
 class FatalError(netutil.NetError):
@@ -51,6 +52,10 @@ class Movie:
     tmdb: str = ""
     poster_url: str = ""
     poster: bytes | None = None
+    # Serien (v1.11): bei Folgen gesetzt
+    series: str = ""
+    season: str = ""  # zweistellig, z. B. „01“
+    episode: str = ""
 
 
 @dataclass
@@ -126,6 +131,52 @@ def title_year(name: str) -> tuple[str, str]:
     title = re.sub(r"[._]+", " ", title)
     title = re.sub(r"\s+-\s*$", "", title)
     return re.sub(r"\s+", " ", title).strip(" -"), year
+
+
+# --- Serien: Folge am Dateinamen erkennen (v1.11, L-1110) -------------------------------------
+_EP_RX = re.compile(r"(?<![A-Za-z0-9])[Ss](\d{1,2})[ ._-]?[Ee](\d{1,3})(?![0-9])")
+_EP_X_RX = re.compile(r"(?<![A-Za-z0-9])(\d{1,2})x(\d{2,3})(?![0-9])")
+_SEASON_DIR_RX = re.compile(r"^(?:staffel|season|series|serie|s)[ ._-]*\d{1,2}$", re.IGNORECASE)
+
+
+@dataclass
+class EpisodeRef:
+    series: str
+    year: str
+    season: int
+    episode: int
+    tmdb: str = ""
+
+
+def episode_ref(path: str) -> EpisodeRef | None:
+    """„Breaking Bad/Staffel 1/Breaking Bad - S01E02.mkv“ → Serie, Staffel 1, Folge 2."""
+    import os
+
+    folder, name = os.path.split(path)
+    stem = os.path.splitext(name)[0]
+    m = _EP_RX.search(stem) or _EP_X_RX.search(stem)
+    if not m:
+        return None
+    season, episode = int(m.group(1)), int(m.group(2))
+    parent = os.path.basename(folder)
+    grand = os.path.basename(os.path.dirname(folder))
+    series_dir = grand if _SEASON_DIR_RX.match(parent.strip()) else ""
+    tmdb = ""
+    for d in (parent, grand):
+        _imdb, t_id = ids_from_name(d)
+        tmdb = tmdb or t_id
+    prefix = stem[:m.start()]
+    if series_dir:
+        title, year = title_year(series_dir)
+    elif prefix.strip(" .-_"):
+        title, year = title_year(prefix)
+        if not year:  # Jahr ggf. aus dem Serienordner
+            p_title, p_year = title_year(parent)
+            if p_title.casefold() == title.casefold():
+                year = p_year
+    else:
+        title, year = title_year(parent)
+    return EpisodeRef(title, year, season, episode, tmdb)
 
 
 # --- HTTP --------------------------------------------------------------------------------------------------
@@ -232,6 +283,77 @@ class Tmdb:
         if year and not hits:  # Jahr im Dateinamen weicht manchmal um eins ab
             return self.search(title, "")
         return hits
+
+    # --- Serien (v1.11, L-1110 ff.) ------------------------------------------------------------
+    def search_tv(self, title: str, year: str = "") -> list[Hit]:
+        params = {"query": title, "language": self.lang, "include_adult": "false"}
+        if year:
+            params["first_air_date_year"] = year
+        data = self._get("/search/tv", **params)
+        hits = []
+        for r in (data.get("results") or [])[:20]:
+            thumb = TMDB_IMAGE.format(size=THUMB_SIZE, path=r["poster_path"]) if r.get("poster_path") else ""
+            hits.append(Hit(r.get("name") or r.get("original_name") or "", (r.get("first_air_date") or "")[:4],
+                            r.get("original_name") or "", tmdb=str(r.get("id") or ""), thumb_url=thumb))
+        if year and not hits:
+            return self.search_tv(title, "")
+        return hits
+
+    def _cached(self, key, fn):
+        cache = self.__dict__.setdefault("_cache", {})
+        if key not in cache:
+            cache[key] = fn()
+        return cache[key]
+
+    def tv(self, tv_id: str) -> dict:
+        return self._cached(("tv", tv_id), lambda: self._get(f"/tv/{tv_id}", language=self.lang))
+
+    def season(self, tv_id: str, season: int, lang: str | None = None) -> dict:
+        lang = lang or self.lang
+
+        def load():
+            try:
+                return self._get(f"/tv/{tv_id}/season/{season}", language=lang)
+            except netutil.NetError as exc:
+                if str(exc) == "404":
+                    return {}
+                raise
+        return self._cached(("season", tv_id, season, lang), load)
+
+    def image(self, url: str) -> bytes | None:
+        def load():
+            try:
+                return http_get(url, None, "tmdb")
+            except netutil.NetError:
+                return None
+        return self._cached(("img", url), load)
+
+    def episode(self, tv_id: str, season: int, episode: int) -> Movie | None:
+        show = self.tv(tv_id)
+        data = self.season(tv_id, season)
+        eps = {e.get("episode_number"): e for e in data.get("episodes") or []}
+        ep = eps.get(episode)
+        if ep is None:
+            return None
+        m = Movie(SOURCE_TMDB, tmdb=str(show.get("id") or tv_id))
+        m.series = (show.get("name") or show.get("original_name") or "").strip()
+        m.season, m.episode = f"{season:02d}", f"{episode:02d}"
+        m.title = (ep.get("name") or "").strip()
+        m.overview = (ep.get("overview") or "").strip()
+        m.year = (ep.get("air_date") or "")[:4]
+        m.genres = [g.get("name", "") for g in show.get("genres") or [] if g.get("name")]
+        if (not m.overview or not m.title or re.fullmatch(r"(Episode|Folge|Épisode|Episodio|Серия) \d+", m.title)) \
+                and not self.lang.startswith("en"):  # L-930: ersatzweise Englisch
+            en = {e.get("episode_number"): e for e in self.season(tv_id, season, "en-US").get("episodes") or []}
+            other = en.get(episode) or {}
+            m.overview = m.overview or (other.get("overview") or "").strip()
+            if not m.title or re.fullmatch(r"(Episode|Folge|Épisode|Episodio|Серия) \d+", m.title):
+                m.title = (other.get("name") or "").strip() or m.title
+        path = data.get("poster_path") or show.get("poster_path")  # Staffelposter, sonst Serienposter
+        if path:
+            m.poster_url = TMDB_IMAGE.format(size=POSTER_SIZE, path=path)
+            m.poster = self.image(m.poster_url)
+        return m
 
     def load(self, imdb: str = "", tmdb: str = "", qid: str = "") -> Movie | None:
         if not tmdb and imdb:

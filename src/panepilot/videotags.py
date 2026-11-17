@@ -401,7 +401,7 @@ def _read_mp4(rec) -> None:
     tags = audio.tags
     if tags is None:
         return
-    used = {"covr", "\xa9too"}
+    used = {"covr", "\xa9too", "tvsh", "tvsn", "tves"}  # Serienfelder: über Series/Season/Episode (v1.11)
     for name, keys in _MP4.items():
         for key in keys:
             if key in tags:
@@ -721,9 +721,35 @@ def _write_mp4(rec, changes: dict, pictures) -> None:
                 tags[key] = [MP4FreeForm(value.encode("utf-8"))]
             else:
                 tags[key] = [value]
+        _mp4_tv_atoms(tags, field, value)
     if pictures is not None:
         tg._mp4_set_pictures(tags, pictures)
     _save(audio)
+
+
+_TV_ATOMS = {"series": "tvsh", "season": "tvsn", "episode": "tves"}
+
+
+def _mp4_tv_atoms(tags, field: str, value) -> None:
+    """Eigene Felder Series/Season/Episode zusätzlich als iTunes-Standardfelder (v1.11, L-1114)."""
+    from . import tags as tg
+
+    if not field.startswith(tg.EXTRA):
+        return
+    atom = _TV_ATOMS.get(field[len(tg.EXTRA):].rsplit(":", 1)[-1].casefold())
+    if atom is None:
+        return
+    if atom in tags:
+        del tags[atom]
+    if value is None or not str(value).strip():
+        return
+    if atom == "tvsh":
+        tags[atom] = [str(value)]
+        return
+    try:
+        tags[atom] = [int(str(value).strip())]
+    except ValueError:
+        pass
 
 
 def _write_asf(rec, changes: dict, pictures) -> None:

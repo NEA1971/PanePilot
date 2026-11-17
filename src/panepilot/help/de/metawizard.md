@@ -55,7 +55,7 @@ Enthält der Ordner Videos, zeigt der Meta-Wizard deren Metadaten. Sind mehrere 
   - Das Aufnahmedatum steht in Videos meist in Weltzeit (UTC); PanePilot zeigt es in der Ortszeit des Rechners an.
 
 ## Online-Daten für Filme
-Im Video-Modus holt der Knopf **„Online-Daten (Filme) …“** Titel, Jahr, Genre, Inhaltsangabe, Regie und Poster aus dem Internet, für die markierten Videos (ohne Markierung für alle angezeigten).
+Im Video-Modus holt der Knopf **„Online-Daten (Filme, Serien) …“** Titel, Jahr, Genre, Inhaltsangabe, Regie und Poster aus dem Internet, für die markierten Videos (ohne Markierung für alle angezeigten).
 - **Woher PanePilot weiß, welcher Film es ist**, in dieser Reihenfolge:
   1. eigene Felder `imdbid` bzw. `themoviedb`
   2. Kennung im Dateinamen im Jellyfin-Stil, z. B. `Alien (1979) [imdbid-tt0078748].mkv` oder `[tmdbid-348]`
@@ -68,7 +68,6 @@ Im Video-Modus holt der Knopf **„Online-Daten (Filme) …“** Titel, Jahr, Ge
 - **Übernehmen** merkt die Werte grün vor; geschrieben wird erst mit **„Tag speichern“**, „Rückgängig“ funktioniert wie immer.
 - Fehlt eine Kennung, wird sie ergänzt: Ein Film mit `imdbid` bekommt auch `themoviedb` und umgekehrt. Weicht der Originaltitel vom Titel ab, kommt er ins Feld `originaltitle`. Das Poster (etwa 500 Pixel breit) wird bei MP4, MKV und WMV als Cover gespeichert.
 - AVI-Dateien lassen sich nicht beschriften; sie erscheinen in der Übersicht mit „Format nur lesbar“.
-- Serien (Staffel, Folge) werden noch nicht unterstützt.
 
 ### TMDb-API-Schlüssel beantragen
 1. Auf **themoviedb.org** ein kostenloses Konto anlegen und die E-Mail bestätigen.
@@ -77,6 +76,23 @@ Im Video-Modus holt der Knopf **„Online-Daten (Filme) …“** Titel, Jahr, Ge
 4. In PanePilot: **Einstellungen → Meta-Wizard → Online-Daten für Filme**, Schlüssel einfügen, **„Prüfen“**, dann **OK**.
 
 Der Schlüssel wird nur in deinem Schlüsselbund gespeichert, nicht in den Einstellungsdateien. Dieses Produkt nutzt die TMDb-API, ist aber nicht von TMDb unterstützt oder zertifiziert.
+
+## Spuren bearbeiten (MKV)
+Im Video-Modus öffnet **„Spuren …“** für die markierten MKV-Videos eine Tabelle aller Spuren: Video, Ton und Untertitel, jeweils mit Format, Sprache, Name und den Kennzeichen „Standard“ und „Erzwungen“.
+- **Sprache:** aus der Liste wählen, z. B. „Deutsch (ger)“, oder einen Code eintippen. In der Spalte „Audiospuren“ steht danach `ger` statt `?`.
+- **Name:** frei eintragen oder mit **„Namen vorschlagen“** bilden lassen, z. B. „Deutsch AC3 5.1“ (für die markierten Zeilen, sonst für alle). Diesen Namen zeigen Player wie VLC statt „Titel 1“.
+- **Standard** ist die Spur, die ein Player zuerst nimmt; **Erzwungen** (forced) zeigt Untertitel nur für fremdsprachige Stellen. Bei Videospuren lässt sich nur der Name ändern.
+- **Mehrere Videos auf einmal:** Die Spuren werden nach Nummer zusammengefasst („Tonspur 1“, „Untertitel 1“ …). Eine Änderung gilt für diese Spur in allen markierten Videos. Unterschiedliche Werte erscheinen als „verschieden“ und bleiben unverändert, solange man sie nicht ändert. Videos ohne die Spur werden ausgelassen und vorher aufgelistet.
+- **Speichern:** „Übernehmen“ fragt noch einmal nach und schreibt dann **sofort** in die Dateien (mit mkvpropedit, in Sekunden, auch auf dem NAS). „Rückgängig“ gibt es dafür nicht.
+- Nötig ist **mkvtoolnix** (`sudo apt install mkvtoolnix`). Bei MP4 geht es bisher nicht; wie es mit ffmpeg geht, steht in der Video-Anleitung.
+
+## Online-Daten für Serien
+**„Online-Daten (Filme, Serien) …“** erkennt Folgen am Muster **`S01E02`** im Dateinamen (auch `s1e2` oder `1x02`).
+- **Serienname:** aus dem Ordner, z. B. `Breaking Bad/Staffel 1/Breaking Bad - S01E02.mkv` oder `Breaking Bad (2008) [tmdbid-1396]/S01E02.mkv`; sonst aus dem Dateinamen vor `S01E02`.
+- Die Serie wird **einmal je Serie** gesucht; bei mehreren Treffern wählt man sie einmal aus, das gilt dann für alle Folgen.
+- **Felder:** Titel (Episodentitel), `Series`, `Season` und `Episode` (zweistellig, z. B. `01`), Jahr der Erstausstrahlung, Inhalt der Folge, Genre der Serie, Staffelposter als Cover und `themoviedb` (Kennung der Serie). Bei MP4 kommen Serie, Staffel und Folge zusätzlich in die iTunes-Standardfelder.
+- Serien gibt es nur mit **TMDb-Schlüssel**; ohne Schlüssel erscheint ein Hinweis, Filme kommen weiterhin von Wikidata.
+- Mit **Tag → Dateiname** und `%Series% - S%Season%E%Episode% - %title%` lassen sich die Folgen danach einheitlich benennen, z. B. `Breaking Bad - S01E02 - Die Katze ist im Sack.mkv`.
 
 ## Dokumente
 Auch Office-Dateien und PDFs lassen sich im Meta-Wizard beschriften. Bei gemischten Ordnern wählt man oben **„Dokumente“** im Umschalter **„Musik | Fotos | Videos | Dokumente“**. Zusatzprogramme sind dafür nicht nötig.

@@ -55,7 +55,7 @@ If the folder contains videos, the meta wizard shows their metadata. If several 
   - Videos usually store the date taken in universal time (UTC); PanePilot shows it in the computer’s local time.
 
 ## Online data for movies
-In video mode the button **“Online data (movies) …”** fetches title, year, genre, plot summary, director and poster from the internet for the selected videos (without a selection for all shown).
+In video mode the button **“Online data (movies, series) …”** fetches title, year, genre, plot summary, director and poster from the internet for the selected videos (without a selection for all shown).
 - **How PanePilot knows which movie it is**, in this order:
   1. custom fields `imdbid` or `themoviedb`
   2. an ID in the file name in Jellyfin style, e.g. `Alien (1979) [imdbid-tt0078748].mkv` or `[tmdbid-348]`
@@ -68,7 +68,6 @@ In video mode the button **“Online data (movies) …”** fetches title, year,
 - **Apply** marks the values in green; nothing is written until **“Save tags”**, and “Undo” works as usual.
 - A missing ID is added: a movie with `imdbid` also gets `themoviedb` and vice versa. If the original title differs from the title, it goes into the field `originaltitle`. The poster (about 500 pixels wide) is stored as cover in MP4, MKV and WMV.
 - AVI files cannot be tagged; they appear in the overview with “format is read-only”.
-- TV series (season, episode) are not supported yet.
 
 ### Getting a TMDB API key
 1. Create a free account on **themoviedb.org** and confirm the e-mail.
@@ -77,6 +76,23 @@ In video mode the button **“Online data (movies) …”** fetches title, year,
 4. In PanePilot: **Settings → Meta wizard → Online data for movies**, paste the key, **“Check”**, then **OK**.
 
 The key is only stored in your keyring, not in the settings files. This product uses the TMDB API but is not endorsed or certified by TMDB.
+
+## Editing tracks (MKV)
+In video mode **“Tracks …”** opens a table of all tracks of the selected MKV videos: video, audio and subtitles, each with format, language, name and the flags “Default” and “Forced”.
+- **Language:** choose from the list, e.g. “German (ger)”, or type a code. The “Audio tracks” column then shows `ger` instead of `?`.
+- **Name:** enter freely or let **“Suggest names”** build one, e.g. “German AC3 5.1” (for the selected rows, otherwise for all). Players like VLC show this name instead of “Track 1”.
+- **Default** is the track a player picks first; **Forced** shows subtitles only for foreign-language parts. For video tracks only the name can be changed.
+- **Several videos at once:** tracks are grouped by number (“Audio 1”, “Subtitle 1” …). A change applies to this track in all selected videos. Differing values appear as “different” and stay unchanged unless you change them. Videos without the track are skipped and listed beforehand.
+- **Saving:** “Apply” asks once more and then writes to the files **immediately** (with mkvpropedit, in seconds, also on a NAS). There is no “Undo” for this.
+- **mkvtoolnix** is required (`sudo apt install mkvtoolnix`). MP4 is not supported yet; the video guide explains how to do it with ffmpeg.
+
+## Online data for TV series
+**“Online data (movies, series) …”** recognises episodes by the pattern **`S01E02`** in the file name (also `s1e2` or `1x02`).
+- **Series name:** from the folder, e.g. `Breaking Bad/Season 1/Breaking Bad - S01E02.mkv` or `Breaking Bad (2008) [tmdbid-1396]/S01E02.mkv`; otherwise from the file name before `S01E02`.
+- The series is searched **once per series**; with several matches you choose it once, and it applies to all episodes.
+- **Fields:** title (episode title), `Series`, `Season` and `Episode` (two digits, e.g. `01`), year of first broadcast, episode summary, genre of the series, season poster as cover and `themoviedb` (ID of the series). In MP4, series, season and episode are also written to the iTunes standard fields.
+- Series need a **TMDB key**; without a key a note appears, movies still come from Wikidata.
+- With **tag → file name** and `%Series% - S%Season%E%Episode% - %title%` you can then name the episodes consistently, e.g. `Breaking Bad - S01E02 - Cat's in the Bag.mkv`.
 
 ## Documents
 Office files and PDFs can be tagged in the meta wizard as well. In mixed folders choose **“Documents”** in the **“Music | Photos | Videos | Documents”** switch at the top. No additional programs are needed.

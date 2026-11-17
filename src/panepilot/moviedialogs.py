@@ -20,8 +20,19 @@ COVER = "cover"
 
 
 @dataclass
+class SeriesGroup:
+    """Alle Folgen einer Serie: die Serie wird nur einmal gesucht und ausgewählt (L-1111)."""
+    name: str
+    year: str = ""
+    tmdb: str = ""
+    hits: list = field(default_factory=list)
+    reason: str = ""
+    searched: bool = False
+
+
+@dataclass
 class Job:
-    """Ein Video und was über den Film bekannt ist (L-910)."""
+    """Ein Video und was über den Film bzw. die Folge bekannt ist (L-910, L-1110)."""
     item: object
     imdb: str = ""
     tmdb: str = ""
@@ -31,6 +42,24 @@ class Job:
     movie: md.Movie | None = None
     hits: list = field(default_factory=list)
     reason: str = ""  # Grund ohne Ergebnis (L-943)
+    ep: md.EpisodeRef | None = None
+    group: SeriesGroup | None = None
+
+
+def make_jobs(items) -> list[Job]:
+    """Filme wie bisher; Folgen (S01E02) einer Serie teilen sich eine SeriesGroup."""
+    groups: dict = {}
+    jobs = []
+    for it in items:
+        ref = md.episode_ref(it.record.path)
+        if ref is None or not ref.series:
+            jobs.append(make_job(it))
+            continue
+        ref.tmdb = ref.tmdb or md.clean_tmdb(it.value(tg.EXTRA + md.F_TMDB))  # Serienkennung aus früherem Abruf
+        key = ("tmdb", ref.tmdb) if ref.tmdb else (ref.series.casefold(), ref.year)
+        group = groups.setdefault(key, SeriesGroup(ref.series, ref.year, ref.tmdb))
+        jobs.append(Job(it, title=ref.series, year=ref.year, ep=ref, group=group))
+    return jobs
 
 
 def make_job(item) -> Job:
@@ -75,6 +104,9 @@ class LookupThread(QThread):
     def _one(self, job: Job) -> None:
         if job.movie is not None or job.reason:
             return
+        if job.ep is not None:
+            self._episode(job)
+            return
         if job.imdb or job.tmdb or job.qid:
             job.movie = self.service.load(job.imdb, job.tmdb, job.qid)
             if job.movie is None:
@@ -95,12 +127,39 @@ class LookupThread(QThread):
                 job.reason = t("online.not_found")
             return
         job.hits = hits[:12]
-        for h in job.hits[:8]:  # kleine Poster für die Auswahl (nur TMDb)
-            if h.thumb_url:
-                try:
-                    h.thumb = md.http_get(h.thumb_url, None, "tmdb")
-                except netutil.NetError:
-                    h.thumb = None
+        _thumbs(job.hits)
+
+    def _episode(self, job: Job) -> None:
+        g = job.group
+        if not isinstance(self.service, md.Tmdb):
+            job.reason = t("online.series_no_key")  # L-1112
+            return
+        if not g.tmdb and not g.searched:
+            g.searched = True
+            hits = self.service.search_tv(g.name, g.year)
+            hit = md.pick(hits, g.year) if hits else None
+            if not hits:
+                g.reason = t("online.not_found")
+            elif hit is not None or len(hits) == 1:
+                g.tmdb = (hit or hits[0]).tmdb
+            else:
+                g.hits = hits[:12]
+                _thumbs(g.hits)
+        if not g.tmdb:
+            job.reason = g.reason  # leer, solange die Auswahl noch aussteht
+            return
+        job.movie = self.service.episode(g.tmdb, job.ep.season, job.ep.episode)
+        if job.movie is None:
+            job.reason = t("online.episode_not_found", s=f"{job.ep.season:02d}", e=f"{job.ep.episode:02d}")
+
+
+def _thumbs(hits) -> None:
+    for h in hits[:8]:  # kleine Poster für die Auswahl (nur TMDb)
+        if h.thumb_url:
+            try:
+                h.thumb = md.http_get(h.thumb_url, None, "tmdb")
+            except netutil.NetError:
+                h.thumb = None
 
 
 def run_lookup(parent, service, jobs: list[Job]) -> str | None:
@@ -134,7 +193,7 @@ def run_lookup(parent, service, jobs: list[Job]) -> str | None:
     dlg.deleteLater()
     if worker.cancelled:
         for job in jobs:
-            if job.movie is None and not job.hits and not job.reason:
+            if job.movie is None and not job.hits and not job.reason and not (job.group and job.group.hits):
                 job.reason = t("online.cancelled")
     worker.deleteLater()
     return out.get("error")
@@ -209,6 +268,10 @@ def proposals(job: Job) -> list[tuple[str, str, str, object]]:
         out.append((key, old, new, new))
 
     add("title", m.title)
+    if m.series:  # Folge einer Serie (L-1113)
+        add(tg.EXTRA + md.F_SERIES, m.series)
+        add(tg.EXTRA + md.F_SEASON, m.season)
+        add(tg.EXTRA + md.F_EPISODE, m.episode)
     add("year", m.year)
     add("genre", "; ".join(m.genres))
     add("description", m.overview)
@@ -304,6 +367,8 @@ class ReviewDialog(QDialog):
             top.setForeground(0, self.palette().placeholderText())
             return
         head = m.title + (f" ({m.year})" if m.year else "")
+        if m.series:
+            head = f"{m.series} – S{m.season}E{m.episode} – {m.title}"
         rows = proposals(job)
         if job.item.readonly("title") and job.item.readonly("year"):
             top.setText(0, f"{name} → {head} – {t('online.readonly')}")
