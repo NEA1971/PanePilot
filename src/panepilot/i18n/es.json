@@ -1224,5 +1224,21 @@
   "track.stereo": "estéreo",
   "track.mono": "mono",
   "track.channels": "{n} canales",
-  "track.unknown": "idioma desconocido"
+  "track.unknown": "idioma desconocido",
+  "meta.field.subject": "Asunto",
+  "meta.field.category": "Categoría",
+  "meta.field.language": "Idioma",
+  "meta.field.created": "Creado",
+  "meta.field.modified": "Modificado",
+  "meta.field.lastmodifiedby": "Guardado por última vez por",
+  "meta.field.application": "Aplicación",
+  "meta.field.pages": "Páginas",
+  "meta.field.words": "Palabras",
+  "meta.field.pdfversion": "Versión PDF",
+  "doc.switch_doc": "Documentos ({n})",
+  "meta.count_doc": "{n} documentos",
+  "meta.count_doc_one": "1 documento",
+  "doc.signed_hint": "Los PDF con firma digital son de solo lectura: cualquier cambio invalidaría la firma.",
+  "doc.encrypted_hint": "Los PDF cifrados son de solo lectura.",
+  "doc.ole_hint": "Los archivos de Office antiguos (DOC, XLS, PPT) son de solo lectura."
 }

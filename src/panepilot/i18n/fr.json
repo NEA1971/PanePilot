@@ -1224,5 +1224,21 @@
   "track.stereo": "stéréo",
   "track.mono": "mono",
   "track.channels": "{n} canaux",
-  "track.unknown": "langue inconnue"
+  "track.unknown": "langue inconnue",
+  "meta.field.subject": "Sujet",
+  "meta.field.category": "Catégorie",
+  "meta.field.language": "Langue",
+  "meta.field.created": "Créé le",
+  "meta.field.modified": "Modifié le",
+  "meta.field.lastmodifiedby": "Dernier enregistrement par",
+  "meta.field.application": "Application",
+  "meta.field.pages": "Pages",
+  "meta.field.words": "Mots",
+  "meta.field.pdfversion": "Version PDF",
+  "doc.switch_doc": "Documents ({n})",
+  "meta.count_doc": "{n} documents",
+  "meta.count_doc_one": "1 document",
+  "doc.signed_hint": "Les PDF signés numériquement sont en lecture seule : toute modification invaliderait la signature.",
+  "doc.encrypted_hint": "Les PDF chiffrés sont en lecture seule.",
+  "doc.ole_hint": "Les anciens fichiers Office (DOC, XLS, PPT) sont en lecture seule."
 }

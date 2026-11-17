@@ -70,7 +70,7 @@ def column_title(col: str) -> str:
     if col == COVER:
         if mp.is_video_mode():
             return t("video.poster")
-        return t("photo.preview") if mp.is_photo_mode() else t("meta.field.cover")
+        return t("photo.preview") if mp.is_photo_mode() or mp.is_doc_mode() else t("meta.field.cover")
     return t(f"meta.field.{col}")
 
 
@@ -190,7 +190,7 @@ class MetaModel(QAbstractTableModel):
 
     def _alignment(self, col: str):
         mode = self.align.get(col, "right" if col in ("i:bitrate", "i:samplerate", "i:size", "i:length", "i:duration",
-                                                        "i:fps", "rating", "iso")
+                                                        "i:fps", "rating", "iso", "pages", "words")
                               else "left")
         h = {"left": Qt.AlignmentFlag.AlignLeft, "center": Qt.AlignmentFlag.AlignHCenter,
              "right": Qt.AlignmentFlag.AlignRight}.get(mode, Qt.AlignmentFlag.AlignLeft)
@@ -256,7 +256,7 @@ class MetaModel(QAbstractTableModel):
             return float(rec.width * rec.height)
         if col == "i:camera":
             return _natural(camera_name(item))
-        if col in ("rating", "iso"):
+        if col in ("rating", "iso", "pages", "words"):
             try:
                 return float(item.value(col).split()[0])
             except (ValueError, IndexError):
@@ -564,8 +564,8 @@ class MetaView(QTreeView):
 
 # --- Einlesen im Hintergrund (F-904) ------------------------------------------------------------------
 class MetaScanThread(QThread):
-    kind_chosen = Signal(str, int, int, int)  # Art, Anzahl Musik, Fotos, Videos (v1.4, v1.5)
-    counted = Signal(int, int, int)  # beim Suchen: bisher gefundene Musik, Fotos, Videos (v1.6.3)
+    kind_chosen = Signal(str, int, int, int, int)  # Art, Anzahl Musik, Fotos, Videos, Dokumente (v1.4–v1.8)
+    counted = Signal(int, int, int, int)  # beim Suchen: bisher gefundene Musik, Fotos, Videos, Dokumente
     found = Signal(list)  # Liste von TagRecord
     progress = Signal(int, int)  # eingelesen, gesamt (gesamt = -1, solange noch gesucht wird)
     finished_scan = Signal(bool)  # vollständig
@@ -617,9 +617,9 @@ class MetaScanThread(QThread):
                         found[kind].append(de.path)
             if time.monotonic() - last > 0.3:
                 self.progress.emit(sum(len(v) for v in found.values()), -1)
-                self.counted.emit(len(found[mp.AUDIO]), len(found[mp.PHOTO]), len(found[mp.VIDEO]))
+                self.counted.emit(*(len(found[k]) for k in mp.KINDS))
                 last = time.monotonic()
-        self.counted.emit(len(found[mp.AUDIO]), len(found[mp.PHOTO]), len(found[mp.VIDEO]))
+        self.counted.emit(*(len(found[k]) for k in mp.KINDS))
         return found
 
     WORKERS = 6  # v1.6.2: mehrere Dateien gleichzeitig lesen (über das Netzwerk viel schneller)
@@ -666,9 +666,9 @@ class MetaScanThread(QThread):
     def run(self) -> None:
         found = self._collect()
         counts = {k: len(v) for k, v in found.items()}
-        # die Art mit den meisten Dateien; bei Gleichstand Musik vor Fotos vor Videos
+        # die Art mit den meisten Dateien; bei Gleichstand Musik vor Fotos vor Videos vor Dokumenten
         kind = self.kind or max(mp.KINDS, key=lambda k: (counts[k], -mp.KINDS.index(k)))
-        self.kind_chosen.emit(kind, counts[mp.AUDIO], counts[mp.PHOTO], counts[mp.VIDEO])
+        self.kind_chosen.emit(kind, *(counts[k] for k in mp.KINDS))
         files = found[kind]
         total = len(files)
         self.progress.emit(0, total)
@@ -950,6 +950,36 @@ class CoverBox(QWidget):
             self.image.setPixmap(QPixmap.fromImage(img))
         self.info.setText(t("photo.preview_of", name=os.path.basename(path)) if count > 1 else "")
 
+    def show_document(self, rec, count: int) -> None:
+        """Dokumente (L-841): erste PDF-Seite bzw. das in der Office-Datei abgelegte Vorschaubild."""
+        from . import doctags as dc
+
+        self._stop_frame()
+        self.pictures, self.mixed, self.enabled_for_selection = [], False, False
+        for w in (self.btn_prev, self.btn_next, self.counter):
+            w.setVisible(False)
+        self.image.setPixmap(QPixmap())
+        self.image.setText("")
+        self.info.setText("")
+        if rec is None:
+            return
+        cache = self.__dict__.setdefault("_doc_cache", {})
+        key = (rec.path, rec.mtime)
+        if key not in cache:
+            if len(cache) > 60:
+                cache.pop(next(iter(cache)))
+            cache[key] = dc.preview(rec, (self.SIZE - 4) * 2)
+        data = cache[key]
+        pm = QPixmap()
+        if data:
+            pm.loadFromData(QByteArray(data))
+        if pm.isNull():
+            self.image.setText(t("photo.no_preview"))
+        else:
+            self.image.setPixmap(pm.scaled(self.SIZE - 4, self.SIZE - 4, Qt.AspectRatioMode.KeepAspectRatio,
+                                           Qt.TransformationMode.SmoothTransformation))
+        self.info.setText(t("photo.preview_of", name=rec.name) if count > 1 else "")
+
     # Videos: Poster oder Standbild (v1.5, L-522, L-523)
     def show_video(self, items: list, enabled: bool) -> None:
         covers = [it.pictures() for it in items]
@@ -1134,7 +1164,7 @@ def picture_from_file(path: str) -> tg.Picture | None:
 
 
 class KindSwitch(QWidget):
-    """Umschalter „Musik | Fotos | Videos“, wenn ein Ordner mehrere Arten enthält (L-421, L-520)."""
+    """Umschalter „Musik | Fotos | Videos | Dokumente“, wenn ein Ordner mehrere Arten enthält (L-421, L-520, L-810)."""
 
     changed = Signal(str)
 
@@ -1153,14 +1183,15 @@ class KindSwitch(QWidget):
             lay.addWidget(b, 1)
             b.clicked.connect(lambda _c=False, k=kind: self.changed.emit(k))
         group.setExclusive(True)
-        self.btn_audio, self.btn_photo, self.btn_video = (self.buttons[k] for k in mp.KINDS)
+        self.btn_audio, self.btn_photo, self.btn_video, self.btn_doc = (self.buttons[k] for k in mp.KINDS)
 
     def select(self, kind: str) -> None:
         self.buttons.get(kind, self.btn_audio).setChecked(True)
 
-    def set_counts(self, kind: str, audio: int, photos: int, videos: int = 0) -> None:
-        counts = {mp.AUDIO: audio, mp.PHOTO: photos, mp.VIDEO: videos}
-        keys = {mp.AUDIO: "photo.switch_audio", mp.PHOTO: "photo.switch_photo", mp.VIDEO: "video.switch_video"}
+    def set_counts(self, kind: str, audio: int, photos: int, videos: int = 0, docs: int = 0) -> None:
+        counts = {mp.AUDIO: audio, mp.PHOTO: photos, mp.VIDEO: videos, mp.DOC: docs}
+        keys = {mp.AUDIO: "photo.switch_audio", mp.PHOTO: "photo.switch_photo", mp.VIDEO: "video.switch_video",
+                mp.DOC: "doc.switch_doc"}
         for k, b in self.buttons.items():
             b.setText(t(keys[k], n=counts[k]))
             b.setVisible(counts[k] > 0 or k == kind)
@@ -1367,6 +1398,8 @@ class MetaPane(ToolPane):
         if COVER in self.rows:
             if mp.is_photo_mode():
                 self.cover.show_preview(items[-1].record.path if items else None, len(items))
+            elif mp.is_doc_mode():
+                self.cover.show_document(items[-1].record if items else None, len(items))
             elif mp.is_video_mode():
                 self.cover.show_video(items, enabled and not all(it.readonly("title") for it in items))
             else:
@@ -1390,11 +1423,13 @@ class MetaPane(ToolPane):
                 hint = t("photo.raw_hint")
         if mp.is_video_mode() and items:
             hint = video_hint([it.record for it in items])
+        if mp.is_doc_mode() and items:
+            hint = doc_hint([it.record for it in items])
         if hint:
             import html
 
             text = html.escape(hint)
-            if hint not in (t("photo.raw_hint"), t("video.readonly_hint")):  # fehlendes Programm (L-552)
+            if hint not in (t("photo.raw_hint"), t("video.readonly_hint")) and not mp.is_doc_mode():  # (L-552)
                 text += f' <a href="tools">{html.escape(t("help.tools_link"))}</a>'
             hint = text
         self.photo_hint.setText(hint)
@@ -1411,10 +1446,10 @@ class MetaPane(ToolPane):
         self.fields_host.setEnabled(not saving)
 
 
-def found_text(audio: int, photos: int, videos: int) -> str:
+def found_text(audio: int, photos: int, videos: int, docs: int = 0) -> str:
     """„3246 Bilder und 432 Musikdateien“ – nur die Arten, die vorkommen (v1.6.3)."""
     parts = []
-    for n, key in ((audio, "audio"), (photos, "photo"), (videos, "video")):
+    for n, key in ((audio, "audio"), (photos, "photo"), (videos, "video"), (docs, "doc")):
         if n:
             parts.append(t(f"meta.count_{key}_one" if n == 1 else f"meta.count_{key}", n=n))
     if not parts:
@@ -1422,6 +1457,19 @@ def found_text(audio: int, photos: int, videos: int) -> str:
     if len(parts) == 1:
         return parts[0]
     return t("meta.list_and", first=", ".join(parts[:-1]), last=parts[-1])
+
+
+def doc_hint(records) -> str:
+    """Warum Felder von Dokumenten grau sind (L-821, L-822)."""
+    from . import doctags as dc
+
+    if any(r.note == "signed" for r in records):
+        return t("doc.signed_hint")
+    if any(r.note == "encrypted" for r in records):
+        return t("doc.encrypted_hint")
+    if any(r.kind == dc.KIND_OLE for r in records):
+        return t("doc.ole_hint")
+    return ""
 
 
 def video_hint(records) -> str:

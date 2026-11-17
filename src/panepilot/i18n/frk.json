@@ -1224,5 +1224,21 @@
   "track.stereo": "Stereo",
   "track.mono": "Mono",
   "track.channels": "{n} Kanäl",
-  "track.unknown": "Sprach unbekannd"
+  "track.unknown": "Sprach unbekannd",
+  "meta.field.subject": "Thema",
+  "meta.field.category": "Kadegorie",
+  "meta.field.language": "Sprach",
+  "meta.field.created": "Gmachd am",
+  "meta.field.modified": "Gändert am",
+  "meta.field.lastmodifiedby": "Zuletzd gsicherd vo",
+  "meta.field.application": "Brogramm",
+  "meta.field.pages": "Seidn",
+  "meta.field.words": "Wörder",
+  "meta.field.pdfversion": "PDF-Version",
+  "doc.switch_doc": "Dokumende ({n})",
+  "meta.count_doc": "{n} Dokumende",
+  "meta.count_doc_one": "1 Dokumend",
+  "doc.signed_hint": "Digidal unnerschriebne PDFs wern bloß glesn: Jede Änderung däd die Signadur kabudd machn.",
+  "doc.encrypted_hint": "Verschlüsselde PDFs wern bloß glesn.",
+  "doc.ole_hint": "Alde Office-Dadein (DOC, XLS, PPT) wern bloß glesn."
 }

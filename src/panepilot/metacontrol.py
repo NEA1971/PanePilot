@@ -138,13 +138,13 @@ class MetaWizardMixin:
         pane.apply_profile_buttons()
         pane.show_selection([])
 
-    def _meta_kind_chosen(self, kind: str, audio: int, photos: int, videos: int = 0) -> None:
+    def _meta_kind_chosen(self, kind: str, audio: int, photos: int, videos: int = 0, docs: int = 0) -> None:
         if self.meta_mode is None:
             return
         pane = self._meta_pane()
         if kind != mp.current():
             self._meta_apply_profile(kind)
-        pane.kind_switch.set_counts(kind, audio, photos, videos)
+        pane.kind_switch.set_counts(kind, audio, photos, videos, docs)
 
     def _meta_switch_kind(self, kind: str) -> None:
         """Umschalter „Musik | Fotos | Videos“ (L-421, L-520)."""
@@ -191,13 +191,13 @@ class MetaWizardMixin:
         else:
             pane.summary.setText(t("meta.reading", done=done, total=total))
 
-    def _meta_counted(self, audio: int, photos: int, videos: int) -> None:
+    def _meta_counted(self, audio: int, photos: int, videos: int, docs: int = 0) -> None:
         """Beim Suchen: „Dateien werden gesucht … 3246 Bilder und 432 Musikdateien gefunden“ (v1.6.3)."""
         if self.meta_mode is None or self.meta_mode.get("scan") is None:
             return
         from .metawizard import found_text
 
-        found = found_text(audio, photos, videos)
+        found = found_text(audio, photos, videos, docs)
         self._meta_pane().summary.setText(t("meta.collecting", found=found) if found else t("meta.searching"))
 
     def _meta_scan_done(self, complete: bool) -> None:
@@ -501,7 +501,8 @@ class MetaWizardMixin:
         stored = self.settings.get(mp.setting("meta_presets")) or {}
         presets = stored.get(kind) if isinstance(stored, dict) else None
         if not isinstance(presets, list):
-            presets = (cv.DEFAULT_PRESETS if mp.is_audio_mode() else cv.PHOTO_PRESETS)[kind]
+            presets = (cv.DEFAULT_PRESETS if mp.is_audio_mode() else
+                       cv.DOC_PRESETS if mp.is_doc_mode() else cv.PHOTO_PRESETS)[kind]
         return [p for p in presets if isinstance(p, dict) and isinstance(p.get("format"), str)]
 
     @staticmethod
@@ -527,6 +528,8 @@ class MetaWizardMixin:
                     return str(getattr(rec, name) or "")
                 if name == "format":
                     return rec.codec
+            if mp.is_doc_mode() and name == "format":
+                return it.record.codec
             if mp.is_video_mode():
                 rec = it.record
                 if name == "duration":

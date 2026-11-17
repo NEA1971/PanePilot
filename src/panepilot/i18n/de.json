@@ -1225,5 +1225,21 @@
   "track.stereo": "Stereo",
   "track.mono": "Mono",
   "track.channels": "{n} Kanäle",
-  "track.unknown": "Sprache unbekannt"
+  "track.unknown": "Sprache unbekannt",
+  "meta.field.subject": "Thema",
+  "meta.field.category": "Kategorie",
+  "meta.field.language": "Sprache",
+  "meta.field.created": "Erstellt am",
+  "meta.field.modified": "Geändert am",
+  "meta.field.lastmodifiedby": "Zuletzt gespeichert von",
+  "meta.field.application": "Anwendung",
+  "meta.field.pages": "Seiten",
+  "meta.field.words": "Wörter",
+  "meta.field.pdfversion": "PDF-Version",
+  "doc.switch_doc": "Dokumente ({n})",
+  "meta.count_doc": "{n} Dokumente",
+  "meta.count_doc_one": "1 Dokument",
+  "doc.signed_hint": "Digital signierte PDFs werden nur gelesen: Jede Änderung würde die Signatur ungültig machen.",
+  "doc.encrypted_hint": "Verschlüsselte PDFs werden nur gelesen.",
+  "doc.ole_hint": "Alte Office-Dateien (DOC, XLS, PPT) werden nur gelesen."
 }

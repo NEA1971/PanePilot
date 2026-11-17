@@ -1,6 +1,6 @@
 # Meta wizard
 
-**Meta wizard …** (Ctrl+T) edits the tags of music files (MP3, FLAC, Ogg, Opus, M4A, WMA, WAV), similar to MP3TAG, and the metadata of photos (see below).
+**Meta wizard …** (Ctrl+T) edits the tags of music files (MP3, FLAC, Ogg, Opus, M4A, WMA, WAV), similar to MP3TAG, and the metadata of photos, videos and documents (see below).
 
 ## Basics
 - The track list shows the files of the current folder with their tags. Choose columns by right-clicking the column headers; you can also create your own fields there.
@@ -53,5 +53,18 @@ If the folder contains videos, the meta wizard shows their metadata. If several 
   - Placeholders: `%datetaken%`, `%title%`, `%author%`, `%genre%`, `%year%` …, plus `%duration%`, `%resolution%`, `%width%`, `%height%`, `%fps%`, `%codec%`, `%audiolang%`, `%sublang%` and `%format%`.
   - `$date(%datetaken%,JJJJ-MM-TT_hhmmss)` gives e.g. `2026-11-08_150012.mp4`.
   - Videos usually store the date taken in universal time (UTC); PanePilot shows it in the computer’s local time.
+
+## Documents
+Office files and PDFs can be tagged in the meta wizard as well. In mixed folders choose **“Documents”** in the **“Music | Photos | Videos | Documents”** switch at the top. No additional programs are needed.
+- **Read and write**: Word, Excel and PowerPoint (DOCX, XLSX, PPTX, also DOCM, XLSM, PPTM), LibreOffice/OpenDocument (ODT, ODS, ODP, ODG) and **PDF**.
+- **Read-only**: the old Office formats **DOC, XLS, PPT**, **encrypted PDFs** and **digitally signed PDFs**. For signed PDFs any change would invalidate the signature; the sidebar points this out.
+- **Editable**: title, subject, author, keywords, description, category and language, plus **custom fields** via “Insert field”. They are stored as “custom properties”, which Word and LibreOffice also show under **File → Properties**. PDF has no description and no category, OpenDocument has no category.
+- **View only**: created, modified, last saved by, application (for PDF the creator and producer), pages, words and PDF version, as far as the file contains them. Saving the metadata does not change them.
+- **Where it is written**: for Office into the document properties of the file, for PDF into the document information and additionally into the XMP metadata if the PDF has any. The content of the file stays unchanged.
+- Separate **keywords** with semicolons, e.g. `tax; 2026`.
+- **Preview**: for PDF the sidebar shows the first page, for Office files the thumbnail that Word, Excel or LibreOffice stored in the file (if any).
+- **Converters**: tag → file name, file name → tag, tag → tag, tag → text file/CSV and text file → tag.
+  - Placeholders: `%title%`, `%subject%`, `%author%`, `%keywords%`, `%created%`, `%modified%`, `%application%`, `%pages%`, `%words%` and `%format%`.
+  - `$date(%created%,JJJJ-MM-TT) %title%` gives e.g. `2026-11-17 Offer.pdf`.
 
 The chapter **Additional programs** lists the programs PanePilot can use.

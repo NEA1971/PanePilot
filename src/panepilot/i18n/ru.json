@@ -1224,5 +1224,21 @@
   "track.stereo": "стерео",
   "track.mono": "моно",
   "track.channels": "каналов: {n}",
-  "track.unknown": "язык неизвестен"
+  "track.unknown": "язык неизвестен",
+  "meta.field.subject": "Тема",
+  "meta.field.category": "Категория",
+  "meta.field.language": "Язык",
+  "meta.field.created": "Создан",
+  "meta.field.modified": "Изменён",
+  "meta.field.lastmodifiedby": "Последним сохранил",
+  "meta.field.application": "Приложение",
+  "meta.field.pages": "Страниц",
+  "meta.field.words": "Слов",
+  "meta.field.pdfversion": "Версия PDF",
+  "doc.switch_doc": "Документы ({n})",
+  "meta.count_doc": "документы – {n}",
+  "meta.count_doc_one": "документ – 1",
+  "doc.signed_hint": "PDF с цифровой подписью доступны только для чтения: любое изменение сделало бы подпись недействительной.",
+  "doc.encrypted_hint": "Зашифрованные PDF доступны только для чтения.",
+  "doc.ole_hint": "Старые файлы Office (DOC, XLS, PPT) доступны только для чтения."
 }

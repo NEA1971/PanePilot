@@ -5,3 +5,6 @@ secretstorage==3.5.0
 pyexiv2==2.16.0
 pillow-heif==1.8.1
 pillow==13.0.0
+pypdf==6.17.0
+olefile==0.47
+pypdfium2==5.13.0

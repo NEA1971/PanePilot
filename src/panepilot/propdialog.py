@@ -116,9 +116,10 @@ class PropertiesDialog(QDialog):
 
         from . import metaprofile as mp
         from . import phototags as ph
+        from . import doctags as dc
         from . import tags as tg
         from . import videotags as vt
-        from .metawizard import picture_info
+        from .metawizard import doc_hint, picture_info
 
         w = QWidget(self)
         kind = mp.kind_of(self.paths[0]) if len(self.paths) == 1 else None
@@ -149,7 +150,7 @@ class PropertiesDialog(QDialog):
             if info:
                 form.addRow("", QLabel(info, inner))
 
-        fields = {mp.AUDIO: tg.FIELDS, mp.PHOTO: ph.FIELDS, mp.VIDEO: vt.FIELDS}[kind]
+        fields = {mp.AUDIO: tg.FIELDS, mp.PHOTO: ph.FIELDS, mp.VIDEO: vt.FIELDS, mp.DOC: dc.FIELDS}[kind]
         for key in fields:
             if rec.fields.get(key):
                 row(t(f"meta.field.{key}"), rec.fields[key])
@@ -163,6 +164,11 @@ class PropertiesDialog(QDialog):
                 row(t("meta.info.bitrate"), f"{round(rec.bitrate / 1000)} kbit/s")
             if rec.sample_rate:
                 row(t("meta.info.samplerate"), f"{rec.sample_rate} Hz")
+        elif kind == mp.DOC:  # v1.8 (L-860)
+            row(t("meta.info.format"), rec.codec)
+            hint = doc_hint([rec])
+            if hint:
+                form.addRow("", QLabel(hint, inner))
         elif kind == mp.PHOTO:
             row(t("meta.info.format"), rec.codec)
             if rec.width:
@@ -182,7 +188,13 @@ class PropertiesDialog(QDialog):
             row(t("meta.info.subs"), tooltip(rec.sub_tracks))
             if rec.bitrate:
                 row(t("meta.info.bitrate"), f"{round(rec.bitrate / 1000)} kbit/s")
-        if kind != mp.PHOTO:
+        if kind == mp.DOC:
+            data = dc.preview(rec, 320)
+            if data:
+                pm = QPixmap()
+                pm.loadFromData(QByteArray(data))
+                image(t("photo.preview"), pm)
+        elif kind != mp.PHOTO:
             cover = rec.front_cover()
             label = t("video.poster") if kind == mp.VIDEO else t("meta.field.cover")
             if cover is not None:
@@ -199,7 +211,7 @@ class PropertiesDialog(QDialog):
             img = ph.preview(rec.path, 160)
             if img is not None:
                 image(t("photo.preview"), QPixmap.fromImage(img))
-        url = ph.map_url(rec) if kind != mp.AUDIO else None
+        url = ph.map_url(rec) if kind not in (mp.AUDIO, mp.DOC) else None
         if url:
             link = QLabel(f'<a href="{url}">{t("photo.show_map")}</a>', inner)
             link.setOpenExternalLinks(True)

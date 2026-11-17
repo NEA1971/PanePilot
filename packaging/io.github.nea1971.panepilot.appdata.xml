@@ -52,6 +52,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.8.0" date="2026-11-17">
+      <description>
+        <p>Meta wizard: metadata of Office documents (DOCX, XLSX, PPTX, ODT, ODS, ODP) and PDF files, with preview. Refresh in the context menu.</p>
+      </description>
+    </release>
     <release version="1.7.3" date="2026-11-14">
       <description>
         <p>File name to tag fills existing custom fields regardless of upper and lower case.</p>

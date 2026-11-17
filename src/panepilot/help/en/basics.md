@@ -13,9 +13,10 @@ PanePilot shows two file panels side by side. One of them is **active**, recogni
 - **Copy / Move** to the other panel (F5 / F6) asks first; the “without asking” variants start right away. Drag and drop works too, also to and from Nautilus.
 - **Rename** (F2), **New folder** (F7), **New text file** (Shift+F4), **Move to trash** (F8), **Delete permanently**. When renaming, the input field always shows the complete name including the extension – also in the “Name (without extension)” column. The part before the extension is preselected; the extension can be changed as well.
 - **Clipboard**: copy, cut, paste (Ctrl+C/X/V), also together with other programs.
+- **Refresh** (Ctrl+R, also at the bottom of the context menu): re-reads the shown folder; the selection is kept.
 - **Open with**: right-click a file to see matching programs; “Other application …” shows all.
 - **Archives**: compress and extract via the context menu.
-- **Properties** (Alt+Enter) shows size, permissions, dates and, for music, the metadata.
+- **Properties** (Alt+Enter) shows size, permissions, dates and the metadata of music, photos, videos and documents.
 - **Open terminal here** (File menu or right-click): opens the default terminal in the shown folder, or in the folder you right-clicked.
 - **Create directory listing …** (File menu or right-click): writes an indented list of the folder with sizes and modification dates to a text file. You choose the depth, whether files and hidden entries are included and whether to open the list afterwards.
 

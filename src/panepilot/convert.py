@@ -59,6 +59,17 @@ PHOTO_PRESETS = {
 }
 
 
+# Vorlagen im Dokument-Modus (v1.8)
+DOC_PRESETS = {
+    TAG_TO_FILE: [{"name": "", "format": "$date(%created%,JJJJ-MM-TT) %title%", "desc": ""},
+                  {"name": "", "format": "%author% - %title%", "desc": ""}],
+    FILE_TO_TAG: [{"name": "", "format": "%title%", "desc": ""},
+                  {"name": "", "format": "%author% - %title%", "desc": ""}],
+    TAG_TO_TAG: [{"name": "", "format": "%title%", "desc": ""}],
+    TEXT_TO_TAG: [{"name": "", "format": "%title%", "desc": ""}],
+}
+
+
 class FormatError(ValueError):
     pass
 

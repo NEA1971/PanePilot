@@ -156,6 +156,11 @@ class Settings:
         "meta_video_custom_fields": [],
         "meta_video_presets": {},
         "meta_video_last_format": {},
+        "meta_doc_layout": {},  # v1.8: Dokumente
+        "meta_doc_sidebar": [],
+        "meta_doc_custom_fields": [],
+        "meta_doc_presets": {},
+        "meta_doc_last_format": {},
         "meta_dateshift": {},  # Datum verschieben: letzte Eingabe
         "meta_last_format": {},  # Meta-Wizard: zuletzt benutzte Formatstrings (F-998)
         "meta_number": {},  # Meta-Wizard: letzte Einstellungen des Nummerierungs-Assistenten (v0.9.3)

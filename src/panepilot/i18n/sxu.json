@@ -1224,5 +1224,21 @@
   "track.stereo": "Stereo",
   "track.mono": "Mono",
   "track.channels": "{n} Kanäle",
-  "track.unknown": "Sproche unbekannt"
+  "track.unknown": "Sproche unbekannt",
+  "meta.field.subject": "Thema",
+  "meta.field.category": "Gadegorie",
+  "meta.field.language": "Schbrache",
+  "meta.field.created": "Erschdelld am",
+  "meta.field.modified": "Geändord am",
+  "meta.field.lastmodifiedby": "Zuletzd gespeichord von",
+  "meta.field.application": "Brogramm",
+  "meta.field.pages": "Seitn",
+  "meta.field.words": "Wördor",
+  "meta.field.pdfversion": "PDF-Version",
+  "doc.switch_doc": "Dogumende ({n})",
+  "meta.count_doc": "{n} Dogumende",
+  "meta.count_doc_one": "1 Dogumend",
+  "doc.signed_hint": "Digidal unnorschriebne PDFs wern bloß gelesn: Jede Ändorung däd de Signadur ungildich machn.",
+  "doc.encrypted_hint": "Vorschlüsselde PDFs wern bloß gelesn.",
+  "doc.ole_hint": "Alde Office-Dadein (DOC, XLS, PPT) wern bloß gelesn."
 }

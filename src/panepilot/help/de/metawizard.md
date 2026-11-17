@@ -1,6 +1,6 @@
 # Meta-Wizard
 
-**Meta-Wizard …** (Strg+T) bearbeitet die Tags von Musikdateien (MP3, FLAC, Ogg, Opus, M4A, WMA, WAV), ähnlich wie MP3TAG, und die Metadaten von Fotos (siehe unten).
+**Meta-Wizard …** (Strg+T) bearbeitet die Tags von Musikdateien (MP3, FLAC, Ogg, Opus, M4A, WMA, WAV), ähnlich wie MP3TAG, und die Metadaten von Fotos, Videos und Dokumenten (siehe unten).
 
 ## Grundlagen
 - Die Titelliste zeigt die Dateien des aktuellen Ordners mit ihren Tags. Spalten wählt man per Rechtsklick auf die Spaltenköpfe, dort lassen sich auch eigene Felder anlegen.
@@ -53,5 +53,18 @@ Enthält der Ordner Videos, zeigt der Meta-Wizard deren Metadaten. Sind mehrere 
   - Platzhalter: `%datetaken%`, `%title%`, `%author%`, `%genre%`, `%year%` …, dazu `%duration%`, `%resolution%`, `%width%`, `%height%`, `%fps%`, `%codec%`, `%audiolang%`, `%sublang%` und `%format%`.
   - `$date(%datetaken%,JJJJ-MM-TT_hhmmss)` ergibt z. B. `2026-11-08_150012.mp4`.
   - Das Aufnahmedatum steht in Videos meist in Weltzeit (UTC); PanePilot zeigt es in der Ortszeit des Rechners an.
+
+## Dokumente
+Auch Office-Dateien und PDFs lassen sich im Meta-Wizard beschriften. Bei gemischten Ordnern wählt man oben **„Dokumente“** im Umschalter **„Musik | Fotos | Videos | Dokumente“**. Zusatzprogramme sind dafür nicht nötig.
+- **Lesen und schreiben**: Word, Excel und PowerPoint (DOCX, XLSX, PPTX, auch DOCM, XLSM, PPTM), LibreOffice/OpenDocument (ODT, ODS, ODP, ODG) und **PDF**.
+- **Nur lesen**: die alten Office-Formate **DOC, XLS, PPT**, **verschlüsselte PDFs** und **digital signierte PDFs**. Bei signierten PDFs würde jede Änderung die Signatur ungültig machen; die Seitenleiste weist darauf hin.
+- **Bearbeiten**: Titel, Thema, Autor, Schlagwörter, Beschreibung, Kategorie und Sprache, dazu **eigene Felder** über „Feld einfügen“. Sie landen in den „benutzerdefinierten Eigenschaften“, die auch Word und LibreOffice unter **Datei → Eigenschaften** zeigen. Bei PDF gibt es keine Beschreibung und keine Kategorie, bei OpenDocument keine Kategorie.
+- **Nur zum Ansehen**: Erstellt am, Geändert am, Zuletzt gespeichert von, Anwendung (bei PDF Programm und Erzeuger), Seiten, Wörter und PDF-Version, soweit sie in der Datei stehen. Das Speichern der Metadaten ändert diese Angaben nicht.
+- **Wohin geschrieben wird**: bei Office in die Dokumenteigenschaften der Datei, bei PDF in die Dokumentinformationen und zusätzlich in die XMP-Metadaten, falls die PDF welche hat. Der Inhalt der Datei bleibt unverändert.
+- **Schlagwörter** trennt man mit Semikolon, z. B. `Steuer; 2026`.
+- **Vorschau**: Bei PDF zeigt die Seitenleiste die erste Seite, bei Office-Dateien das Vorschaubild, das Word, Excel oder LibreOffice in der Datei abgelegt haben (sofern vorhanden).
+- **Konverter**: Tag → Dateiname, Dateiname → Tag, Tag → Tag, Tag → Textdatei/CSV und Textdatei → Tag.
+  - Platzhalter: `%title%`, `%subject%`, `%author%`, `%keywords%`, `%created%`, `%modified%`, `%application%`, `%pages%`, `%words%` und `%format%`.
+  - `$date(%created%,JJJJ-MM-TT) %title%` ergibt z. B. `2026-11-17 Angebot.pdf`.
 
 Welche Zusatzprogramme PanePilot nutzt, steht im Kapitel **Zusatzprogramme**.

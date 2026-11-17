@@ -45,6 +45,12 @@ def is_video(path: str) -> bool:
     return _v(path)
 
 
+def is_document(path: str) -> bool:
+    from .doctags import is_document as _d
+
+    return _d(path)
+
+
 @dataclass
 class Picture:
     data: bytes
@@ -76,6 +82,7 @@ class TagRecord:
     wrong_ext: str = ""  # tatsächliches Format, wenn die Endung nicht passt (v1.5.2)
     audio_tracks: list = field(default_factory=list)  # Videos: Audiospuren und Untertitel (v1.7)
     sub_tracks: list = field(default_factory=list)
+    note: str = ""  # Dokumente (v1.8): „signed“ bzw. „encrypted“ – nur lesbar
     pictures: list[Picture] = field(default_factory=list)
     length: float = 0.0
     bitrate: int = 0
@@ -513,6 +520,10 @@ def read_file(path: str) -> TagRecord:
         from . import videotags
 
         return videotags.read_file(path)
+    if is_document(path):
+        from . import doctags
+
+        return doctags.read_file(path)
     rec = TagRecord(path)
     try:
         st = os.stat(path)
@@ -563,6 +574,10 @@ def write_file(rec: TagRecord, changes: dict[str, str | None], pictures: list[Pi
         from . import videotags
 
         return videotags.write_file(rec, changes, pictures)
+    if rec.kind.startswith("doc"):
+        from . import doctags
+
+        return doctags.write_file(rec, changes)
     audio = _open(rec.path)
     kind, _codec = _kind(audio)
     if audio.tags is None:
@@ -674,6 +689,10 @@ def snapshot(path: str, with_pictures: bool) -> tuple:
         from . import videotags
 
         return videotags.snapshot(path, with_pictures)
+    if is_document(path):
+        from . import doctags
+
+        return doctags.snapshot(path)
     return mutagen_snapshot(path, with_pictures)
 
 
@@ -718,6 +737,10 @@ def restore(path: str, snap: tuple) -> TagRecord:
         from . import videotags
 
         return videotags.restore(path, snap)
+    if kind == "document":
+        from . import doctags
+
+        return doctags.restore(path, snap)
     mutagen_restore(path, snap)
     return read_file(path)
 

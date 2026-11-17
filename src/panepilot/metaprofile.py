@@ -1,4 +1,4 @@
-"""Welche Dateien der Meta-Wizard gerade zeigt (v1.4): Musik, Fotos oder Videos (v1.5).
+"""Welche Dateien der Meta-Wizard gerade zeigt (v1.4): Musik, Fotos, Videos (v1.5) oder Dokumente (v1.8).
 
 Der Meta-Wizard zeigt immer eine Art von Dateien. Felder, Spalten, Seitenleiste und Konverter hängen
 davon ab; die Einstellungen werden je Art getrennt gemerkt.
@@ -6,12 +6,13 @@ davon ab; die Einstellungen werden je Art getrennt gemerkt.
 
 from __future__ import annotations
 
+from . import doctags as dc
 from . import phototags as ph
 from . import tags as tg
 from . import videotags as vt
 
-AUDIO, PHOTO, VIDEO = "audio", "photo", "video"
-KINDS = (AUDIO, PHOTO, VIDEO)
+AUDIO, PHOTO, VIDEO, DOC = "audio", "photo", "video", "doc"
+KINDS = (AUDIO, PHOTO, VIDEO, DOC)
 
 _current = AUDIO
 
@@ -37,36 +38,42 @@ def is_audio_mode() -> bool:
     return _current == AUDIO
 
 
-def _pick(audio, photo, video):
-    return {PHOTO: photo, VIDEO: video}.get(_current, audio)
+def is_doc_mode() -> bool:
+    return _current == DOC
+
+
+def _pick(audio, photo, video, doc=None):
+    return {PHOTO: photo, VIDEO: video, DOC: doc}.get(_current, audio)
 
 
 def fields() -> tuple[str, ...]:
-    return _pick(tg.FIELDS, ph.FIELDS, vt.FIELDS)
+    return _pick(tg.FIELDS, ph.FIELDS, vt.FIELDS, dc.FIELDS)
 
 
 def standard_fields() -> tuple[str, ...]:
-    return _pick(tg.STANDARD_FIELDS, ph.STANDARD_FIELDS, vt.STANDARD_FIELDS)
+    return _pick(tg.STANDARD_FIELDS, ph.STANDARD_FIELDS, vt.STANDARD_FIELDS, dc.STANDARD_FIELDS)
 
 
 AUDIO_INFO = ("i:length", "i:bitrate", "i:samplerate", "i:codec", "i:size", "i:mtime")
 PHOTO_INFO = ("i:dims", "i:camera", "i:format", "i:size", "i:mtime")
 VIDEO_INFO = ("i:duration", "i:resolution", "i:fps", "i:vcodec", "i:acodec", "i:audio", "i:subs", "i:bitrate",
               "i:format", "i:size", "i:mtime")
+DOC_INFO = ("i:format", "i:size", "i:mtime")
 
 
 def info_columns() -> tuple[str, ...]:
-    return _pick(AUDIO_INFO, PHOTO_INFO, VIDEO_INFO)
+    return _pick(AUDIO_INFO, PHOTO_INFO, VIDEO_INFO, DOC_INFO)
 
 
 AUDIO_COLUMNS = ["filename", "title", "artist", "album", "albumartist", "track", "disc", "year", "genre",
                  "comment", "path"]
 PHOTO_COLUMNS = ["filename", "datetaken", "i:camera", "i:dims", "title", "rating", "keywords", "path"]
 VIDEO_COLUMNS = ["filename", "datetaken", "i:duration", "i:resolution", "title", "path"]
+DOC_COLUMNS = ["filename", "title", "author", "modified", "pages", "path"]
 
 
 def default_columns() -> list[str]:
-    return list(_pick(AUDIO_COLUMNS, PHOTO_COLUMNS, VIDEO_COLUMNS))
+    return list(_pick(AUDIO_COLUMNS, PHOTO_COLUMNS, VIDEO_COLUMNS, DOC_COLUMNS))
 
 
 AUDIO_SIDEBAR = ["title", "artist", "album", "year", "track", "genre", "comment", "albumartist", "composer",
@@ -75,10 +82,12 @@ PHOTO_SIDEBAR = ["cover", "title", "description", "keywords", "rating", "datetak
                  "make", "model", "lens", "exposure", "aperture", "iso", "focal", "gpslat", "gpslon", "gpsalt"]
 VIDEO_SIDEBAR = ["cover", "title", "description", "author", "genre", "year", "copyright", "datetaken", "gpslat",
                  "gpslon", "gpsalt"]
+DOC_SIDEBAR = ["cover", "title", "subject", "author", "keywords", "description", "category", "language",
+               "created", "modified", "pages"]  # weitere Angaben per Rechtsklick (wie bei Videos)
 
 
 def default_sidebar() -> list[str]:
-    return list(_pick(AUDIO_SIDEBAR, PHOTO_SIDEBAR, VIDEO_SIDEBAR))
+    return list(_pick(AUDIO_SIDEBAR, PHOTO_SIDEBAR, VIDEO_SIDEBAR, DOC_SIDEBAR))
 
 
 def kind_of(path: str) -> str | None:
@@ -88,6 +97,8 @@ def kind_of(path: str) -> str | None:
         return PHOTO
     if vt.is_video(path):
         return VIDEO
+    if dc.is_document(path):
+        return DOC
     return None
 
 
@@ -106,6 +117,8 @@ def setting(name: str) -> str:
 def tools() -> tuple[str, ...]:
     from . import convert as cv
 
+    if _current == DOC:  # L-851: weder Musik-Konverter noch „Datum verschieben“
+        return tuple(k for k in cv.TOOLS if k not in cv.AUDIO_ONLY and k not in cv.PHOTO_ONLY)
     if _current in (PHOTO, VIDEO):
         return tuple(k for k in cv.TOOLS if k not in cv.AUDIO_ONLY)
     return tuple(k for k in cv.TOOLS if k not in cv.PHOTO_ONLY)

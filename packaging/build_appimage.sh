@@ -18,6 +18,8 @@ python3 -m PyInstaller --noconfirm --clean --onedir --windowed \
   --add-data "src/panepilot/help:panepilot/help" \
   --collect-all pyexiv2 \
   --collect-all pillow_heif \
+  --collect-all pypdfium2 \
+  --collect-all pypdfium2_raw \
   --exclude-module tkinter \
   --exclude-module pytest \
   packaging/launcher.py

@@ -2054,6 +2054,8 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         if entry is not None and not entry.is_dir:
             menu.addAction(a["checksums"])
         menu.addAction(a["properties"])
+        menu.addSeparator()
+        menu.addAction(a["refresh"])  # v1.8 (L-800): ganz unten, mit dem eingestellten Kürzel
         menu.exec(pos)
 
     # --- Archive (F-530 ff.) -------------------------------------------------------------
