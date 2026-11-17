@@ -1,0 +1,14 @@
+name: tmp online check
+on:
+  push:
+    branches: [tmp-dummy-check]
+jobs:
+  check:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install PySide6-Essentials==6.9.3
+      - run: python check_online.py
