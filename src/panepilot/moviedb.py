@@ -261,7 +261,7 @@ class Wikidata:
   {where}
   OPTIONAL {{ ?item wdt:P1476 ?orig . }}
   OPTIONAL {{ ?item wdt:P577 ?date . }}
-  OPTIONAL {{ ?item wdt:P136 ?genre . }}
+  OPTIONAL {{ ?item wdt:P136 ?genre . ?genre wdt:P31 wd:Q201658 . }}
   OPTIONAL {{ ?item wdt:P57 ?dir . }}
   OPTIONAL {{ ?item wdt:P345 ?imdb . }}
   OPTIONAL {{ ?item wdt:P4947 ?tmdb . }}
@@ -310,14 +310,16 @@ class Wikidata:
         return m
 
     def search(self, title: str, year: str = "") -> list[Hit]:
-        params = {"action": "wbsearchentities", "search": title, "language": self.lang, "uselang": self.lang,
-                  "type": "item", "limit": "20", "format": "json"}
+        # Volltextsuche nur unter Filmen (Q11424); findet auch deutsche und Originaltitel
+        params = {"action": "query", "list": "search", "srsearch": f"{title} haswbstatement:P31=Q11424",
+                  "srnamespace": "0", "srlimit": "20", "format": "json"}
         data = _json(http_get(f"{WD_API}?{urllib.parse.urlencode(params)}", None, "wikidata"))
-        qids = [e["id"] for e in data.get("search") or [] if re.fullmatch(r"Q\d+", e.get("id", ""))]
+        qids = [e["title"] for e in (data.get("query") or {}).get("search") or []
+                if re.fullmatch(r"Q\d+", e.get("title", ""))]
         if not qids:
             return []
         values = " ".join(f"wd:{q}" for q in qids)
-        where = f"VALUES ?item {{ {values} }} ?item wdt:P31/wdt:P279* wd:Q11424 ."  # nur Filme
+        where = f"VALUES ?item {{ {values} }}"
         movies = self._movies(self._sparql(self._query(where)))
         hits = [Hit(m.title, m.year, m.original_title if m.original_title != m.title else "", m.imdb, m.tmdb, q)
                 for q, m in sorted(movies.items(), key=lambda kv: qids.index(kv[0]) if kv[0] in qids else 99)]
