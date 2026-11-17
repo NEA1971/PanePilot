@@ -13,6 +13,8 @@ PanePilot shows two file panels side by side. One of them is **active**, recogni
 - **Copy / Move** to the other panel (F5 / F6) asks first; the “without asking” variants start right away. Drag and drop works too, also to and from Nautilus.
 - **Rename** (F2), **New folder** (F7), **New text file** (Shift+F4), **Move to trash** (F8), **Delete permanently**. When renaming, the input field always shows the complete name including the extension – also in the “Name (without extension)” column. The part before the extension is preselected; the extension can be changed as well.
 - **Clipboard**: copy, cut, paste (Ctrl+C/X/V), also together with other programs.
+- **Duplicate** (Ctrl+D, also in the context menu): creates a copy of the selected files and folders in the same folder without asking – `Report.docx` becomes `Report-Copy.docx`, the next time `Report-Copy-2.docx`. The copies are selected afterwards, e.g. for renaming with F2. Not available on FTP/SFTP servers.
+- **Panels one above the other** (View → “Panels one above the other”, Ctrl+Shift+H): shows the two panels one above the other instead of side by side. Each panel keeps its sidebar on the left, the button bar lies horizontally in between. The layout is remembered separately for both arrangements.
 - **Refresh** (Ctrl+R, also at the bottom of the context menu): re-reads the shown folder; the selection is kept.
 - **Open with**: right-click a file to see matching programs; “Other application …” shows all.
 - **Archives**: compress and extract via the context menu.

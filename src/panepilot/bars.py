@@ -32,6 +32,13 @@ def _mirror(icon: QIcon) -> QIcon:
     return result
 
 
+def _rotate(icon: QIcon, degrees: int) -> QIcon:
+    result = QIcon()
+    for size in _ICON_SIZES:
+        result.addPixmap(icon.pixmap(size, size).transformed(QTransform().rotate(degrees)))
+    return result
+
+
 def _colors():
     pal = QApplication.palette()
     return pal.color(pal.ColorRole.Text), QColor("#2E75B6")
@@ -164,7 +171,7 @@ class TrashButton(QToolButton):
 
 
 class ButtonBar(QWidget):
-    """Senkrechte Leiste zwischen den Panels (F-320 ff.)."""
+    """Senkrechte Leiste zwischen den Panels (F-320 ff.); bei „Fenster übereinander“ waagerecht (v1.10)."""
 
     triggered = Signal(str)  # Aktions-ID
     trash_clicked = Signal()
@@ -185,8 +192,11 @@ class ButtonBar(QWidget):
         }
         self._icons_rtl = {k: (_mirror(v) if k in ("copy_direct", "move_direct", "same_path") else v)
                            for k, v in self._icons_ltr.items()}
+        self.stacked = False
+        self._left_to_right = True
         self.buttons: dict[str, QToolButton] = {}
         layout = QVBoxLayout(self)
+        self._layout = layout
         layout.setContentsMargins(2, 4, 2, 4)
         layout.addStretch(1)
         for i, aid in enumerate(self.BUTTONS):
@@ -223,9 +233,31 @@ class ButtonBar(QWidget):
         self.trash_button.setIcon(self._trash_full if full else self._trash_empty)
 
     def set_direction(self, left_to_right: bool) -> None:
+        """Pfeile zeigen zum anderen Fenster: nach rechts/links bzw. übereinander nach unten/oben (L-1002)."""
+        self._left_to_right = left_to_right
         icons = self._icons_ltr if left_to_right else self._icons_rtl
         for aid, btn in self.buttons.items():
-            btn.setIcon(icons[aid])
+            btn.setIcon(_rotate(icons[aid], 90) if self.stacked else icons[aid])
+
+    def set_stacked(self, on: bool) -> None:
+        from PySide6.QtWidgets import QBoxLayout
+
+        self.stacked = on
+        lay = self._layout
+        lay.setDirection(QBoxLayout.Direction.LeftToRight if on else QBoxLayout.Direction.TopToBottom)
+        lay.setContentsMargins(4, 2, 4, 2) if on else lay.setContentsMargins(2, 4, 2, 4)
+        align = Qt.AlignmentFlag.AlignVCenter if on else Qt.AlignmentFlag.AlignHCenter
+        for w in [*self.buttons.values(), self.trash_button]:
+            lay.setAlignment(w, align)
+        if on:
+            self.setMinimumWidth(0)
+            self.setMaximumWidth(16777215)
+            self.setFixedHeight(36)
+        else:
+            self.setMinimumHeight(0)
+            self.setMaximumHeight(16777215)
+            self.setFixedWidth(36)
+        self.set_direction(self._left_to_right)
 
     def set_tooltips(self, texts: dict[str, str]) -> None:
         for aid, btn in self.buttons.items():

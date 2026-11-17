@@ -1286,5 +1286,13 @@
   "settings.online_language": "Язык онлайн-данных: название, описание и жанр берутся на языке программы (сейчас {lang}). Если версии на этом языке нет, используется английский.",
   "settings.tmdb_no_keyring": "Связка ключей недоступна: ключ хранится только до закрытия PanePilot.",
   "settings.tmdb_empty": "Сначала введите ключ.",
-  "settings.tmdb_ok": "Ключ работает."
+  "settings.tmdb_ok": "Ключ работает.",
+  "action.toggle_stacked": "Панели одна над другой",
+  "menu.sidebar_top": "Боковая панель сверху",
+  "menu.sidebar_bottom": "Боковая панель снизу",
+  "settings.prof_top": "Верхняя панель:",
+  "settings.prof_bottom": "Нижняя панель:",
+  "action.duplicate": "Дублировать",
+  "title.duplicate": "Дублирование",
+  "file.duplicate_suffix": "копия"
 }

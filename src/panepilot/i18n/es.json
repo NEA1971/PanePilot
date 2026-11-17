@@ -1286,5 +1286,13 @@
   "settings.online_language": "Idioma de los datos en línea: título, sinopsis y género llegan en el idioma del programa (ahora {lang}). Si no hay versión en ese idioma, se usa el inglés.",
   "settings.tmdb_no_keyring": "No hay llavero disponible: la clave solo se conserva hasta cerrar PanePilot.",
   "settings.tmdb_empty": "Introduce primero una clave.",
-  "settings.tmdb_ok": "La clave funciona."
+  "settings.tmdb_ok": "La clave funciona.",
+  "action.toggle_stacked": "Paneles uno encima del otro",
+  "menu.sidebar_top": "Barra lateral superior",
+  "menu.sidebar_bottom": "Barra lateral inferior",
+  "settings.prof_top": "Panel superior:",
+  "settings.prof_bottom": "Panel inferior:",
+  "action.duplicate": "Duplicar",
+  "title.duplicate": "Duplicar",
+  "file.duplicate_suffix": "copia"
 }

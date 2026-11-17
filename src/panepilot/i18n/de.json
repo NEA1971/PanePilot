@@ -1287,5 +1287,13 @@
   "settings.online_language": "Sprache der Online-Daten: Titel, Inhaltsangabe und Genre kommen in der Programmsprache (zurzeit {lang}). Gibt es keine Fassung in dieser Sprache, wird Englisch genommen.",
   "settings.tmdb_no_keyring": "Kein Schlüsselbund verfügbar: Der Schlüssel gilt nur, bis PanePilot beendet wird.",
   "settings.tmdb_empty": "Bitte zuerst einen Schlüssel eintragen.",
-  "settings.tmdb_ok": "Der Schlüssel funktioniert."
+  "settings.tmdb_ok": "Der Schlüssel funktioniert.",
+  "action.toggle_stacked": "Fenster übereinander",
+  "menu.sidebar_top": "Seitenleiste oben",
+  "menu.sidebar_bottom": "Seitenleiste unten",
+  "settings.prof_top": "Oberes Fenster:",
+  "settings.prof_bottom": "Unteres Fenster:",
+  "action.duplicate": "Duplizieren",
+  "title.duplicate": "Duplizieren",
+  "file.duplicate_suffix": "Kopie"
 }

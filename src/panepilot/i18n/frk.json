@@ -1286,5 +1286,13 @@
   "settings.online_language": "Sprach vo de Online-Dadn: Didl, Inhaltsangab und Genre kumma in der Brogrammsprach (grad {lang}). Gibts ka Fassung in dera Sprach, wird Englisch gnumma.",
   "settings.tmdb_no_keyring": "Ka Schlüsslbund do: Der Schlüssl gilt bloß, bis PanePilot zugmacht wird.",
   "settings.tmdb_empty": "Bidde erst an Schlüssl eintrogn.",
-  "settings.tmdb_ok": "Der Schlüssl ged."
+  "settings.tmdb_ok": "Der Schlüssl ged.",
+  "action.toggle_stacked": "Fensder übernanner",
+  "menu.sidebar_top": "Seidnleisdn obn",
+  "menu.sidebar_bottom": "Seidnleisdn undn",
+  "settings.prof_top": "Oberes Fensder:",
+  "settings.prof_bottom": "Unners Fensder:",
+  "action.duplicate": "Dubliziern",
+  "title.duplicate": "Dubliziern",
+  "file.duplicate_suffix": "Kopie"
 }

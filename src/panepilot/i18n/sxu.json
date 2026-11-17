@@ -1286,5 +1286,13 @@
   "settings.online_language": "Schbrache dor Online-Dadn: Didel, Inhaldsangabe un Genre gomm in dor Brogrammschbrache (grade {lang}). Gibts keene Fassung in dor Schbrache, wird Englisch genomm.",
   "settings.tmdb_no_keyring": "Keen Schlüsselbund da: Dor Schlüssel gilt bloß, bis PanePilot zugemachd wird.",
   "settings.tmdb_empty": "Bidde erschd eenen Schlüssel eindragn.",
-  "settings.tmdb_ok": "Dor Schlüssel funktionierd."
+  "settings.tmdb_ok": "Dor Schlüssel funktionierd.",
+  "action.toggle_stacked": "Fensdor übereinander",
+  "menu.sidebar_top": "Seitnleisde obn",
+  "menu.sidebar_bottom": "Seitnleisde undn",
+  "settings.prof_top": "Oberes Fensdor:",
+  "settings.prof_bottom": "Unneres Fensdor:",
+  "action.duplicate": "Dubliziern",
+  "title.duplicate": "Dubliziern",
+  "file.duplicate_suffix": "Kopie"
 }

@@ -600,7 +600,9 @@ class SettingsDialog(QDialog):
 
         self.side_boxes: dict[str, QComboBox] = {}
         sides = QFormLayout()
-        for side, key in (("left", "settings.prof_left"), ("right", "settings.prof_right")):
+        stacked = bool(getattr(self.parent(), "stacked", False))  # v1.10: oben/unten statt links/rechts
+        for side, key in (("left", "settings.prof_top" if stacked else "settings.prof_left"),
+                          ("right", "settings.prof_bottom" if stacked else "settings.prof_right")):
             box = QComboBox(w)
             self.side_boxes[side] = box
             sides.addRow(t(key), box)

@@ -54,6 +54,7 @@ ACTION_DEFS: tuple[ActionDef, ...] = (
     ActionDef("edit_text", "action.edit_text", (), "window"),
     ActionDef("open_with_other", "action.open_with_other", (), "window"),
     ActionDef("rename", "action.rename", (), "window"),
+    ActionDef("duplicate", "action.duplicate", ("Ctrl+D",), "list"),  # v1.10 (L-1010)
     ActionDef("multi_rename", "action.multi_rename", ("Ctrl+M",), "window"),
     ActionDef("meta_wizard", "action.meta_wizard", ("Ctrl+T",), "window"),
     ActionDef("rename_undo", "action.rename_undo", (), "window"),
@@ -104,6 +105,7 @@ ACTION_DEFS: tuple[ActionDef, ...] = (
     ActionDef("trash_empty", "action.trash_empty", (), "window"),
     # Ansicht
     ActionDef("toggle_single", "action.toggle_single", (), "window"),
+    ActionDef("toggle_stacked", "action.toggle_stacked", ("Ctrl+Shift+H",), "window"),  # v1.10 (L-1000)
     # Programm
     ActionDef("help", "action.help", (), "always"),  # Standard: F1 (F-Tasten-Leiste)
     ActionDef("help_online", "action.help_online", (), "window"),

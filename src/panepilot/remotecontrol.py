@@ -18,7 +18,8 @@ from .sidebars import MODE_SERVERS  # noqa: E402
 # Auf dem Server nicht möglich (L-343)
 REMOTE_BLOCKED = {"new_textfile", "edit_text", "open_with_other", "multi_rename", "compress", "meta_wizard",
                   "search", "checksums", "extract_here", "extract_subfolder", "extract_to", "open_terminal",
-                  "dir_list", "clip_cut", "clip_copy", "clip_paste", "add_favorite", "same_path", "rename_undo"}
+                  "dir_list", "clip_cut", "clip_copy", "clip_paste", "add_favorite", "same_path", "rename_undo",
+                  "duplicate"}
 
 
 class _Task(QThread):
@@ -651,6 +652,8 @@ class RemoteMixin:
                 menu.addAction(a[aid])
             menu.addSeparator()
             menu.addAction(a["rename"])
+            dup = menu.addAction(a["duplicate"].text())  # L-1013: auf Servern ausgegraut
+            dup.setEnabled(False)
             menu.addAction(t("srv.delete_files")).triggered.connect(lambda _c=False: self.trigger("delete_permanent"))
             menu.addSeparator()
         menu.addAction(a["new_folder"])

@@ -52,6 +52,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.10.0" date="2026-11-17">
+      <description>
+        <p>Panels one above the other as an alternative layout. Duplicate files and folders from the context menu.</p>
+      </description>
+    </release>
     <release version="1.9.0" date="2026-11-17">
       <description>
         <p>Meta wizard: fetch movie data (title, year, genre, plot, director, poster) from TMDB with your own API key, or from Wikidata without a key.</p>

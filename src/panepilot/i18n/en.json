@@ -1286,5 +1286,13 @@
   "settings.online_language": "Language of the online data: title, plot summary and genre come in the program language (currently {lang}). If there is no version in that language, English is used.",
   "settings.tmdb_no_keyring": "No keyring available: the key is only kept until PanePilot is closed.",
   "settings.tmdb_empty": "Please enter a key first.",
-  "settings.tmdb_ok": "The key works."
+  "settings.tmdb_ok": "The key works.",
+  "action.toggle_stacked": "Panels one above the other",
+  "menu.sidebar_top": "Sidebar top",
+  "menu.sidebar_bottom": "Sidebar bottom",
+  "settings.prof_top": "Upper panel:",
+  "settings.prof_bottom": "Lower panel:",
+  "action.duplicate": "Duplicate",
+  "title.duplicate": "Duplicate",
+  "file.duplicate_suffix": "Copy"
 }

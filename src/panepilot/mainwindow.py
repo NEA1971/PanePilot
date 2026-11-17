@@ -32,7 +32,7 @@ from .favorites import FAV_COLORS, FavNode, FavoritesModel, FavoritesView
 from .foldertree import FolderTreeView
 from .filepanel import FilePanel, FileView
 from .filemodel import COLUMN_COUNT
-from .fileops import COMPRESS, COPY, DELETE, EXTRACT, MOVE, PURGE, RESTORE, TRASH
+from .fileops import COMPRESS, COPY, DELETE, DUPLICATE, EXTRACT, MOVE, PURGE, RESTORE, TRASH
 from .trash import TRASH_URI, Trash, is_trash_uri
 from .i18n import t
 from .icons import IconProvider, app_icon
@@ -234,6 +234,8 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         self.button_bar.trash_dropped.connect(self._trash_paths)
         self.button_bar.trash_menu.connect(self._trash_button_menu)
         self.single_mode = False
+        self.stacked = False  # v1.10: Fenster übereinander (L-1000 ff.)
+        self._layout_sizes: dict[str, dict] = {}
         for name in SIDES:
             self.sides[name] = self._build_side(name)
         self.outer.addWidget(self.sides["left"].splitter)
@@ -922,6 +924,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         hidden.setCheckable(True)
         hidden.setChecked(bool(self.settings.get("show_hidden")))
         self.qactions["toggle_single"].setCheckable(True)
+        self.qactions["toggle_stacked"].setCheckable(True)
         self.qactions["filter_toggle"].setCheckable(True)
         self.qactions["rename_undo"].setEnabled(False)
         for aid, key in (("toggle_buttonbar", "show_buttonbar"), ("toggle_fkeybar", "show_fkeybar"),
@@ -944,7 +947,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         m = mb.addMenu(t("menu.file"))
         for aid in ("open", "edit_text", "open_with_other", "open_terminal", "server_manager", None, "new_folder",
                     "new_textfile",
-                    "rename", "multi_rename", "rename_undo", None, "search", "find_duplicates", "checksums", "dir_list",
+                    "rename", "duplicate", "multi_rename", "rename_undo", None, "search", "find_duplicates", "checksums", "dir_list",
                     "properties", None,
                     "copy", "move", None, "delete", "delete_permanent", None):
             m.addSeparator() if aid is None else m.addAction(a[aid])
@@ -968,7 +971,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         self.sidebar_menus: dict[str, dict[str, QAction]] = {}
         self.sidebar_submenus: dict[str, QMenu] = {}
         for side in SIDES:
-            sub = m.addMenu(t(f"menu.sidebar_{side}"))
+            sub = m.addMenu(self._sidebar_menu_title(side))
             self.sidebar_submenus[side] = sub
             group = QActionGroup(self)
             group.setExclusive(True)
@@ -987,6 +990,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         m.addAction(a["toggle_fkeybar"])
         m.addAction(a["toggle_toolbar"])
         m.addAction(a["toggle_single"])
+        m.addAction(a["toggle_stacked"])
         m.addSeparator()
         m.addAction(a["toggle_hidden"])
         m.addAction(a["filter_define"])
@@ -1074,7 +1078,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
 
     # --- Aktionen ------------------------------------------------------------------------------
     # Im Papierkorb nicht sinnvoll (F-410)
-    TRASH_BLOCKED = {"new_folder", "new_textfile", "rename", "move", "move_direct", "clip_cut", "clip_paste",
+    TRASH_BLOCKED = {"new_folder", "new_textfile", "rename", "duplicate", "move", "move_direct", "clip_cut", "clip_paste",
                      "edit_text", "open_with_other", "filter_define", "filter_toggle", "multi_rename", "compress",
                      "meta_wizard", "search", "checksums", "extract_here", "extract_subfolder", "extract_to"}
     # In der Ein-Fenster-Ansicht gibt es kein zweites Panel (F-441)
@@ -1149,6 +1153,15 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
 
     def do_move(self) -> None:
         self._copy_or_move(True)
+
+    def do_duplicate(self) -> None:
+        """Markierte Einträge im selben Ordner kopieren, ohne Rückfrage (v1.10, L-1010 ff.)."""
+        panel = self.active
+        if panel.in_remote or panel.in_trash or panel.search_mode or not os.path.isdir(panel.current_path):
+            return
+        entries = [e for e in panel.target_entries() if not e.is_parent]
+        if entries:
+            self.ops.start(DUPLICATE, [e.path for e in entries], panel.current_path)
 
     def do_copy_direct(self) -> None:
         """Knopfleiste: ohne Rückfrage (F-323)."""
@@ -2029,8 +2042,10 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
             menu.addAction(a["compress"])
         self._extract_menu_entries(menu)
         for aid in (None, "clip_cut", "clip_copy", "clip_paste", None,
-                    "rename", "multi_rename", "meta_wizard", "delete", "delete_permanent", None, "new_folder",
-                    "new_textfile"):
+                    "rename", "duplicate", "multi_rename", "meta_wizard", "delete", "delete_permanent", None,
+                    "new_folder", "new_textfile"):
+            if aid == "duplicate" and not self.active.target_entries():
+                continue
             menu.addSeparator() if aid is None else menu.addAction(a[aid])
         # Terminal und Verzeichnisliste: angeklickter Ordner, sonst der angezeigte (v1.1)
         panel = self.sides[side].panel
@@ -2483,13 +2498,57 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         # Menü „Ansicht“: in der Ein-Fenster-Ansicht nur eine „Seitenleiste“ (ohne links/rechts)
         for side, sub in self.sidebar_submenus.items():
             sub.menuAction().setVisible(not on or side == self.active_side)
-            sub.setTitle(t("menu.sidebar") if on else t(f"menu.sidebar_{side}"))
+            sub.setTitle(t("menu.sidebar") if on else self._sidebar_menu_title(side))
         self.qactions["toggle_sidebar"].setText(t("action.toggle_sidebar_single") if on else t("action.toggle_sidebar"))
         self.qactions["toggle_buttonbar"].setEnabled(not on)
         for aid in self.SINGLE_BLOCKED:
             self.qactions[aid].setEnabled(not on)
         self._update_fkey_enabled()
         self.active.view.setFocus()
+
+    # --- Fenster übereinander (v1.10, L-1000 ff.) ------------------------------------------------------
+    def _sidebar_menu_title(self, side: str) -> str:
+        if getattr(self, "stacked", False):
+            return t("menu.sidebar_top" if side == "left" else "menu.sidebar_bottom")
+        return t(f"menu.sidebar_{side}")
+
+    def _layout_key(self) -> str:
+        return "stacked" if self.stacked else "side_by_side"
+
+    def _current_sizes(self) -> dict:
+        return {"outer": self.outer.sizes(), "inner": {n: s.splitter.sizes() for n, s in self.sides.items()}}
+
+    def _apply_sizes(self, sizes: dict | None) -> None:
+        outer = (sizes or {}).get("outer")
+        if isinstance(outer, list) and len(outer) == 3 and sum(int(x) for x in outer) > 0:
+            self.outer.setSizes([int(x) for x in outer])
+        else:  # Standard: beide Fenster gleich groß
+            total = (self.outer.height() if self.stacked else self.outer.width()) or 1280
+            half = max((total - 36) // 2, 100)
+            self.outer.setSizes([half, 36, half])
+        inner = (sizes or {}).get("inner")
+        if isinstance(inner, dict):
+            for n, s in self.sides.items():
+                v = inner.get(n)
+                if isinstance(v, list) and len(v) == 2 and sum(int(x) for x in v) > 0:
+                    s.splitter.setSizes([int(x) for x in v])
+
+    def do_toggle_stacked(self) -> None:
+        self.set_stacked(not self.stacked)
+
+    def set_stacked(self, on: bool) -> None:
+        """Fenster nebeneinander oder übereinander; Größen je Anordnung getrennt gemerkt (L-1004)."""
+        if on != self.stacked:
+            self._layout_sizes[self._layout_key()] = self._current_sizes()
+            self.stacked = on
+            self.outer.setOrientation(Qt.Orientation.Vertical if on else Qt.Orientation.Horizontal)
+            self.button_bar.set_stacked(on)
+            self.button_bar.set_direction(self.active_side == "left")
+            self._apply_sizes(self._layout_sizes.get(self._layout_key()))
+        self.qactions["toggle_stacked"].setChecked(on)
+        for side, sub in self.sidebar_submenus.items():
+            if not self.single_mode:
+                sub.setTitle(self._sidebar_menu_title(side))
 
     def _on_operation_finished(self, kind: str, target: str, created: list[str]) -> None:
         for s in self.sides.values():
@@ -2499,7 +2558,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
             if kind in (TRASH, DELETE) and follow:
                 panel.select_names([], current=follow)
                 panel.setProperty("cursor_after_delete", None)
-            if kind in (COPY, MOVE, COMPRESS, EXTRACT) and created and os.path.normpath(panel.current_path) == os.path.normpath(target):
+            if kind in (COPY, MOVE, COMPRESS, EXTRACT, DUPLICATE) and created and os.path.normpath(panel.current_path) == os.path.normpath(target):
                 panel.select_names(created, current=created[0])
         for m in self.fav_sets.loaded_models():
             m.layoutChanged.emit()
@@ -2567,6 +2626,18 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
             self.outer.setSizes([int(outer[0]), 36, int(outer[1])])
         else:
             self.outer.setSizes([640, 36, 640])
+        layouts = state.get("layouts")
+        if isinstance(layouts, dict):
+            self._layout_sizes = {k: v for k, v in layouts.items() if isinstance(v, dict)}
+        if state.get("stacked") is True:  # die gespeicherten „outer“/„inner“ gehören zur Anordnung übereinander
+            self._layout_sizes.setdefault("side_by_side", {})
+            self.stacked = True
+            self.outer.setOrientation(Qt.Orientation.Vertical)
+            self.button_bar.set_stacked(True)
+            self._apply_sizes({"outer": outer} if isinstance(outer, list) and len(outer) == 3 else None)
+            self.qactions["toggle_stacked"].setChecked(True)
+            for side, sub in self.sidebar_submenus.items():
+                sub.setTitle(self._sidebar_menu_title(side))
         active = state.get("active", "left")
         self.set_active_side(active if active in SIDES else "left")
         if state.get("single") is True:
@@ -2607,6 +2678,8 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
             "outer": self.outer.sizes(),
             "active": self.active_side,
             "single": self.single_mode,
+            "stacked": self.stacked,
+            "layouts": {k: v for k, v in self._layout_sizes.items() if k != self._layout_key()},
             "sides": sides_state,
         }
         try:

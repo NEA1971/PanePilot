@@ -24,6 +24,7 @@ from .util import is_inside, unique_name
 CHUNK = 1024 * 1024
 
 COPY, MOVE, TRASH, DELETE = "copy", "move", "trash", "delete"
+DUPLICATE = "duplicate"  # v1.10: Kopie im selben Ordner mit „-Kopie“ (L-1010 ff.)
 RESTORE, PURGE = "restore", "purge"  # Papierkorb: wiederherstellen / endgültig löschen
 COMPRESS, EXTRACT = "compress", "extract"  # Archive (F-530 ff., F-540 ff.)
 
@@ -100,6 +101,27 @@ def _same_file(a: str, b: str) -> bool:
         return os.path.samefile(a, b)
     except OSError:
         return False
+
+
+def duplicate_name(path: str) -> str:
+    """„Bericht.docx“ → „Bericht-Kopie.docx“, dann „-Kopie-2“, „-Kopie-3“ … (L-1011)."""
+    folder, base = os.path.split(path.rstrip(os.sep))
+    if os.path.isdir(path) and not os.path.islink(path):
+        stem, ext = base, ""
+    else:
+        stem, ext = os.path.splitext(base)
+        if stem.lower().endswith(".tar"):  # „Archiv.tar.gz“ → „Archiv-Kopie.tar.gz“
+            stem, ext = stem[:-4], stem[-4:] + ext
+        if not stem:  # „.bashrc“
+            stem, ext = base, ""
+    word = t("file.duplicate_suffix")
+    n = 1
+    while True:
+        name = f"{stem}-{word}{ext}" if n == 1 else f"{stem}-{word}-{n}{ext}"
+        candidate = os.path.join(folder, name)
+        if not os.path.lexists(candidate):
+            return candidate
+        n += 1
 
 
 def move_to_trash(path: str) -> None:
@@ -207,6 +229,16 @@ class OperationEngine:
                 except OSError as exc:
                     self._error(src, _reason(exc))
                 self._advance(1, os.path.basename(src))
+            return self.result
+
+        if self.kind == DUPLICATE:
+            self._total = sum(tree_size(s) for s in self.sources)
+            for src in self.sources:
+                if self._cancelled():
+                    break
+                final = self._transfer(src, duplicate_name(src), False, top_level=True)
+                if final:
+                    self.result.created.append(os.path.basename(final))
             return self.result
 
         valid = []

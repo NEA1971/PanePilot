@@ -1286,5 +1286,13 @@
   "settings.online_language": "Langue des données en ligne : titre, résumé et genre sont dans la langue du programme (actuellement {lang}). S'il n'existe pas de version dans cette langue, l'anglais est utilisé.",
   "settings.tmdb_no_keyring": "Aucun trousseau disponible : la clé n'est conservée que jusqu'à la fermeture de PanePilot.",
   "settings.tmdb_empty": "Saisis d'abord une clé.",
-  "settings.tmdb_ok": "La clé fonctionne."
+  "settings.tmdb_ok": "La clé fonctionne.",
+  "action.toggle_stacked": "Panneaux l'un au-dessus de l'autre",
+  "menu.sidebar_top": "Barre latérale en haut",
+  "menu.sidebar_bottom": "Barre latérale en bas",
+  "settings.prof_top": "Panneau du haut :",
+  "settings.prof_bottom": "Panneau du bas :",
+  "action.duplicate": "Dupliquer",
+  "title.duplicate": "Dupliquer",
+  "file.duplicate_suffix": "copie"
 }
