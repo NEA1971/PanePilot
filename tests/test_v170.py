@@ -87,7 +87,7 @@ def test_columns_tooltip_placeholders_and_properties(window, tmp_path, qtbot):  
     assert res[0][1] == "ger, eng - eng (forced), -.mkv"  # „?“ ist im Dateinamen nicht erlaubt
     window.meta_close()
     dlg = PropertiesDialog(window, [path])
-    labels = [w.text() for w in dlg.tabs.widget(2).findChildren(QLabel)]
+    labels = dlg.meta_texts()
     assert any("ger (Deutsch) – AC-3 5.1 – Standard" in x for x in labels)
     assert any("eng (Englisch) – SRT –" in x and "erzwungen" in x for x in labels)
 

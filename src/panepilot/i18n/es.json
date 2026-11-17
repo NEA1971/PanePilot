@@ -1240,5 +1240,9 @@
   "meta.count_doc_one": "1 documento",
   "doc.signed_hint": "Los PDF con firma digital son de solo lectura: cualquier cambio invalidaría la firma.",
   "doc.encrypted_hint": "Los PDF cifrados son de solo lectura.",
-  "doc.ole_hint": "Los archivos de Office antiguos (DOC, XLS, PPT) son de solo lectura."
+  "doc.ole_hint": "Los archivos de Office antiguos (DOC, XLS, PPT) son de solo lectura.",
+  "props.meta_field": "Campo",
+  "props.meta_value": "Valor",
+  "props.copy_value": "Copiar valor",
+  "props.copy_row": "Copiar fila"
 }

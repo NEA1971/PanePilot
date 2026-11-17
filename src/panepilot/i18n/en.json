@@ -1240,5 +1240,9 @@
   "meta.count_doc_one": "1 document",
   "doc.signed_hint": "Digitally signed PDFs are read-only: any change would invalidate the signature.",
   "doc.encrypted_hint": "Encrypted PDFs are read-only.",
-  "doc.ole_hint": "Old Office files (DOC, XLS, PPT) are read-only."
+  "doc.ole_hint": "Old Office files (DOC, XLS, PPT) are read-only.",
+  "props.meta_field": "Field",
+  "props.meta_value": "Value",
+  "props.copy_value": "Copy value",
+  "props.copy_row": "Copy row"
 }

@@ -156,6 +156,7 @@ class Settings:
         "meta_video_custom_fields": [],
         "meta_video_presets": {},
         "meta_video_last_format": {},
+        "props_meta_field_width": 0,  # v1.8.1: Spalte „Feld“ im Reiter Metadaten (0 = automatisch)
         "meta_doc_layout": {},  # v1.8: Dokumente
         "meta_doc_sidebar": [],
         "meta_doc_custom_fields": [],

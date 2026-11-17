@@ -1240,5 +1240,9 @@
   "meta.count_doc_one": "1 Dokumend",
   "doc.signed_hint": "Digidal unnerschriebne PDFs wern bloß glesn: Jede Änderung däd die Signadur kabudd machn.",
   "doc.encrypted_hint": "Verschlüsselde PDFs wern bloß glesn.",
-  "doc.ole_hint": "Alde Office-Dadein (DOC, XLS, PPT) wern bloß glesn."
+  "doc.ole_hint": "Alde Office-Dadein (DOC, XLS, PPT) wern bloß glesn.",
+  "props.meta_field": "Feld",
+  "props.meta_value": "Werd",
+  "props.copy_value": "Werd kobiern",
+  "props.copy_row": "Zeile kobiern"
 }

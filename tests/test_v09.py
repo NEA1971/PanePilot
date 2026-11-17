@@ -285,7 +285,7 @@ def test_properties_metadata_tab(window, music):  # noqa: F811
     assert dlg.tabs.isTabEnabled(2)  # F-950
     from PySide6.QtWidgets import QLabel
 
-    labels = [w.text() for w in dlg.tabs.widget(2).findChildren(QLabel)]
+    labels = dlg.meta_texts()
     assert "Hells Bells" in labels
     dlg._edit_in_meta()
     assert dlg.edit_in_meta

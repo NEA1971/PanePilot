@@ -1240,5 +1240,9 @@
   "meta.count_doc_one": "1 document",
   "doc.signed_hint": "Les PDF signés numériquement sont en lecture seule : toute modification invaliderait la signature.",
   "doc.encrypted_hint": "Les PDF chiffrés sont en lecture seule.",
-  "doc.ole_hint": "Les anciens fichiers Office (DOC, XLS, PPT) sont en lecture seule."
+  "doc.ole_hint": "Les anciens fichiers Office (DOC, XLS, PPT) sont en lecture seule.",
+  "props.meta_field": "Champ",
+  "props.meta_value": "Valeur",
+  "props.copy_value": "Copier la valeur",
+  "props.copy_row": "Copier la ligne"
 }

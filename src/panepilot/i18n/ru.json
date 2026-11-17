@@ -1240,5 +1240,9 @@
   "meta.count_doc_one": "документ – 1",
   "doc.signed_hint": "PDF с цифровой подписью доступны только для чтения: любое изменение сделало бы подпись недействительной.",
   "doc.encrypted_hint": "Зашифрованные PDF доступны только для чтения.",
-  "doc.ole_hint": "Старые файлы Office (DOC, XLS, PPT) доступны только для чтения."
+  "doc.ole_hint": "Старые файлы Office (DOC, XLS, PPT) доступны только для чтения.",
+  "props.meta_field": "Поле",
+  "props.meta_value": "Значение",
+  "props.copy_value": "Копировать значение",
+  "props.copy_row": "Копировать строку"
 }

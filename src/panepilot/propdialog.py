@@ -8,12 +8,15 @@ from datetime import datetime
 
 from PySide6.QtCore import QMimeDatabase, Qt, QThread, Signal
 from PySide6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
     QLabel,
+    QStyledItemDelegate,
+    QTableWidget,
     QTabWidget,
     QVBoxLayout,
     QWidget,
@@ -106,13 +109,188 @@ class FolderSizeThread(QThread):
         self.done.emit(size, files, dirs)
 
 
+class _WrapDelegate(QStyledItemDelegate):
+    """Umbruch auch mitten im Wort – lange Werte ohne Leerzeichen (E-Mail-Listen, Kennungen) bleiben lesbar."""
+
+    PAD = 4
+
+    def _doc(self, option, index, width: int):
+        from PySide6.QtGui import QTextDocument, QTextOption
+
+        doc = QTextDocument()
+        doc.setDefaultFont(option.font)
+        opt = QTextOption()
+        opt.setWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
+        doc.setDefaultTextOption(opt)
+        doc.setDocumentMargin(0)
+        doc.setPlainText(index.data() or "")
+        doc.setTextWidth(max(10, width - 2 * self.PAD))
+        return doc
+
+    def paint(self, painter, option, index) -> None:
+        from PySide6.QtGui import QAbstractTextDocumentLayout, QPalette
+        from PySide6.QtWidgets import QStyle, QStyleOptionViewItem
+
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+        opt.text = ""
+        style = opt.widget.style() if opt.widget is not None else QApplication.style()
+        style.drawControl(QStyle.ControlElement.CE_ItemViewItem, opt, painter, opt.widget)
+        doc = self._doc(option, index, option.rect.width())
+        ctx = QAbstractTextDocumentLayout.PaintContext()
+        role = QPalette.ColorRole.HighlightedText if option.state & QStyle.StateFlag.State_Selected \
+            else QPalette.ColorRole.Text
+        ctx.palette.setColor(QPalette.ColorRole.Text, option.palette.color(role))
+        painter.save()
+        painter.translate(option.rect.left() + self.PAD, option.rect.top() + 2)
+        painter.setClipRect(0, 0, option.rect.width() - self.PAD, option.rect.height())
+        doc.documentLayout().draw(painter, ctx)
+        painter.restore()
+
+    def sizeHint(self, option, index):
+        from PySide6.QtCore import QSize
+
+        view = option.widget
+        width = view.columnWidth(index.column()) if view is not None else option.rect.width()
+        doc = self._doc(option, index, width)
+        return QSize(int(doc.idealWidth()) + 2 * self.PAD, int(doc.size().height()) + 4)
+
+
+class MetaTable(QTableWidget):
+    """Metadaten als Tabelle „Feld | Wert“ (v1.8.1): Spaltenbreite per Maus, wird gemerkt;
+    Doppelklick auf die Trennlinie passt sie an den längsten Feldnamen an."""
+
+    SETTING = "props_meta_field_width"
+
+    def __init__(self, parent, settings=None) -> None:
+        super().__init__(0, 2, parent)
+        from PySide6.QtWidgets import QAbstractItemView, QHeaderView
+
+        self.settings = settings
+        self.setHorizontalHeaderLabels([t("props.meta_field"), t("props.meta_value")])
+        self.verticalHeader().hide()
+        self.setAlternatingRowColors(True)
+        self.setWordWrap(True)
+        self.setItemDelegate(_WrapDelegate(self))
+        self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        head = self.horizontalHeader()
+        head.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
+        head.setStretchLastSection(True)
+        head.setHighlightSections(False)
+        head.sectionResized.connect(self._resized)
+        head.sectionHandleDoubleClicked.connect(self._fit)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._menu)
+        self._ready = False
+
+    def add_row(self, label: str, value: str) -> None:
+        from PySide6.QtWidgets import QTableWidgetItem
+
+        r = self.rowCount()
+        self.insertRow(r)
+        key = QTableWidgetItem(label)
+        key.setTextAlignment(int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop))
+        val = QTableWidgetItem(value)
+        val.setTextAlignment(int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop))
+        val.setToolTip(value)
+        self.setItem(r, 0, key)
+        self.setItem(r, 1, val)
+
+    def finish(self) -> None:
+        width = 0
+        if self.settings is not None:
+            try:
+                width = int(self.settings.get(self.SETTING) or 0)
+            except (TypeError, ValueError):
+                width = 0
+        if width > 20:
+            self.setColumnWidth(0, width)
+        else:  # automatisch, aber höchstens 260 Pixel – sehr lange Feldnamen werden umgebrochen
+            self.setColumnWidth(0, min(self._fit_width(), self.AUTO_MAX))
+        self.resizeRowsToContents()
+        self._ready = True
+
+    def rows(self) -> list[tuple[str, str]]:
+        return [(self.item(r, 0).text(), self.item(r, 1).text()) for r in range(self.rowCount())]
+
+    AUTO_MAX = 260
+
+    def _fit_width(self) -> int:
+        fm = self.fontMetrics()
+        texts = [self.item(r, 0).text() for r in range(self.rowCount())] + [t("props.meta_field")]
+        return max(fm.horizontalAdvance(x) for x in texts) + 2 * _WrapDelegate.PAD + 8
+
+    def _fit(self, section: int) -> None:
+        if section == 0:
+            self.setColumnWidth(0, self._fit_width())
+
+    def _resized(self, section: int, _old: int, new: int) -> None:
+        self.resizeRowsToContents()
+        if section == 0 and self._ready and self.settings is not None:
+            self._width = int(new)
+            if not hasattr(self, "_save_timer"):
+                from PySide6.QtCore import QTimer
+
+                self._save_timer = QTimer(self)
+                self._save_timer.setSingleShot(True)
+                self._save_timer.setInterval(400)
+                self._save_timer.timeout.connect(self.save_width)
+            self._save_timer.start()
+
+    def save_width(self) -> None:
+        if self.settings is not None and getattr(self, "_width", 0):
+            self.settings.set(self.SETTING, self._width)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self.resizeRowsToContents()  # Umbruch an die neue Breite anpassen
+
+    def _selected(self) -> list[int]:
+        return sorted({i.row() for i in self.selectedIndexes()})
+
+    def copy_values(self) -> None:
+        rows = self._selected()
+        if rows:
+            QApplication.clipboard().setText("\n".join(self.item(r, 1).text() for r in rows))
+
+    def copy_rows(self) -> None:
+        rows = self._selected()
+        if rows:
+            QApplication.clipboard().setText("\n".join(f"{self.item(r, 0).text()}: {self.item(r, 1).text()}"
+                                                       for r in rows))
+
+    def keyPressEvent(self, event) -> None:
+        from PySide6.QtGui import QKeySequence
+
+        if event.matches(QKeySequence.StandardKey.Copy):
+            self.copy_values()
+            return
+        super().keyPressEvent(event)
+
+    def _menu(self, pos) -> None:
+        from PySide6.QtWidgets import QMenu
+
+        if self.itemAt(pos) is not None and not self.itemAt(pos).isSelected():
+            self.selectRow(self.itemAt(pos).row())
+        if not self._selected():
+            return
+        menu = QMenu(self)
+        menu.addAction(t("props.copy_value")).triggered.connect(self.copy_values)
+        menu.addAction(t("props.copy_row")).triggered.connect(self.copy_rows)
+        menu.exec(self.viewport().mapToGlobal(pos))
+
+
 class PropertiesDialog(QDialog):
     def _meta_tab(self) -> tuple[QWidget, bool]:
         """Reiter „Metadaten“ (F-950): Tags und technische Infos einer Musik-, Foto- oder Videodatei (v1.5),
         nur zur Anzeige."""
         from PySide6.QtCore import QByteArray
         from PySide6.QtGui import QPixmap
-        from PySide6.QtWidgets import QPushButton, QScrollArea
+        from PySide6.QtWidgets import QPushButton
 
         from . import metaprofile as mp
         from . import phototags as ph
@@ -129,26 +307,25 @@ class PropertiesDialog(QDialog):
         if rec.error:
             QVBoxLayout(w).addWidget(QLabel(t("meta.read_error", reason=rec.error), w))
             return w, True
-        inner = QWidget(w)
-        form = QFormLayout(inner)
+        table = MetaTable(w, getattr(self.parent(), "settings", None))
+        self.meta_table = table
+        below = QWidget(w)  # Vorschau, Hinweise und Kartenlink unter der Tabelle (v1.8.1)
+        form = QFormLayout(below)
+        form.setContentsMargins(0, 4, 0, 0)
 
         def row(label: str, value: str) -> None:
-            if not value:
-                return
-            val = QLabel(value, inner)
-            val.setWordWrap(True)
-            val.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-            form.addRow(label + ":", val)
+            if value:
+                table.add_row(label, value)
 
         def image(label: str, pm: QPixmap, info: str = "") -> None:
             if pm.isNull():
                 return
-            img = QLabel(inner)
+            img = QLabel(below)
             img.setPixmap(pm.scaled(160, 160, Qt.AspectRatioMode.KeepAspectRatio,
                                     Qt.TransformationMode.SmoothTransformation))
             form.addRow(label + ":", img)
             if info:
-                form.addRow("", QLabel(info, inner))
+                form.addRow("", QLabel(info, below))
 
         fields = {mp.AUDIO: tg.FIELDS, mp.PHOTO: ph.FIELDS, mp.VIDEO: vt.FIELDS, mp.DOC: dc.FIELDS}[kind]
         for key in fields:
@@ -168,7 +345,7 @@ class PropertiesDialog(QDialog):
             row(t("meta.info.format"), rec.codec)
             hint = doc_hint([rec])
             if hint:
-                form.addRow("", QLabel(hint, inner))
+                form.addRow("", QLabel(hint, below))
         elif kind == mp.PHOTO:
             row(t("meta.info.format"), rec.codec)
             if rec.width:
@@ -213,19 +390,29 @@ class PropertiesDialog(QDialog):
                 image(t("photo.preview"), QPixmap.fromImage(img))
         url = ph.map_url(rec) if kind not in (mp.AUDIO, mp.DOC) else None
         if url:
-            link = QLabel(f'<a href="{url}">{t("photo.show_map")}</a>', inner)
+            link = QLabel(f'<a href="{url}">{t("photo.show_map")}</a>', below)
             link.setOpenExternalLinks(True)
             form.addRow("", link)
-        scroll = QScrollArea(w)
-        scroll.setWidgetResizable(True)
-        scroll.setWidget(inner)
+        table.finish()
         btn = QPushButton(t("props.meta_edit"), w)
         btn.setEnabled(not self.read_only)
         btn.clicked.connect(self._edit_in_meta)
         lay = QVBoxLayout(w)
-        lay.addWidget(scroll, 1)
+        lay.addWidget(table, 1)
+        if form.rowCount():
+            lay.addWidget(below, 0)
         lay.addWidget(btn, 0, Qt.AlignmentFlag.AlignRight)
         return w, True
+
+    def meta_texts(self) -> list[str]:
+        """Alle Texte des Reiters „Metadaten“ (Feldnamen, Werte, Hinweise) – für Tests."""
+        out: list[str] = []
+        table = getattr(self, "meta_table", None)
+        if table is not None:
+            for k, v in table.rows():
+                out += [k, v]
+        out += [w.text() for w in self.tabs.widget(2).findChildren(QLabel)]
+        return out
 
     def _edit_in_meta(self) -> None:
         self.edit_in_meta = True
@@ -433,6 +620,9 @@ class PropertiesDialog(QDialog):
         return mode
 
     def done(self, result: int) -> None:  # noqa: D401 – QDialog.done
+        table = getattr(self, "meta_table", None)
+        if table is not None:
+            table.save_width()  # Breite auch merken, wenn der Dialog gleich nach dem Ziehen schließt
         if self._thread is not None and self._thread.isRunning():
             self._thread.stop()
             self._thread.wait(2000)

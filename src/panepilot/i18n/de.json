@@ -1241,5 +1241,9 @@
   "meta.count_doc_one": "1 Dokument",
   "doc.signed_hint": "Digital signierte PDFs werden nur gelesen: Jede Änderung würde die Signatur ungültig machen.",
   "doc.encrypted_hint": "Verschlüsselte PDFs werden nur gelesen.",
-  "doc.ole_hint": "Alte Office-Dateien (DOC, XLS, PPT) werden nur gelesen."
+  "doc.ole_hint": "Alte Office-Dateien (DOC, XLS, PPT) werden nur gelesen.",
+  "props.meta_field": "Feld",
+  "props.meta_value": "Wert",
+  "props.copy_value": "Wert kopieren",
+  "props.copy_row": "Zeile kopieren"
 }

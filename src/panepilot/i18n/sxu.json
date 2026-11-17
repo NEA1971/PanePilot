@@ -1240,5 +1240,9 @@
   "meta.count_doc_one": "1 Dogumend",
   "doc.signed_hint": "Digidal unnorschriebne PDFs wern bloß gelesn: Jede Ändorung däd de Signadur ungildich machn.",
   "doc.encrypted_hint": "Vorschlüsselde PDFs wern bloß gelesn.",
-  "doc.ole_hint": "Alde Office-Dadein (DOC, XLS, PPT) wern bloß gelesn."
+  "doc.ole_hint": "Alde Office-Dadein (DOC, XLS, PPT) wern bloß gelesn.",
+  "props.meta_field": "Feld",
+  "props.meta_value": "Werd",
+  "props.copy_value": "Werd kobiern",
+  "props.copy_row": "Zeile kobiern"
 }

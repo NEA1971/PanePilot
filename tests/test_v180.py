@@ -170,7 +170,7 @@ def test_properties_meta_tab_for_pdf(window, docs):  # noqa: F811
     dlg = PropertiesDialog(window, [str(docs / "brief.pdf")])
     assert dlg.tabs.isTabEnabled(2)
     labels = dlg.tabs.widget(2).findChildren(QLabel)
-    texts = [w.text() for w in labels]
+    texts = dlg.meta_texts()
     assert "Testbrief" in texts and "Alice" in texts and "1.7" in texts
     assert any(w.pixmap() is not None and not w.pixmap().isNull() for w in labels)  # Vorschau (L-860)
 
@@ -192,3 +192,30 @@ def test_refresh_in_context_menu(window, tmp_path):  # noqa: F811
     QTimer.singleShot(200, grab)
     window._file_context_menu("left", QPoint(0, 0))
     assert seen and seen[0][-1] is window.qactions["refresh"]
+
+
+# --- 1.8.1: Metadaten als Tabelle mit verstellbarer Spaltenbreite ------------------------------------------------
+def test_properties_meta_table(window, docs, qtbot):  # noqa: F811
+    from panepilot.propdialog import PropertiesDialog
+
+    window.settings.set("props_meta_field_width", 0)
+    dlg = PropertiesDialog(window, [str(docs / "brief.docx")])
+    table = dlg.meta_table
+    assert table.columnCount() == 2 and table.horizontalHeaderItem(0).text() == "Feld"
+    rows = dict(table.rows())
+    assert rows["Titel"] == "Testbrief" and rows["Format"] == "DOCX"
+    auto = table.columnWidth(0)
+    table.horizontalHeader().resizeSection(0, auto + 77)  # wie Ziehen mit der Maus
+    dlg.reject()
+    assert window.settings.get("props_meta_field_width") == auto + 77
+    again = PropertiesDialog(window, [str(docs / "brief.docx")])
+    assert again.meta_table.columnWidth(0) == auto + 77  # gemerkt
+    again.meta_table._fit(0)  # Doppelklick auf die Trennlinie
+    assert again.meta_table.columnWidth(0) == auto
+    t = again.meta_table
+    t.selectRow(list(dict(t.rows())).index("Autor"))
+    t.copy_values()
+    assert QApplication.clipboard().text() == "Alice"
+    t.copy_rows()
+    assert QApplication.clipboard().text() == "Autor: Alice"
+    again.reject()
