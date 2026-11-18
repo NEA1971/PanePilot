@@ -52,6 +52,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.14.1" date="2026-11-18">
+      <description>
+        <p>Fix: MKV movie tags marked only with the target type MOVIE (year, IDs, custom fields) are read again after saving.</p>
+      </description>
+    </release>
     <release version="1.14.0" date="2026-11-18">
       <description>
         <p>Download subtitles from OpenSubtitles, add subtitle files to videos, convert MTS/M2TS to MKV, better online search with manual search, new fields Actors, Rating and Certification.</p>
