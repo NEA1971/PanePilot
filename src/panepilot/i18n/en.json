@@ -1315,13 +1315,17 @@
   "tracks.suggest": "Suggest names",
   "tracks.suggest_tip": "Builds names like “German AC3 5.1” from language, format and channels – for the selected rows, otherwise for all audio and subtitle tracks.",
   "tracks.hint": "“Default” is the track a player picks first; “Forced” shows subtitles only for foreign-language parts. For video tracks only the name can be changed.",
-  "tracks.only_mkv": "Tracks can currently only be edited in MKV files. For MP4 see the video guide for how to do it with ffmpeg (new file).",
-  "tracks.no_tool": "This needs mkvtoolnix (mkvmerge and mkvpropedit), e.g. via “sudo apt install mkvtoolnix”.",
+  "tracks.only_mkv": "Tracks can be edited in MKV and MP4 files. None of the selected videos is one of them.",
+  "tracks.no_tool": "MKV files need mkvtoolnix (mkvmerge and mkvpropedit), e.g. via “sudo apt install mkvtoolnix”.",
   "tracks.reading": "Reading tracks …",
   "tracks.writing": "Writing tracks …",
   "tracks.none": "No tracks found.",
   "tracks.confirm": "{tracks} tracks in {files} files will be changed. This is written to the files immediately and cannot be undone with “Undo”.",
   "tracks.skipped_other": "{n} selected videos are not MKV files and are skipped.",
   "tracks.skipped_missing": "Skipped because the track is missing:",
-  "tracks.done": "Tracks changed in {n} files."
+  "tracks.done": "Tracks changed in {n} files.",
+  "tracks.remux_note": "In {n} MP4 files the track name or “Default” changes. PanePilot repacks them for this (no re-encoding, no quality loss). This takes about as long as copying the files ({size}) and temporarily needs as much free space. Tags, custom fields and cover are kept; the old file is only replaced after a successful check.",
+  "tracks.forced_mp4": "“Forced” is hardly supported by MP4 and cannot be stored reliably here.",
+  "tracks.writing_file": "File {n} of {total}: {name}",
+  "tracks.cancelled": "Cancelled – the remaining files are unchanged."
 }

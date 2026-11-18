@@ -31,6 +31,7 @@ class MkvTrack:
     default: bool = False
     forced: bool = False
     channels: int = 0
+    stream: int = 0  # Stream-Nummer für ffmpeg (MP4, v1.12)
 
 
 @dataclass
@@ -50,6 +51,15 @@ class FileTracks:
     path: str
     tracks: list[MkvTrack] = field(default_factory=list)
     error: str = ""
+    fmt: str = "mkv"  # „mkv“ oder „mp4“ (v1.12)
+    duration: float = 0.0
+
+    def has_effect(self, track: MkvTrack, change: "TrackChange") -> bool:
+        if self.fmt == "mp4":
+            from .mp4tracks import has_effect
+
+            return has_effect(track, change)
+        return bool(edit_args(track, change))
 
     def find(self, kind: str, index: int) -> MkvTrack | None:
         return next((tr for tr in self.tracks if tr.kind == kind and tr.index == index), None)

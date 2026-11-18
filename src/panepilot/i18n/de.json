@@ -1316,13 +1316,17 @@
   "tracks.suggest": "Namen vorschlagen",
   "tracks.suggest_tip": "Bildet Namen wie „Deutsch AC3 5.1“ aus Sprache, Format und Kanälen – für die markierten Zeilen, sonst für alle Ton- und Untertitelspuren.",
   "tracks.hint": "„Standard“ ist die Spur, die ein Player zuerst nimmt; „Erzwungen“ (forced) zeigt Untertitel nur für fremdsprachige Stellen. Bei Videospuren lässt sich nur der Name ändern.",
-  "tracks.only_mkv": "Spuren lassen sich bisher nur bei MKV-Dateien bearbeiten. Für MP4 steht in der Video-Anleitung, wie es mit ffmpeg geht (neue Datei).",
-  "tracks.no_tool": "Dafür wird mkvtoolnix gebraucht (mkvmerge und mkvpropedit), z. B. mit „sudo apt install mkvtoolnix“.",
+  "tracks.only_mkv": "Spuren lassen sich bei MKV- und MP4-Dateien bearbeiten. Unter den markierten Videos ist keine davon.",
+  "tracks.no_tool": "Für MKV-Dateien wird mkvtoolnix gebraucht (mkvmerge und mkvpropedit), z. B. mit „sudo apt install mkvtoolnix“.",
   "tracks.reading": "Spuren werden gelesen …",
   "tracks.writing": "Spuren werden geschrieben …",
   "tracks.none": "Keine Spuren gefunden.",
   "tracks.confirm": "{tracks} Spuren in {files} Dateien werden geändert. Das wird sofort in die Dateien geschrieben und lässt sich nicht mit „Rückgängig“ zurücknehmen.",
   "tracks.skipped_other": "{n} markierte Videos sind keine MKV-Dateien und werden ausgelassen.",
   "tracks.skipped_missing": "Ausgelassen, weil die Spur fehlt:",
-  "tracks.done": "Spuren in {n} Dateien geändert."
+  "tracks.done": "Spuren in {n} Dateien geändert.",
+  "tracks.remux_note": "Bei {n} MP4-Dateien ändern sich Spurname oder „Standard“. Dafür packt PanePilot sie neu (ohne Neukodieren, ohne Qualitätsverlust). Das dauert etwa so lange wie das Kopieren der Dateien ({size}) und braucht vorübergehend genauso viel freien Platz. Tags, eigene Felder und Cover bleiben erhalten; die alte Datei wird erst nach erfolgreicher Prüfung ersetzt.",
+  "tracks.forced_mp4": "„Erzwungen“ (forced) wird von MP4 kaum unterstützt und lässt sich hier nicht zuverlässig speichern.",
+  "tracks.writing_file": "Datei {n} von {total}: {name}",
+  "tracks.cancelled": "Abgebrochen – die übrigen Dateien sind unverändert."
 }

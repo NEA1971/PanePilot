@@ -77,14 +77,18 @@ Im Video-Modus holt der Knopf **„Online-Daten (Filme, Serien) …“** Titel, 
 
 Der Schlüssel wird nur in deinem Schlüsselbund gespeichert, nicht in den Einstellungsdateien. Dieses Produkt nutzt die TMDb-API, ist aber nicht von TMDb unterstützt oder zertifiziert.
 
-## Spuren bearbeiten (MKV)
-Im Video-Modus öffnet **„Spuren …“** für die markierten MKV-Videos eine Tabelle aller Spuren: Video, Ton und Untertitel, jeweils mit Format, Sprache, Name und den Kennzeichen „Standard“ und „Erzwungen“.
+## Spuren bearbeiten (MKV und MP4)
+Im Video-Modus öffnet **„Spuren …“** für die markierten MKV- und MP4-Videos eine Tabelle aller Spuren: Video, Ton und Untertitel, jeweils mit Format, Sprache, Name und den Kennzeichen „Standard“ und „Erzwungen“.
 - **Sprache:** aus der Liste wählen, z. B. „Deutsch (ger)“, oder einen Code eintippen. In der Spalte „Audiospuren“ steht danach `ger` statt `?`.
 - **Name:** frei eintragen oder mit **„Namen vorschlagen“** bilden lassen, z. B. „Deutsch AC3 5.1“ (für die markierten Zeilen, sonst für alle). Diesen Namen zeigen Player wie VLC statt „Titel 1“.
 - **Standard** ist die Spur, die ein Player zuerst nimmt; **Erzwungen** (forced) zeigt Untertitel nur für fremdsprachige Stellen. Bei Videospuren lässt sich nur der Name ändern.
 - **Mehrere Videos auf einmal:** Die Spuren werden nach Nummer zusammengefasst („Tonspur 1“, „Untertitel 1“ …). Eine Änderung gilt für diese Spur in allen markierten Videos. Unterschiedliche Werte erscheinen als „verschieden“ und bleiben unverändert, solange man sie nicht ändert. Videos ohne die Spur werden ausgelassen und vorher aufgelistet.
 - **Speichern:** „Übernehmen“ fragt noch einmal nach und schreibt dann **sofort** in die Dateien (mit mkvpropedit, in Sekunden, auch auf dem NAS). „Rückgängig“ gibt es dafür nicht.
-- Nötig ist **mkvtoolnix** (`sudo apt install mkvtoolnix`). Bei MP4 geht es bisher nicht; wie es mit ffmpeg geht, steht in der Video-Anleitung.
+- Bei **MKV** ist **mkvtoolnix** nötig (`sudo apt install mkvtoolnix`).
+- **MP4** (auch M4V und MOV):
+  - Die **Sprache** wird direkt in der Datei geändert, in Sekunden. MP4 verlangt dabei die Codes `deu`, `fra`, `nld` … statt `ger`, `fre`, `dut`; PanePilot wandelt automatisch um.
+  - **Spurname** und **„Standard“** gehen nur über eine neue Datei: PanePilot packt sie mit ffmpeg neu (ohne Neukodieren, ohne Qualitätsverlust). Das dauert etwa so lange wie das Kopieren der Datei und braucht vorübergehend genauso viel freien Platz; eine Rückfrage weist vorher darauf hin, der Fortschrittsbalken hat „Abbrechen“. Tags, eigene Felder (z. B. `imdbid`, `Season`) und Cover übernimmt PanePilot; die alte Datei wird erst ersetzt, wenn die neue geprüft ist.
+  - **„Erzwungen“** ist bei MP4 ausgegraut, weil MP4 das kaum unterstützt.
 
 ## Online-Daten für Serien
 **„Online-Daten (Filme, Serien) …“** erkennt Folgen am Muster **`S01E02`** im Dateinamen (auch `s1e2` oder `1x02`).

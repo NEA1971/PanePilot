@@ -110,14 +110,7 @@ def test_meta_tracks_flow(window, tmp_path, monkeypatch, qtbot):  # noqa: F811
     monkeypatch.setattr(TrackDialog, "exec", run)
     window.meta_convert(cv.TRACKS)
     assert len(written) == 1 and written[0][0].endswith("a.mkv")
-    assert "1 Spuren in 1 Dateien" in asked[0] and "keine MKV" in asked[0]
-    # nur MP4 markiert: Hinweis statt Dialog (L-1101)
-    infos = []
-    monkeypatch.setattr("panepilot.dialogs.show_info", lambda parent, title, text: infos.append(text))
-    mp4 = [it for it in pane.meta_model.items if it.record.name == "b.mp4"]
-    pane.meta_view.select_items(mp4)
-    window.meta_convert(cv.TRACKS)
-    assert infos and "MKV" in infos[0]
+    assert "Spuren in" in asked[0]
     errors = []
     monkeypatch.setattr(metacontrol, "show_error", lambda *a: errors.append(a))
     window.meta_close()

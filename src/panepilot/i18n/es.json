@@ -1315,13 +1315,17 @@
   "tracks.suggest": "Sugerir nombres",
   "tracks.suggest_tip": "Crea nombres como «Alemán AC3 5.1» a partir de idioma, formato y canales – para las filas seleccionadas o, si no, para todas las pistas de audio y subtítulos.",
   "tracks.hint": "«Predeterminada» es la pista que el reproductor elige primero; «Forzada» muestra subtítulos solo en las partes en otro idioma. En las pistas de vídeo solo se puede cambiar el nombre.",
-  "tracks.only_mkv": "Por ahora las pistas solo se pueden editar en archivos MKV. Para MP4, la guía de vídeo explica cómo hacerlo con ffmpeg (archivo nuevo).",
-  "tracks.no_tool": "Se necesita mkvtoolnix (mkvmerge y mkvpropedit), p. ej. con «sudo apt install mkvtoolnix».",
+  "tracks.only_mkv": "Las pistas se pueden editar en archivos MKV y MP4. Ninguno de los vídeos seleccionados lo es.",
+  "tracks.no_tool": "Los archivos MKV necesitan mkvtoolnix (mkvmerge y mkvpropedit), p. ej. con «sudo apt install mkvtoolnix».",
   "tracks.reading": "Leyendo pistas …",
   "tracks.writing": "Escribiendo pistas …",
   "tracks.none": "No se encontraron pistas.",
   "tracks.confirm": "Se cambiarán {tracks} pistas en {files} archivos. Se escribe de inmediato en los archivos y no se puede deshacer con «Deshacer».",
   "tracks.skipped_other": "{n} vídeos seleccionados no son MKV y se omiten.",
   "tracks.skipped_missing": "Omitidos porque falta la pista:",
-  "tracks.done": "Pistas cambiadas en {n} archivos."
+  "tracks.done": "Pistas cambiadas en {n} archivos.",
+  "tracks.remux_note": "En {n} archivos MP4 cambia el nombre de pista o «Predeterminada». Para ello PanePilot los vuelve a empaquetar (sin recodificar, sin pérdida de calidad). Tarda aproximadamente lo mismo que copiar los archivos ({size}) y necesita temporalmente el mismo espacio libre. Se conservan las etiquetas, los campos propios y la carátula; el archivo antiguo solo se sustituye tras una comprobación correcta.",
+  "tracks.forced_mp4": "«Forzada» apenas es compatible con MP4 y no se puede guardar de forma fiable aquí.",
+  "tracks.writing_file": "Archivo {n} de {total}: {name}",
+  "tracks.cancelled": "Cancelado: los archivos restantes no se han modificado."
 }

@@ -1315,13 +1315,17 @@
   "tracks.suggest": "Name vorschlogn",
   "tracks.suggest_tip": "Macht Name wie „Deutsch AC3 5.1“ aus Sprach, Format und Kanäl – für die markierdn Zeiln, sonst für alle Don- und Unnerdidlschburn.",
   "tracks.hint": "„Schdandard“ is die Schbur, die a Player zerschd nimmt; „Erzwunga“ (forced) zeigt Unnerdidl bloß für fremdsprachige Stelln. Bei Videoschburn kannst bloß den Nam ändern.",
-  "tracks.only_mkv": "Schburn kannst bis etz bloß bei MKV-Dadein bearbeidn. Für MP4 schdehd in der Video-Anleidung, wies mit ffmpeg ged (neie Dadei).",
-  "tracks.no_tool": "Dafür brauchst mkvtoolnix (mkvmerge und mkvpropedit), z. B. mit „sudo apt install mkvtoolnix“.",
+  "tracks.only_mkv": "Schburn kannst bei MKV- und MP4-Dadein bearbeidn. Bei de markierdn Videos is ka solche dabei.",
+  "tracks.no_tool": "Für MKV-Dadein brauchst mkvtoolnix (mkvmerge und mkvpropedit), z. B. mit „sudo apt install mkvtoolnix“.",
   "tracks.reading": "Schburn wern glesn …",
   "tracks.writing": "Schburn wern gschriebn …",
   "tracks.none": "Ka Schburn gfundn.",
   "tracks.confirm": "{tracks} Schburn in {files} Dadein wern gändert. Des wird glei in die Dadein gschriebn und lässt si ned mit „Rückgängig“ zrücknehma.",
   "tracks.skipped_other": "{n} markierte Videos sin ka MKV-Dadein und wern auslassn.",
   "tracks.skipped_missing": "Auslassn, weil die Schbur fehlt:",
-  "tracks.done": "Schburn in {n} Dadein gändert."
+  "tracks.done": "Schburn in {n} Dadein gändert.",
+  "tracks.remux_note": "Bei {n} MP4-Dadein ändern si Schburnam oder „Schdandard“. Dafür packt PanePilot de nei (ohne Neikodiern, ohne Qualidädsverlusd). Des dauert ungefähr so lang wie s Kobiern vo de Dadein ({size}) und brauchd zwischndurch genauso viel freien Blatz. Tags, eigne Felder und Cover bleibn; die alde Dadei wird erschd nach erfolgreicher Brüfung ersetzd.",
+  "tracks.forced_mp4": "„Erzwunga“ (forced) kann MP4 kaum und lässt si do ned zuverlässi speichern.",
+  "tracks.writing_file": "Dadei {n} vo {total}: {name}",
+  "tracks.cancelled": "Abgebrochn – de übrign Dadein sin unverändert."
 }

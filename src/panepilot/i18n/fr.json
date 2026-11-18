@@ -1315,13 +1315,17 @@
   "tracks.suggest": "Proposer des noms",
   "tracks.suggest_tip": "Crée des noms comme « Allemand AC3 5.1 » à partir de la langue, du format et des canaux – pour les lignes sélectionnées, sinon pour toutes les pistes audio et sous-titres.",
   "tracks.hint": "« Par défaut » est la piste qu'un lecteur choisit en premier ; « Forcée » n'affiche les sous-titres que pour les passages en langue étrangère. Pour les pistes vidéo, seul le nom peut être modifié.",
-  "tracks.only_mkv": "Pour l'instant, les pistes ne peuvent être modifiées que dans les fichiers MKV. Pour le MP4, le guide vidéo explique comment faire avec ffmpeg (nouveau fichier).",
-  "tracks.no_tool": "Il faut mkvtoolnix (mkvmerge et mkvpropedit), p. ex. avec « sudo apt install mkvtoolnix ».",
+  "tracks.only_mkv": "Les pistes peuvent être modifiées dans les fichiers MKV et MP4. Aucune des vidéos sélectionnées n'en est un.",
+  "tracks.no_tool": "Les fichiers MKV nécessitent mkvtoolnix (mkvmerge et mkvpropedit), p. ex. avec « sudo apt install mkvtoolnix ».",
   "tracks.reading": "Lecture des pistes …",
   "tracks.writing": "Écriture des pistes …",
   "tracks.none": "Aucune piste trouvée.",
   "tracks.confirm": "{tracks} pistes dans {files} fichiers vont être modifiées. C'est écrit immédiatement dans les fichiers et ne peut pas être annulé avec « Annuler ».",
   "tracks.skipped_other": "{n} vidéos sélectionnées ne sont pas des MKV et sont ignorées.",
   "tracks.skipped_missing": "Ignorés car la piste manque :",
-  "tracks.done": "Pistes modifiées dans {n} fichiers."
+  "tracks.done": "Pistes modifiées dans {n} fichiers.",
+  "tracks.remux_note": "Dans {n} fichiers MP4, le nom de piste ou « Par défaut » change. PanePilot les réempaquette pour cela (sans réencodage, sans perte de qualité). Cela prend à peu près le temps de copier les fichiers ({size}) et nécessite temporairement autant d'espace libre. Les tags, champs personnalisés et pochettes sont conservés ; l'ancien fichier n'est remplacé qu'après une vérification réussie.",
+  "tracks.forced_mp4": "« Forcée » est à peine pris en charge par le MP4 et ne peut pas être enregistré de façon fiable ici.",
+  "tracks.writing_file": "Fichier {n} sur {total} : {name}",
+  "tracks.cancelled": "Annulé – les fichiers restants sont inchangés."
 }

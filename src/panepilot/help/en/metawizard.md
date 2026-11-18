@@ -77,14 +77,18 @@ In video mode the button **“Online data (movies, series) …”** fetches titl
 
 The key is only stored in your keyring, not in the settings files. This product uses the TMDB API but is not endorsed or certified by TMDB.
 
-## Editing tracks (MKV)
-In video mode **“Tracks …”** opens a table of all tracks of the selected MKV videos: video, audio and subtitles, each with format, language, name and the flags “Default” and “Forced”.
+## Editing tracks (MKV and MP4)
+In video mode **“Tracks …”** opens a table of all tracks of the selected MKV and MP4 videos: video, audio and subtitles, each with format, language, name and the flags “Default” and “Forced”.
 - **Language:** choose from the list, e.g. “German (ger)”, or type a code. The “Audio tracks” column then shows `ger` instead of `?`.
 - **Name:** enter freely or let **“Suggest names”** build one, e.g. “German AC3 5.1” (for the selected rows, otherwise for all). Players like VLC show this name instead of “Track 1”.
 - **Default** is the track a player picks first; **Forced** shows subtitles only for foreign-language parts. For video tracks only the name can be changed.
 - **Several videos at once:** tracks are grouped by number (“Audio 1”, “Subtitle 1” …). A change applies to this track in all selected videos. Differing values appear as “different” and stay unchanged unless you change them. Videos without the track are skipped and listed beforehand.
 - **Saving:** “Apply” asks once more and then writes to the files **immediately** (with mkvpropedit, in seconds, also on a NAS). There is no “Undo” for this.
-- **mkvtoolnix** is required (`sudo apt install mkvtoolnix`). MP4 is not supported yet; the video guide explains how to do it with ffmpeg.
+- **MKV** needs **mkvtoolnix** (`sudo apt install mkvtoolnix`).
+- **MP4** (also M4V and MOV):
+  - The **language** is changed directly in the file, in seconds. MP4 requires the codes `deu`, `fra`, `nld` … instead of `ger`, `fre`, `dut`; PanePilot converts automatically.
+  - **Track name** and **“Default”** need a new file: PanePilot repacks it with ffmpeg (no re-encoding, no quality loss). This takes about as long as copying the file and temporarily needs as much free space; a confirmation points this out beforehand, the progress bar has “Cancel”. Tags, custom fields (e.g. `imdbid`, `Season`) and cover are taken over; the old file is only replaced once the new one has been checked.
+  - **“Forced”** is greyed out for MP4 because MP4 hardly supports it.
 
 ## Online data for TV series
 **“Online data (movies, series) …”** recognises episodes by the pattern **`S01E02`** in the file name (also `s1e2` or `1x02`).

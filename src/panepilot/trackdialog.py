@@ -154,6 +154,9 @@ class TrackDialog(QDialog):
             if row.kind == mt.VIDEO:
                 continue
             box = QCheckBox(self.table)
+            if attr == "forced" and self._mp4_only(row):  # L-1204: MP4 kennt „Erzwungen“ kaum
+                box.setEnabled(False)
+                box.setToolTip(t("tracks.forced_mp4"))
             value = row.common(attr)
             if value is None:
                 box.setTristate(True)
@@ -168,6 +171,10 @@ class TrackDialog(QDialog):
             w[attr] = box
             w[attr + "0"] = value
         self.widgets.append(w)
+
+    def _mp4_only(self, row: Row) -> bool:
+        fmt = {id(tr): f.fmt for f in self.files for tr in f.tracks}
+        return all(fmt.get(id(tr)) == "mp4" for tr in row.tracks)
 
     # --- Werte ----------------------------------------------------------------------------------
     def _lang_of(self, r: int) -> str | None:
@@ -194,7 +201,7 @@ class TrackDialog(QDialog):
             ch.name = name
         for attr in ("default", "forced"):
             box = w.get(attr)
-            if box is None or box.checkState() == Qt.CheckState.PartiallyChecked:
+            if box is None or not box.isEnabled() or box.checkState() == Qt.CheckState.PartiallyChecked:
                 continue
             value = box.isChecked()
             if value != w.get(attr + "0"):
@@ -230,6 +237,6 @@ class TrackDialog(QDialog):
                 if tr is None:
                     missing.append(f"{os.path.basename(f.path)} – {mt.kind_label(row.kind, row.index)}")
                     continue
-                if mt.edit_args(tr, ch):
+                if f.has_effect(tr, ch):
                     out.setdefault(f.path, []).append((tr, ch))
         return out, missing

@@ -878,24 +878,32 @@ class MetaWizardMixin:
         self._meta_refresh()
 
     def meta_tracks(self) -> None:
-        """Ton- und Untertitelspuren von MKV-Dateien bearbeiten (v1.11, L-1100 ff.)."""
+        """Ton- und Untertitelspuren bearbeiten: MKV (v1.11, L-1100 ff.) und MP4 (v1.12, L-1200 ff.)."""
         from . import mkvtracks as mt
+        from . import mp4tracks as m4
         from . import netutil
-        from . import tags as tg
+        from . import util
         from .dialogs import confirm, show_info
         from .trackdialog import TrackDialog
 
         title = t("tracks.title")
         items = self._meta_targets()
         mkv = [it for it in items if it.record.kind == "video-mkv"]
-        if not mkv:
-            show_info(self, title, t("tracks.only_mkv"))  # L-1101
+        mp4 = [it for it in items if it.record.kind == "video-mp4"]
+        if not mkv and not mp4:
+            show_info(self, title, t("tracks.only_mkv"))
             return
-        if not mt.available():
-            show_error(self, title, t("tracks.no_tool"))
-            return
-        files, error = netutil.run_blocking(self, lambda: [mt.read(it.record.path) for it in mkv],
-                                            t("tracks.reading"), title)
+        if mkv and not mt.available():
+            if not mp4:
+                show_error(self, title, t("tracks.no_tool"))
+                return
+            mkv = []  # MKV ohne mkvtoolnix: nur die MP4-Dateien bearbeiten
+        targets = mkv + mp4
+
+        def load():
+            return [mt.read(it.record.path) if it in mkv else m4.read(it.record.path) for it in targets]
+
+        files, error = netutil.run_blocking(self, load, t("tracks.reading"), title)
         if error or files is None:
             if error:
                 show_error(self, title, error)
@@ -912,9 +920,14 @@ class MetaWizardMixin:
         edits, missing = dlg.edits()
         if not edits:
             return
+        by_path = {f.path: f for f in files}
         n_tracks = sum(len(v) for v in edits.values())
         text = t("tracks.confirm", files=len(edits), tracks=n_tracks)
-        others = len(items) - len(mkv)
+        remux = [p for p, e in edits.items() if by_path[p].fmt == "mp4" and m4.plan(e)[1]]
+        if remux:  # L-1203: Neupacken dauert wie Kopieren und braucht Platz
+            size = sum(os.path.getsize(p) for p in remux if os.path.exists(p))
+            text += "\n\n" + t("tracks.remux_note", n=len(remux), size=util.format_size(size))
+        others = len(items) - len(targets)
         if others:
             text += "\n\n" + t("tracks.skipped_other", n=others)
         if missing:
@@ -923,31 +936,85 @@ class MetaWizardMixin:
                 text += "\n…"
         if not confirm(self, title, text, yes_key="online.apply"):
             return
-
-        def run():
-            errs = []
-            for path, changes in edits.items():
-                try:
-                    mt.write(path, changes)
-                except OSError as exc:
-                    errs.append((os.path.basename(path), str(exc)))
-            return errs, {path: tg.read_file(path) for path in edits}
-
-        result, error = netutil.run_blocking(self, run, t("tracks.writing"), title)
-        if error:
-            show_error(self, title, error)
-            return
-        if result is None:
-            return
-        errs, recs = result
-        for it in mkv:
+        errs, recs, cancelled = self._write_tracks(edits, by_path, title)
+        for it in targets:
             rec = recs.get(it.record.path)
             if rec is not None and not rec.error:
                 it.record = rec  # Spalten „Audiospuren“ und „Untertitel“ neu (L-1106)
         if errs:
             show_error(self, title, "\n".join(f"{n}: {e}" for n, e in errs))
-        self._meta_pane().summary.setText(t("tracks.done", n=len(edits) - len(errs)))
+        done = len(recs) - len(errs)
+        self._meta_pane().summary.setText(t("tracks.done", n=done) + (" " + t("tracks.cancelled") if cancelled else ""))
         self._meta_refresh()
+
+    def _write_tracks(self, edits: dict, by_path: dict, title: str):
+        """Schreibt im Hintergrund mit Fortschritt; MP4-Neupacken lässt sich abbrechen (L-1203)."""
+        import threading
+
+        from PySide6.QtCore import QEventLoop, Qt, QThread, Signal
+        from PySide6.QtWidgets import QProgressDialog
+
+        from . import mkvtracks as mt
+        from . import mp4tracks as m4
+        from . import tags as tg
+
+        cancel = threading.Event()
+
+        class Worker(QThread):
+            step = Signal(int, int, float, str)
+
+            def __init__(self):
+                super().__init__()
+                self.errs, self.recs, self.cancelled = [], {}, False
+
+            def run(self):
+                paths = list(edits)
+                for i, path in enumerate(paths):
+                    if cancel.is_set():
+                        self.cancelled = True
+                        break
+                    name = os.path.basename(path)
+                    self.step.emit(i, len(paths), 0.0, name)
+                    f = by_path[path]
+                    try:
+                        if f.fmt == "mp4":
+                            m4.write(f, edits[path], lambda x, i=i, n=name: self.step.emit(i, len(paths), x, n),
+                                     cancel)
+                        else:
+                            mt.write(path, edits[path])
+                    except m4.Cancelled:
+                        self.cancelled = True
+                        break
+                    except (OSError, ValueError) as exc:
+                        self.errs.append((name, str(exc)))
+                        continue
+                    self.recs[path] = tg.read_file(path)
+
+        dlg = QProgressDialog(t("tracks.writing"), t("button.cancel"), 0, 1000, self)
+        dlg.setWindowTitle(title)
+        dlg.setWindowModality(Qt.WindowModality.WindowModal)
+        dlg.setMinimumDuration(400)
+        dlg.setAutoClose(False)
+        dlg.setAutoReset(False)
+        worker = Worker()
+
+        def step(i, total, frac, name):
+            dlg.setValue(int(1000 * (i + frac) / max(total, 1)))
+            dlg.setLabelText(t("tracks.writing_file", n=i + 1, total=total, name=name))
+
+        worker.step.connect(step)
+        dlg.canceled.connect(cancel.set)
+        loop = QEventLoop()
+        worker.finished.connect(loop.quit)
+        worker.start()
+        if not worker.isFinished():
+            loop.exec()
+        worker.wait()
+        dlg.close()
+        dlg.deleteLater()
+        result = (worker.errs, worker.recs, worker.cancelled or cancel.is_set())
+        worker.deleteLater()
+        return result
 
     def meta_online(self) -> None:
         """Film-Daten von TMDb bzw. Wikidata holen (v1.9, L-900 ff.)."""
