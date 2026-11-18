@@ -33,6 +33,8 @@ SECRET_ID, SECRET_KIND = "tmdb", "apikey"
 # Eigene Felder (L-931); vorhandene Felder mit anderer Schreibweise werden weiter benutzt (L-932)
 F_IMDB, F_TMDB, F_ORIG = "imdbid", "themoviedb", "originaltitle"
 F_SERIES, F_SEASON, F_EPISODE = "Series", "Season", "Episode"  # v1.11 (L-1113)
+F_ACTORS, F_RATING, F_CERT = "Actors", "Rating", "Certification"  # v1.14 (L-1433)
+MAX_ACTORS = 5
 
 
 class FatalError(netutil.NetError):
@@ -56,6 +58,10 @@ class Movie:
     series: str = ""
     season: str = ""  # zweistellig, z. B. „01“
     episode: str = ""
+    # v1.14 (L-1433), nur TMDb
+    actors: list = field(default_factory=list)
+    rating: str = ""
+    certification: str = ""
 
 
 @dataclass
@@ -238,13 +244,14 @@ class Tmdb:
         """Schlüssel prüfen (L-922, „Prüfen“); wirft FatalError bei falschem Schlüssel."""
         self._get("/configuration")
 
-    def find_imdb(self, imdb: str) -> str:
+    def find_imdb(self, imdb: str, tv: bool = False) -> str:
         data = self._get(f"/find/{imdb}", external_source="imdb_id")
-        results = data.get("movie_results") or []
+        results = data.get("tv_results" if tv else "movie_results") or []
         return str(results[0]["id"]) if results else ""
 
     def movie(self, tmdb: str, with_poster: bool = True) -> Movie:
-        data = self._get(f"/movie/{tmdb}", language=self.lang, append_to_response="credits,external_ids")
+        data = self._get(f"/movie/{tmdb}", language=self.lang,
+                         append_to_response="credits,external_ids,release_dates")
         m = Movie(SOURCE_TMDB, tmdb=str(data.get("id") or tmdb))
         m.title = (data.get("title") or "").strip()
         m.original_title = (data.get("original_title") or "").strip()
@@ -254,6 +261,15 @@ class Tmdb:
         crew = (data.get("credits") or {}).get("crew") or []
         m.directors = list(dict.fromkeys(c.get("name", "") for c in crew if c.get("job") == "Director" and c.get("name")))
         m.imdb = data.get("imdb_id") or (data.get("external_ids") or {}).get("imdb_id") or ""
+        m.actors = _actors((data.get("credits") or {}).get("cast"))
+        m.rating = _rating(data)
+        country = self.country()
+        for r in (data.get("release_dates") or {}).get("results") or []:
+            if r.get("iso_3166_1") == country:
+                certs = [d.get("certification", "").strip() for d in sorted(r.get("release_dates") or [],
+                                                                             key=lambda d: d.get("type") != 3)]
+                m.certification = format_cert(next((c for c in certs if c), ""), country)
+                break
         if (not m.overview or not m.title) and not self.lang.startswith("en"):  # L-930: ersatzweise Englisch
             en = self._get(f"/movie/{tmdb}", language="en-US")
             m.overview = m.overview or (en.get("overview") or "").strip()
@@ -280,8 +296,6 @@ class Tmdb:
             thumb = TMDB_IMAGE.format(size=THUMB_SIZE, path=r["poster_path"]) if r.get("poster_path") else ""
             hits.append(Hit(r.get("title") or r.get("original_title") or "", (r.get("release_date") or "")[:4],
                             r.get("original_title") or "", tmdb=str(r.get("id") or ""), thumb_url=thumb))
-        if year and not hits:  # Jahr im Dateinamen weicht manchmal um eins ab
-            return self.search(title, "")
         return hits
 
     # --- Serien (v1.11, L-1110 ff.) ------------------------------------------------------------
@@ -295,8 +309,6 @@ class Tmdb:
             thumb = TMDB_IMAGE.format(size=THUMB_SIZE, path=r["poster_path"]) if r.get("poster_path") else ""
             hits.append(Hit(r.get("name") or r.get("original_name") or "", (r.get("first_air_date") or "")[:4],
                             r.get("original_name") or "", tmdb=str(r.get("id") or ""), thumb_url=thumb))
-        if year and not hits:
-            return self.search_tv(title, "")
         return hits
 
     def _cached(self, key, fn):
@@ -305,8 +317,13 @@ class Tmdb:
             cache[key] = fn()
         return cache[key]
 
+    def country(self) -> str:
+        parts = self.lang.split("-")
+        return parts[1].upper() if len(parts) > 1 else "US"
+
     def tv(self, tv_id: str) -> dict:
-        return self._cached(("tv", tv_id), lambda: self._get(f"/tv/{tv_id}", language=self.lang))
+        return self._cached(("tv", tv_id), lambda: self._get(f"/tv/{tv_id}", language=self.lang,
+                                                             append_to_response="credits,content_ratings"))
 
     def season(self, tv_id: str, season: int, lang: str | None = None) -> dict:
         lang = lang or self.lang
@@ -342,6 +359,13 @@ class Tmdb:
         m.overview = (ep.get("overview") or "").strip()
         m.year = (ep.get("air_date") or "")[:4]
         m.genres = [g.get("name", "") for g in show.get("genres") or [] if g.get("name")]
+        m.actors = _actors((show.get("credits") or {}).get("cast"))
+        m.rating = _rating(ep)
+        country = self.country()
+        for r in (show.get("content_ratings") or {}).get("results") or []:
+            if r.get("iso_3166_1") == country:
+                m.certification = format_cert((r.get("rating") or "").strip(), country)
+                break
         if (not m.overview or not m.title or re.fullmatch(r"(Episode|Folge|Épisode|Episodio|Серия) \d+", m.title)) \
                 and not self.lang.startswith("en"):  # L-930: ersatzweise Englisch
             en = {e.get("episode_number"): e for e in self.season(tv_id, season, "en-US").get("episodes") or []}
@@ -361,6 +385,54 @@ class Tmdb:
         if not tmdb:
             return None
         return self.movie(tmdb)
+
+
+def _actors(cast) -> list:
+    people = sorted((c for c in cast or [] if c.get("name")), key=lambda c: c.get("order", 999))
+    return [c["name"] for c in people[:MAX_ACTORS]]
+
+
+def _rating(data: dict) -> str:
+    try:
+        if int(data.get("vote_count") or 0) > 0 and float(data.get("vote_average") or 0) > 0:
+            return f"{float(data['vote_average']):.1f}"
+    except (TypeError, ValueError):
+        pass
+    return ""
+
+
+def format_cert(code: str, country: str) -> str:
+    """„12“ in Deutschland → „FSK 12“ (L-1433)."""
+    code = (code or "").strip()
+    if country == "DE" and code.isdigit():
+        return f"FSK {code}"
+    return code
+
+
+# --- Suche mit Ersatzschreibweisen (v1.14, L-1430) -------------------------------------------------
+def title_variants(title: str) -> list[str]:
+    """„Die Olsenbande faehrt nach Juetland“ → zusätzlich „… fährt nach Jütland“ (und mit ß)."""
+    out = [title]
+    pairs = (("Ae", "Ä"), ("Oe", "Ö"), ("Ue", "Ü"), ("ae", "ä"), ("oe", "ö"), ("ue", "ü"))
+    umlaut = title
+    for a, b in pairs:
+        umlaut = umlaut.replace(a, b)
+    if umlaut != title:
+        out.append(umlaut)
+    sharp = umlaut.replace("ss", "ß")
+    if sharp != umlaut:
+        out.append(sharp)
+    return out
+
+
+def search_fallback(search, title: str, year: str = "") -> list:
+    """Erst wie angegeben, dann mit Umlauten, dann ohne Jahr (L-1430)."""
+    for y in ([year, ""] if year else [""]):
+        for variant in title_variants(title):
+            hits = search(variant, y)
+            if hits:
+                return hits
+    return []
 
 
 # --- Wikidata --------------------------------------------------------------------------------------------------

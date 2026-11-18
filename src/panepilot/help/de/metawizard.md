@@ -59,13 +59,15 @@ Im Video-Modus holt der Knopf **„Online-Daten (Filme, Serien) …“** Titel, 
 - **Woher PanePilot weiß, welcher Film es ist**, in dieser Reihenfolge:
   1. eigene Felder `imdbid` bzw. `themoviedb`
   2. Kennung im Dateinamen im Jellyfin-Stil, z. B. `Alien (1979) [imdbid-tt0078748].mkv` oder `[tmdbid-348]`
-  3. sonst Suche über Titel und Jahr aus dem Dateinamen, z. B. `Alien (1979).mkv`. Gibt es genau einen Treffer mit diesem Jahr, wird er genommen, sonst wählst du den Film aus einer Liste (oder „Überspringen“).
+  3. sonst Suche über Titel und Jahr aus dem Dateinamen, z. B. `Alien (1979).mkv`. Gibt es genau einen Treffer mit diesem Jahr, wird er genommen, sonst wählst du den Film aus einer Liste (oder „Überspringen“). Findet die Suche nichts, versucht PanePilot es noch einmal mit Umlauten (`ae` → `ä`, `oe` → `ö`, `ue` → `ü`, `ss` → `ß`) und danach ohne Jahr – so wird z. B. `Die Olsenbande faehrt nach Juetland (1971).mkv` gefunden.
+- **Nicht gefunden oder falscher Film?** In der Übersicht hat ein nicht gefundener Film den Knopf **„Manuell suchen …“**: Titel und Jahr anpassen oder eine Kennung eingeben (`tt0078748` oder die TMDb-Nummer), dann den Film aus der Trefferliste wählen. Bei einem gefundenen Film geht das per Rechtsklick mit **„Anderen Film suchen …“** (bei Serien „Andere Serie suchen …“, das gilt dann für alle Folgen der Serie).
 - **Quellen:**
   - **TMDb** (The Movie Database), wenn in den Einstellungen ein API-Schlüssel eingetragen ist: alle Angaben einschließlich Inhaltsangabe und Poster.
   - **Wikidata**, wenn kein Schlüssel eingetragen ist: kein Konto nötig, aber ohne Inhaltsangabe und Poster.
 - **Sprache:** Titel, Inhaltsangabe und Genre kommen in der **Programmsprache** (bei Fränkisch und Sächsisch auf Deutsch). Gibt es keine Fassung in dieser Sprache, wird Englisch genommen.
 - **Übersicht:** Vor dem Übernehmen zeigt PanePilot je Film „Feld – bisher – neu“. Angehakt sind nur Felder, die bisher leer sind; vorhandene Werte werden nur überschrieben, wenn du das Häkchen setzt. Die Knöpfe „Alle Felder“ und „Nur leere Felder“ setzen die Häkchen für alle Filme.
 - **Übernehmen** merkt die Werte grün vor; geschrieben wird erst mit **„Tag speichern“**, „Rückgängig“ funktioniert wie immer.
+- **Nur mit TMDb** kommen außerdem `Actors` (die ersten 5 Darsteller), `Rating` (TMDb-Bewertung, z. B. `7.8`) und `Certification` (Altersfreigabe für das Land der Programmsprache, z. B. `FSK 12`) – wie alle Felder nur als Vorschlag.
 - Fehlt eine Kennung, wird sie ergänzt: Ein Film mit `imdbid` bekommt auch `themoviedb` und umgekehrt. Weicht der Originaltitel vom Titel ab, kommt er ins Feld `originaltitle`. Das Poster (etwa 500 Pixel breit) wird bei MP4, MKV und WMV als Cover gespeichert.
 - AVI-Dateien lassen sich nicht beschriften; sie erscheinen in der Übersicht mit „Format nur lesbar“.
 
@@ -91,15 +93,25 @@ Im Video-Modus öffnet **„Spuren …“** für die markierten MKV- und MP4-Vid
   - **„Erzwungen“** ist bei MP4 ausgegraut, weil MP4 das kaum unterstützt.
 
 - **Spuren entfernen:** In der Spalte **„Entfernen“** Ton- oder Untertitelspuren anhaken. Dafür entsteht eine **neue Datei** `Film-Kopie.mkv` (bzw. `.mp4`) im selben Ordner, das **Original bleibt unverändert** – was danach mit ihm geschieht, entscheidest du. Mit dem Häkchen **„Original ersetzen (keine Kopie anlegen)“** ersetzt die geprüfte neue Datei stattdessen das Original; PanePilot merkt sich die Wahl. Die Videospur und die letzte Tonspur lassen sich nicht entfernen; war die entfernte Spur „Standard“, übernimmt das die nächste.
+- **Untertitel hinzufügen:** Bei einem einzelnen Video holt **„Untertitel hinzufügen …“** Untertiteldateien als neue Spuren ins Video. Passende Dateien aus dem Ordner sind schon eingetragen (z. B. `Film.ger.srt` und `Film.eng.forced.srt` zu `Film.mkv`), weitere gibt es über **„Weitere Datei …“**. Sprache und „erzwungen“ kommen aus dem Dateinamen und lassen sich ändern, ebenso der Name. Gespeichert wird wie beim Entfernen als `Film-Kopie.mkv` oder, mit „Original ersetzen“, in die Originaldatei; die Untertiteldatei bleibt liegen. Bei MP4 werden Text-Untertitel umgewandelt (Formatierungen gehen verloren), Bild-Untertitel (`.sup`, `.idx`) passen nur in MKV. Ältere SRT-Dateien im Windows-Zeichensatz werden erkannt, Umlaute bleiben richtig.
 - **Untertitel exportieren:** Beim Entfernen ist **„Untertitel vor dem Entfernen als Datei speichern“** vorgehakt. Der Knopf **„Untertitel exportieren“** speichert die markierten (sonst alle) Untertitel, ohne sie zu entfernen. Text-Untertitel werden zu `.srt`, ASS-Untertitel zu `.ass`, Bild-Untertitel bleiben im Originalformat (`.sup` bzw. `.idx` + `.sub`). Die Dateien heißen wie bei Jellyfin üblich, z. B. `Film (2001).ger.srt` oder `Film (2001).ger.forced.srt`.
 
 ## Format wechseln
-**„Format wechseln …“** packt die markierten Videos ohne Neukodieren (ohne Qualitätsverlust) in ein anderes Format: **MP4, M4V, MOV und AVI → MKV** oder **MKV → MP4**.
+**„Format wechseln …“** packt die markierten Videos ohne Neukodieren (ohne Qualitätsverlust) in ein anderes Format: **MP4, M4V, MOV, AVI sowie MTS und M2TS (Camcorder) → MKV** oder **MKV → MP4**.
 - Es entsteht eine **neue Datei** im selben Ordner, z. B. `Film.mkv` neben `Film.mp4`; gibt es die schon, `Film-Kopie.mkv`. Das Original bleibt unverändert – außer mit dem Häkchen **„Original danach löschen“**: Dann wird es nach erfolgreicher, geprüfter Umwandlung gelöscht.
 - Übernommen werden Titel, Jahr, Genre, Beschreibung, Autor, alle eigenen Felder (z. B. `imdbid`, `Season`), Cover, Sprachen und Namen der Spuren sowie Kapitel.
 - MP4 kann keine Bild-Untertitel (PGS, VobSub) und Tonformate wie DTS oder TrueHD aufnehmen; solche Dateien werden ausgelassen und genannt. Text-Untertitel werden für MP4 umgewandelt (Formatierungen gehen verloren).
 - Das dauert etwa so lange wie das Kopieren und braucht genauso viel freien Platz; „Abbrechen“ verwirft die gerade entstehende Datei. Für MKV als Ziel ist mkvtoolnix nötig, für MP4 ffmpeg.
 - Untertiteldateien neben dem Video (`Film.eng.srt`) bleiben unberührt und passen weiter.
+
+## Untertitel herunterladen (OpenSubtitles)
+**„Untertitel suchen …“** sucht für die markierten Videos Untertitel auf **opensubtitles.com**.
+- **Einmal einrichten:** Auf opensubtitles.com ein kostenloses Konto anlegen, im Profil unter **„API Consumers“** einen eigenen API-Schlüssel erzeugen und ihn unter **Einstellungen → Meta-Wizard → Untertitel (OpenSubtitles)** eintragen. Benutzername und Passwort sind freiwillig: Ohne Anmeldung sind **5 Downloads am Tag** möglich, mit kostenlosem Konto mehr. **„Prüfen“** testet den Zugang und nennt die verbleibenden Downloads. Schlüssel und Passwort liegen nur im Schlüsselbund.
+- **Sprachen:** in den Einstellungen als Kürzel, z. B. `de, en` (Vorgabe).
+- **Suche:** über den Datei-Fingerabdruck und die Kennung (`imdbid`/`themoviedb`, bei Serien mit Staffel und Folge), ersatzweise über Titel und Jahr aus dem Dateinamen. Die Suche zählt nicht gegen das Kontingent.
+- **Trefferliste:** je Video eine Gruppe mit Sprache, Release-Name, Downloads, Bewertung und den Kennzeichen **„passt genau“** (zu genau dieser Datei hochgeladen), **„erzwungen“** und **„für Hörgeschädigte“**. Je Sprache ist der beste Treffer vorgewählt: zuerst „passt genau“, dann vollständige vor erzwungenen und Hörgeschädigten-Untertiteln, dann die meisten Downloads.
+- **Speichern** neben dem Video wie bei Jellyfin: `Film.ger.srt`, `Film.ger.forced.srt`, `Film.eng.sdh.srt`; gibt es den Namen schon, `Film.ger.2.srt`.
+- **„Direkt ins Video übernehmen“** steckt die Untertitel zusätzlich als Spur in MKV- und MP4-Dateien – als `Film-Kopie.mkv` oder, mit „Original ersetzen“, in die Originaldatei (wie bei „Untertitel hinzufügen“).
 
 ## Online-Daten für Serien
 **„Online-Daten (Filme, Serien) …“** erkennt Folgen am Muster **`S01E02`** im Dateinamen (auch `s1e2` oder `1x02`).

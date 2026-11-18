@@ -172,6 +172,7 @@ class SettingsDialog(QDialog):
         page = self._page("meta", t("settings.tab_meta"))
         page.add_section(t("settings.sec_replaygain"), self._replaygain_section())
         page.add_section(t("settings.sec_online"), self._online_section())
+        page.add_section(t("settings.sec_subs"), self._subs_section())  # v1.14, L-1400
         box = QDialogButtonBox(self)
         box.addButton(t("button.ok"), QDialogButtonBox.ButtonRole.AcceptRole).setDefault(True)
         box.addButton(t("button.cancel"), QDialogButtonBox.ButtonRole.RejectRole)
@@ -542,6 +543,69 @@ class SettingsDialog(QDialog):
                        t("online.no_connection", reason=error))
         elif _v:
             show_info(self, title, t("settings.tmdb_ok"))
+
+    # --- Untertitel (OpenSubtitles) (v1.14, L-1400) -----------------------------------------
+    def _subs_section(self) -> QWidget:
+        from PySide6.QtWidgets import QLineEdit
+
+        from . import opensubs as os_
+        from . import servers as sv
+
+        w = QWidget(self)
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        form = QFormLayout()
+        form.setContentsMargins(0, 0, 0, 0)
+        self.os_key = QLineEdit(os_.load_secret(os_.KEY_KIND), w)
+        self.os_key.setEchoMode(QLineEdit.EchoMode.PasswordEchoOnEdit)
+        self.os_key.setClearButtonEnabled(True)
+        self.os_key.setPlaceholderText(t("settings.os_key_placeholder"))
+        self.os_user = QLineEdit(self.window.settings.get("opensubs_user") or "", w)
+        self.os_user.setPlaceholderText(t("settings.os_optional"))
+        self.os_password = QLineEdit(os_.load_secret(os_.PASSWORD_KIND), w)
+        self.os_password.setEchoMode(QLineEdit.EchoMode.Password)
+        self.os_password.setPlaceholderText(t("settings.os_optional"))
+        self.os_langs = QLineEdit(self.window.settings.get("opensubs_languages") or os_.DEFAULT_LANGUAGES, w)
+        self.os_langs.setToolTip(t("settings.os_languages_tip"))
+        form.addRow(t("settings.os_key"), self.os_key)
+        form.addRow(t("settings.os_user"), self.os_user)
+        form.addRow(t("settings.os_password"), self.os_password)
+        form.addRow(t("settings.os_languages"), self.os_langs)
+        lay.addLayout(form)
+        row = QHBoxLayout()
+        self.btn_os_check = QPushButton(t("settings.tmdb_check"), w)
+        self.btn_os_check.clicked.connect(self._check_opensubs)
+        row.addWidget(self.btn_os_check)
+        row.addStretch(1)
+        lay.addLayout(row)
+        lay.addWidget(self._hint(t("settings.os_hint"), w))
+        if not sv.keyring_available():
+            lay.addWidget(self._hint(t("settings.tmdb_no_keyring"), w))
+        return w
+
+    def _check_opensubs(self) -> None:
+        from . import netutil
+        from . import opensubs as os_
+        from .dialogs import show_error, show_info
+
+        key = self.os_key.text().strip()
+        title = t("settings.sec_subs")
+        if not key:
+            show_error(self, title, t("settings.tmdb_empty"))
+            return
+        user = self.os_user.text().strip()
+        client = os_.Client(key, user, self.os_password.text() if user else "")
+        value, error = netutil.run_blocking(self, lambda: (client.check(), True), t("online.checking"), title)
+        if error:
+            show_error(self, title, t("subs.bad_login") if error == "401" else
+                       t("online.no_connection", reason=error))
+        elif value:
+            text = t("settings.os_ok")
+            if value[0] is not None:
+                text += " " + t("subs.remaining", n=value[0])
+            elif not user:
+                text += " " + t("subs.anonymous")
+            show_info(self, title, text)
 
     def _replaygain_section(self) -> QWidget:
         from PySide6.QtWidgets import QDoubleSpinBox
@@ -984,6 +1048,14 @@ class SettingsDialog(QDialog):
 
         if self.tmdb_key.text().strip() != md.load_key():
             md.store_key(self.tmdb_key.text())
+        from . import opensubs as os_  # v1.14
+
+        if self.os_key.text().strip() != os_.load_secret(os_.KEY_KIND):
+            os_.store_secret(os_.KEY_KIND, self.os_key.text())
+        if self.os_password.text() != os_.load_secret(os_.PASSWORD_KIND):
+            os_.store_secret(os_.PASSWORD_KIND, self.os_password.text())
+        s.set("opensubs_user", self.os_user.text().strip())
+        s.set("opensubs_languages", ", ".join(os_.parse_languages(self.os_langs.text())) or os_.DEFAULT_LANGUAGES)
         # Spaltenprofile schreiben
         for name in self._deleted:
             try:

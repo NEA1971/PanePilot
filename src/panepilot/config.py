@@ -158,7 +158,10 @@ class Settings:
         "meta_video_last_format": {},
         "tracks_export_before": True,  # v1.13.3: „Untertitel vor dem Entfernen speichern“ gemerkt
         "tracks_replace_original": False,  # v1.13.2: Spuren entfernen ohne „-Kopie“
-        "convert_replace_original": False,  # v1.13.2: Formatwechsel löscht danach das Original
+        "convert_replace_original": False,
+        "opensubs_user": "",  # v1.14: OpenSubtitles-Benutzername (Passwort und Schlüssel im Schlüsselbund)
+        "opensubs_languages": "de,en",  # v1.14, L-1402
+        "subs_direct": False,  # v1.14: „Direkt ins Video übernehmen“ gemerkt  # v1.13.2: Formatwechsel löscht danach das Original
         "props_meta_field_width": 0,  # v1.8.1: Spalte „Feld“ im Reiter Metadaten (0 = automatisch)
         "meta_doc_layout": {},  # v1.8: Dokumente
         "meta_doc_sidebar": [],

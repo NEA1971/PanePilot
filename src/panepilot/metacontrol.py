@@ -617,6 +617,7 @@ class MetaWizardMixin:
             {cv.TAG_TO_TEXT: self.meta_export_text, cv.TEXT_TO_TAG: self.meta_import_text,
              cv.NUMBER: self.meta_number, cv.DISC: self.meta_disc, cv.MUSICBRAINZ: self.meta_musicbrainz,
              cv.DATESHIFT: self.meta_dateshift, cv.ONLINE: self.meta_online,
+             cv.SUBTITLES: self.meta_subtitles,
              cv.TRACKS: self.meta_tracks, cv.VIDEO_FORMAT: self.meta_video_format,
              cv.PLAYLIST: self.meta_playlist, cv.REPLAYGAIN: self.meta_replaygain}[kind]()
             return
@@ -919,18 +920,26 @@ class MetaWizardMixin:
             return
         edits, missing = dlg.edits()
         removals, notes = dlg.removals()
+        additions = dlg.additions()  # v1.14, L-1410
         missing += notes
-        if not edits and not removals:
+        if not edits and not removals and not additions:
             return
         by_path = {f.path: f for f in files}
-        in_place = {p: e for p, e in edits.items() if p not in removals}
+        rebuild = set(removals) | set(additions)
+        in_place = {p: e for p, e in edits.items() if p not in rebuild}
         text = ""
         if in_place:
             text = t("tracks.confirm", files=len(in_place), tracks=sum(len(v) for v in in_place.values()))
-        if removals:  # L-1300: neue Datei „…-Kopie“, Original bleibt
-            size = sum(os.path.getsize(p) for p in removals if os.path.exists(p))
-            key = "tracks.remove_note_replace" if dlg.replace_wanted() else "tracks.remove_note"  # v1.13.2
-            text += ("\n\n" if text else "") + t(key, n=len(removals), size=util.format_size(size))
+        if rebuild:  # L-1300: neue Datei „…-Kopie“, Original bleibt
+            size = sum(os.path.getsize(p) for p in rebuild if os.path.exists(p))
+            if additions:
+                key = "tracks.rebuild_note_replace" if dlg.replace_wanted() else "tracks.rebuild_note"
+            else:
+                key = "tracks.remove_note_replace" if dlg.replace_wanted() else "tracks.remove_note"  # v1.13.2
+            text += ("\n\n" if text else "") + t(key, n=len(rebuild), size=util.format_size(size))
+            n_add = sum(len(v) for v in additions.values())
+            if n_add:
+                text += "\n\n" + t("tracks.add_note", n=n_add)
             subs = sum(1 for gone in removals.values() for tr in gone if tr.kind == mt.SUBS)
             if subs and dlg.export_wanted():
                 text += "\n\n" + t("tracks.export_note", n=subs)
@@ -948,8 +957,8 @@ class MetaWizardMixin:
         if not confirm(self, title, text, yes_key="online.apply"):
             return
         jobs = {p: (e, []) for p, e in in_place.items()}
-        for p, gone in removals.items():
-            jobs[p] = (edits.get(p, []), gone)
+        for p in rebuild:
+            jobs[p] = (edits.get(p, []), removals.get(p, []), additions.get(p, []))
         errs, recs, cancelled, created = self._write_tracks(jobs, by_path, title,
                                                             export=bool(removals) and dlg.export_wanted(),
                                                             replace=dlg.replace_wanted())
@@ -972,8 +981,140 @@ class MetaWizardMixin:
         self._meta_pane().summary.setText(msg + (" " + t("tracks.cancelled") if cancelled else ""))
         self._meta_refresh()
 
+    def meta_subtitles(self) -> None:
+        """Untertitel von OpenSubtitles suchen und herunterladen (v1.14, L-1400 ff.)."""
+        from . import mkvtracks as mt
+        from . import mp4tracks as m4
+        from . import netutil
+        from . import opensubs as osb
+        from . import videoremux as vr
+        from .dialogs import show_info
+        from .moviedialogs import make_jobs
+        from .subsdialog import SubtitleSearchDialog
+
+        title = t("subs.title")
+        items = [it for it in self._meta_targets() if it.record.kind.startswith("video")]
+        if not items:
+            show_info(self, title, t("subs.no_videos"))
+            return
+        client = osb.client(self.settings)
+        if client is None:
+            show_info(self, title, t("subs.no_key"))
+            return
+        langs = osb.languages(self.settings)
+        jobs = make_jobs(items)
+
+        def search():
+            client.login()
+            out = []
+            for job in jobs:
+                path = job.item.record.path
+                ep = job.ep
+                season, episode = (ep.season, ep.episode) if ep is not None else (None, None)
+                imdb, tmdb = ("", ep.tmdb) if ep is not None else (job.imdb, job.tmdb)
+                hits: list = []
+                error = ""
+                try:
+                    fingerprint = osb.moviehash(path)
+                    if fingerprint or imdb or tmdb:  # L-1403: Fingerabdruck und Kennung
+                        hits = client.search(langs, fingerprint, imdb, tmdb, season=season, episode=episode)
+                    if not imdb and not tmdb and job.title:  # ersatzweise Titel und Jahr
+                        seen = {h.file_id for h in hits}
+                        hits += [h for h in client.search(langs, query=job.title, year=job.year, season=season,
+                                                          episode=episode) if h.file_id not in seen]
+                except osb.FatalError:
+                    raise
+                except netutil.NetError as exc:
+                    error = str(exc)
+                out.append((path, job.item.display_name, hits, error))
+            return out
+
+        results, error = netutil.run_blocking(self, search, t("subs.searching"), title)
+        if error:
+            show_error(self, title, t("subs.bad_login") if error == "401" else t("online.no_connection", reason=error))
+            return
+        if results is None:
+            return
+        kinds = {it.record.path: it.record.kind for it in items}
+        can_embed = any(kinds[p] == "video-mp4" or (kinds[p] == "video-mkv" and mt.available())
+                        for p, _n, hits, _e in results if hits)
+        dlg = SubtitleSearchDialog(self, results, langs, client.remaining, can_embed, bool(client.token))
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        chosen = dlg.selected()
+        direct, replace = dlg.direct_wanted(), dlg.replace_wanted()
+
+        def fetch():
+            saved, errs, taken = [], [], set()
+            for path, hit in chosen:
+                target = osb.target_name(path, hit, taken)
+                try:
+                    data = client.download(hit)
+                    with open(target, "wb") as fh:
+                        fh.write(data)
+                except osb.QuotaError as exc:
+                    errs.append(t("subs.quota", reset=exc.reset or "?"))
+                    break
+                except (netutil.NetError, OSError) as exc:
+                    errs.append(f"{os.path.basename(target)}: {exc}")
+                    continue
+                saved.append((path, target, hit))
+            return saved, errs
+
+        value, error = netutil.run_blocking(self, fetch, t("subs.downloading"), title)
+        if error:
+            show_error(self, title, t("subs.bad_login") if error == "401" else t("online.no_connection", reason=error))
+            return
+        if value is None:
+            return
+        saved, errs = value
+        msg = t("subs.saved", n=len(saved))
+        if client.remaining is not None:
+            msg += " " + t("subs.remaining", n=client.remaining)
+        created: list[str] = []
+        if direct and saved:  # L-1405: gleich ins Video übernehmen (wie „Untertitel hinzufügen“)
+            adds: dict[str, list] = {}
+            for path, target, hit in saved:
+                kind = kinds.get(path)
+                if kind not in ("video-mkv", "video-mp4") or (kind == "video-mkv" and not mt.available()):
+                    continue
+                lang = osb.to_mkv_lang(hit.lang)
+                name = mt.suggest_name(mt.SUBS, lang, "srt", 0, hit.forced)
+                if hit.sdh:
+                    name += " SDH"
+                adds.setdefault(path, []).append(vr.SubAdd(target, lang, name, hit.forced))
+
+            def load():
+                return [mt.read(p) if kinds[p] == "video-mkv" else m4.read(p) for p in adds]
+
+            files, error = netutil.run_blocking(self, load, t("tracks.reading"), title)
+            files = [f for f in files or [] if not f.error]
+            if error:
+                errs.append(error)
+            by_path = {f.path: f for f in files}
+            jobs_w = {p: ([], [], a) for p, a in adds.items() if p in by_path}
+            if jobs_w:
+                w_errs, recs, cancelled, created = self._write_tracks(jobs_w, by_path, title, replace=replace)
+                errs += [f"{n}: {e}" for n, e in w_errs]
+                for it in items:
+                    rec = recs.get(it.record.path)
+                    if rec is not None and not rec.error:
+                        it.record = rec
+                if created:
+                    from . import tags as tg
+
+                    self._meta_found([tg.read_file(p) for p in created], self.meta_mode["base"])
+                done = len(recs) + len(created)
+                msg += " " + t("subs.embedded", n=done)
+                if cancelled:
+                    msg += " " + t("tracks.cancelled")
+        if errs:
+            show_error(self, title, "\n".join(errs[:20]))
+        self._meta_pane().summary.setText(msg)
+        self._meta_refresh()
+
     def meta_video_format(self) -> None:
-        """Formatwechsel MP4/M4V/MOV/AVI → MKV, MKV → MP4 (v1.13, L-1330 ff.); das Original bleibt."""
+        """Formatwechsel MP4/M4V/MOV/AVI/MTS/M2TS → MKV, MKV → MP4 (v1.13, L-1330 ff.); das Original bleibt."""
         import threading
 
         from PySide6.QtCore import QEventLoop, Qt, QThread, Signal
@@ -1149,14 +1290,15 @@ class MetaWizardMixin:
                     name = os.path.basename(path)
                     self.step.emit(i, len(paths), 0.0, name)
                     f = by_path[path]
-                    changes, gone = jobs[path]
+                    changes, gone, *rest = jobs[path]
+                    adds = rest[0] if rest else []  # v1.14: Untertiteldateien dazu
                     report = (lambda x, i=i, n=name: self.step.emit(i, len(paths), x, n))
                     try:
-                        if gone:
+                        if gone or adds:
                             subs = [tr for tr in gone if tr.kind == mt.SUBS]
                             if export and subs:  # L-1320: vorher sichern
                                 self.created += vr.export_subtitles(f, subs)
-                            new = vr.remove_tracks(f, gone, changes, report, cancel, replace=replace)
+                            new = vr.remove_tracks(f, gone, changes, report, cancel, replace=replace, add=adds)
                             if replace:
                                 self.recs[path] = tg.read_file(path)
                             else:
@@ -1259,7 +1401,7 @@ class MetaWizardMixin:
             if error:
                 show_error(self, title, error_text(error))
                 return
-        review = ReviewDialog(self, jobs, service.source)
+        review = ReviewDialog(self, jobs, service.source, service)
         if review.exec() != QDialog.DialogCode.Accepted:
             return
         changes = review.changes()

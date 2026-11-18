@@ -59,13 +59,15 @@ In video mode the button **“Online data (movies, series) …”** fetches titl
 - **How PanePilot knows which movie it is**, in this order:
   1. custom fields `imdbid` or `themoviedb`
   2. an ID in the file name in Jellyfin style, e.g. `Alien (1979) [imdbid-tt0078748].mkv` or `[tmdbid-348]`
-  3. otherwise a search for title and year from the file name, e.g. `Alien (1979).mkv`. If there is exactly one match with that year it is used, otherwise you choose the movie from a list (or “Skip”).
+  3. otherwise a search for title and year from the file name, e.g. `Alien (1979).mkv`. If there is exactly one match with that year it is used, otherwise you choose the movie from a list (or “Skip”). If the search finds nothing, PanePilot tries again with umlauts (`ae` → `ä`, `oe` → `ö`, `ue` → `ü`, `ss` → `ß`) and then without the year.
+- **Not found or wrong movie?** In the overview a movie that was not found has the button **“Search manually …”**: adjust title and year or enter an ID (`tt0078748` or the TMDB number), then pick the movie from the result list. For a movie that was found, right-click and choose **“Search for a different film …”** (for series “Search for a different series …”, which then applies to all episodes of the series).
 - **Sources:**
   - **TMDB** (The Movie Database) if an API key is entered in the settings: all data including plot summary and poster.
   - **Wikidata** if no key is entered: no account needed, but no plot summary and no poster.
 - **Language:** title, plot summary and genre come in the **program language** (German for Franconian and Saxon). If there is no version in that language, English is used.
 - **Overview:** before applying, PanePilot shows “field – current – new” for each movie. Only fields that are empty so far are checked; existing values are only overwritten if you tick them. The buttons “All fields” and “Only empty fields” set the ticks for all movies.
 - **Apply** marks the values in green; nothing is written until **“Save tags”**, and “Undo” works as usual.
+- **With TMDB only** there are also `Actors` (the first 5 cast members), `Rating` (TMDB rating, e.g. `7.8`) and `Certification` (age rating for the country of the program language, e.g. `PG-13`) – like all fields only as a proposal.
 - A missing ID is added: a movie with `imdbid` also gets `themoviedb` and vice versa. If the original title differs from the title, it goes into the field `originaltitle`. The poster (about 500 pixels wide) is stored as cover in MP4, MKV and WMV.
 - AVI files cannot be tagged; they appear in the overview with “format is read-only”.
 
@@ -91,15 +93,25 @@ In video mode **“Tracks …”** opens a table of all tracks of the selected M
   - **“Forced”** is greyed out for MP4 because MP4 hardly supports it.
 
 - **Removing tracks:** tick audio or subtitle tracks in the column **“Remove”**. A **new file** `Film-Copy.mkv` (or `.mp4`) is created in the same folder; the **original stays unchanged** – you decide what happens to it afterwards. With the tick **“Replace original (no copy)”** the checked new file replaces the original instead; PanePilot remembers the choice. The video track and the last audio track cannot be removed; if the removed track was “Default”, the next one takes over.
+- **Adding subtitles:** for a single video, **“Add subtitles …”** adds subtitle files as new tracks. Matching files from the folder are already listed (e.g. `Film.eng.srt` and `Film.eng.forced.srt` for `Film.mkv`), others via **“Other file …”**. Language and “forced” come from the file name and can be changed, as can the name. The result is saved like removing: as `Film-Copy.mkv` or, with “Replace original”, into the original file; the subtitle file stays. For MP4, text subtitles are converted (formatting is lost); image subtitles (`.sup`, `.idx`) only fit into MKV. Older SRT files in the Windows character set are recognised.
 - **Exporting subtitles:** when removing, **“Save subtitles as files before removing”** is ticked. The button **“Export subtitles”** saves the selected (otherwise all) subtitles without removing them. Text subtitles become `.srt`, ASS subtitles `.ass`, image subtitles keep their original format (`.sup` or `.idx` + `.sub`). The files are named as usual for Jellyfin, e.g. `Film (2001).eng.srt` or `Film (2001).eng.forced.srt`.
 
 ## Changing the format
-**“Change format …”** repacks the selected videos without re-encoding (no quality loss) into another format: **MP4, M4V, MOV and AVI → MKV** or **MKV → MP4**.
+**“Change format …”** repacks the selected videos without re-encoding (no quality loss) into another format: **MP4, M4V, MOV, AVI as well as MTS and M2TS (camcorder) → MKV** or **MKV → MP4**.
 - A **new file** is created in the same folder, e.g. `Film.mkv` next to `Film.mp4`; if that exists, `Film-Copy.mkv`. The original stays unchanged – unless **“Delete original afterwards”** is ticked: then it is deleted after a successful, checked conversion.
 - Title, year, genre, description, author, all custom fields (e.g. `imdbid`, `Season`), cover, track languages and names as well as chapters are taken over.
 - MP4 cannot hold image subtitles (PGS, VobSub) or audio formats such as DTS or TrueHD; such files are skipped and listed. Text subtitles are converted for MP4 (formatting is lost).
 - This takes about as long as copying and needs as much free space; “Cancel” discards the file being created. MKV as target needs mkvtoolnix, MP4 needs ffmpeg.
 - Subtitle files next to the video (`Film.eng.srt`) are left alone and still match.
+
+## Downloading subtitles (OpenSubtitles)
+**“Search subtitles …”** searches **opensubtitles.com** for subtitles for the selected videos.
+- **One-time setup:** create a free account on opensubtitles.com, create your own API key under **“API Consumers”** in your profile and enter it under **Settings → Meta wizard → Subtitles (OpenSubtitles)**. Username and password are optional: without login **5 downloads per day** are possible, more with a free account. **“Check”** tests the access and shows the remaining downloads. Key and password are only stored in the keyring.
+- **Languages:** as codes in the settings, e.g. `de, en` (default).
+- **Search:** by file fingerprint and ID (`imdbid`/`themoviedb`, for series with season and episode), otherwise by title and year from the file name. Searching does not count against the quota.
+- **Result list:** one group per video with language, release name, downloads, rating and the flags **“exact match”** (uploaded for exactly this file), **“forced”** and **“hearing impaired”**. The best hit per language is preselected: “exact match” first, then full subtitles before forced and hearing-impaired ones, then the most downloads.
+- **Saved** next to the video as in Jellyfin: `Film.eng.srt`, `Film.eng.forced.srt`, `Film.eng.sdh.srt`; if the name exists, `Film.eng.2.srt`.
+- **“Add directly to the video”** also puts the subtitles as a track into MKV and MP4 files – as `Film-Copy.mkv` or, with “Replace original”, into the original file (as with “Add subtitles”).
 
 ## Online data for TV series
 **“Online data (movies, series) …”** recognises episodes by the pattern **`S01E02`** in the file name (also `s1e2` or `1x02`).

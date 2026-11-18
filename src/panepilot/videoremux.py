@@ -13,6 +13,7 @@ import os
 import re
 import subprocess
 import threading
+from dataclasses import dataclass
 
 from . import mkvtracks as mt
 from .i18n import t
@@ -275,9 +276,100 @@ def plan_removal(files: mt.FileTracks, remove: list[mt.MkvTrack],
     return keep, values
 
 
+# --- Untertiteldateien hinzufügen (v1.14, L-1410 ff.) ------------------------------------------------------------
+SUB_EXTENSIONS = (".srt", ".ass", ".ssa", ".sup", ".idx", ".vtt")
+_SUB_FLAGS = {"forced": "forced", "sdh": "sdh", "hi": "sdh", "cc": "sdh", "default": "default"}
+
+
+@dataclass
+class SubAdd:
+    """Eine Untertiteldatei, die als neue Spur ins Video kommt."""
+    path: str
+    lang: str = "und"
+    name: str = ""
+    forced: bool = False
+    default: bool = False
+
+
+def is_image_sub(path: str) -> bool:
+    return path.lower().endswith((".sup", ".idx"))
+
+
+def parse_sub_name(video: str, sub: str) -> SubAdd:
+    """„Film.ger.forced.srt“ zu „Film.mkv“ → Sprache ger, erzwungen (Jellyfin-Stil)."""
+    stem = os.path.splitext(os.path.basename(video))[0]
+    base = os.path.splitext(os.path.basename(sub))[0]
+    rest = base[len(stem):] if base.startswith(stem) else ""
+    parts = [x for x in rest.split(".") if x]
+    add = SubAdd(sub)
+    flags = set()
+    for part in parts:
+        low = part.lower()
+        if low in _SUB_FLAGS:
+            flags.add(_SUB_FLAGS[low])
+        elif re.fullmatch(r"[a-z]{2,3}", low) and add.lang == "und":
+            add.lang = _lang3(low)
+    add.forced = "forced" in flags
+    add.default = "default" in flags
+    return add
+
+
+def _lang3(code: str) -> str:
+    """2-Buchstaben-Codes in die in MKV übliche Form (de → ger)."""
+    from . import opensubs
+
+    return opensubs.to_mkv_lang(code)
+
+
+def subtitle_candidates(video: str) -> list[str]:
+    """Untertiteldateien im selben Ordner, deren Name mit dem Videonamen beginnt (L-1410)."""
+    folder = os.path.dirname(os.path.abspath(video))
+    stem = os.path.splitext(os.path.basename(video))[0]
+    out = []
+    try:
+        names = sorted(os.listdir(folder))
+    except OSError:
+        return []
+    for name in names:
+        low = name.lower()
+        if low.endswith(SUB_EXTENSIONS) and name.startswith(stem + "."):
+            out.append(os.path.join(folder, name))
+    return out
+
+
+def _sub_charset(path: str) -> str:
+    """utf-8, sonst cp1252 (ältere deutsche SRT-Dateien)."""
+    if is_image_sub(path):
+        return ""
+    try:
+        with open(path, "rb") as fh:
+            data = fh.read()
+    except OSError:
+        return ""
+    if data.startswith(b"\xef\xbb\xbf"):
+        return "UTF-8"
+    try:
+        data.decode("utf-8")
+        return "UTF-8"
+    except UnicodeDecodeError:
+        return "CP1252"
+
+
+def add_problem(files: mt.FileTracks, adds: list[SubAdd]) -> str:
+    if files.fmt != "mkv" and any(is_image_sub(a.path) for a in adds):
+        return t("remux.image_subs_add")  # L-1412
+    return ""
+
+
 def remove_tracks(files: mt.FileTracks, remove: list[mt.MkvTrack], edits, progress=None, cancel=None,
-                  replace: bool = False) -> str:
-    """Neue Datei ohne die Spuren; liefert ihren Pfad. Das Original bleibt (L-1300)."""
+                  replace: bool = False, add: list[SubAdd] | None = None) -> str:
+    """Neue Datei ohne die Spuren (und mit neuen Untertiteln, v1.14); liefert ihren Pfad.
+
+    Das Original bleibt (L-1300), außer bei replace."""
+    add = list(add or [])
+    problem = add_problem(files, add)
+    if problem:
+        raise OSError(problem)
     if any(tr.kind == mt.VIDEO for tr in remove):
         raise OSError(t("remux.no_video_removal"))
     keep, values = plan_removal(files, remove, edits)
@@ -288,10 +380,10 @@ def remove_tracks(files: mt.FileTracks, remove: list[mt.MkvTrack], edits, progre
     duration = files.duration or _duration(files.path)
     try:
         if files.fmt == "mkv":
-            _remove_mkv(files, keep, values, tmp, progress, cancel)
+            _remove_mkv(files, keep, values, tmp, progress, cancel, add)
         else:
-            _remove_mp4(files, keep, values, tmp, duration, progress, cancel)
-        _check(tmp, len(keep), _reference(files.path))
+            _remove_mp4(files, keep, values, tmp, duration, progress, cancel, add)
+        _check(tmp, len(keep) + len(add), _reference(files.path))
         _finish(tmp, final, files.path)
     except BaseException:
         _discard(tmp)
@@ -303,7 +395,7 @@ def _ids(tracks, kind) -> str:
     return ",".join(str(tr.stream) for tr in tracks if tr.kind == kind)
 
 
-def _remove_mkv(files, keep, values, tmp, progress, cancel) -> None:
+def _remove_mkv(files, keep, values, tmp, progress, cancel, add=()) -> None:
     args = [_tool("mkvmerge"), "--gui-mode", "-o", tmp]
     for kind, opt, none in ((mt.AUDIO, "--audio-tracks", "--no-audio"),
                             (mt.SUBS, "--subtitle-tracks", "--no-subtitles")):
@@ -320,18 +412,41 @@ def _remove_mkv(files, keep, values, tmp, progress, cancel) -> None:
                      "--forced-display-flag", f"{tr.stream}:{1 if v['forced'] else 0}"]
         args += ["--track-name", f"{tr.stream}:{v['name']}"]
     args.append(files.path)
+    for a in add:
+        args += ["--language", f"0:{a.lang or 'und'}", "--track-name", f"0:{a.name}",
+                 "--default-track-flag", f"0:{1 if a.default else 0}",
+                 "--forced-display-flag", f"0:{1 if a.forced else 0}"]
+        charset = _sub_charset(a.path)
+        if charset:
+            args += ["--sub-charset", f"0:{charset}"]
+        args.append(a.path)
     _run_progress(args, _mkvmerge_progress, progress, cancel)
 
 
-def _remove_mp4(files, keep, values, tmp, duration, progress, cancel) -> None:
+def _remove_mp4(files, keep, values, tmp, duration, progress, cancel, add=()) -> None:
     from . import mp4tracks as m4
     from . import tags as tg
 
     snap = tg.mutagen_snapshot(files.path, True)
     args = [_tool("ffmpeg"), "-nostdin", "-hide_banner", "-v", "error", "-y", "-i", files.path]
+    for a in add:
+        charset = _sub_charset(a.path)
+        if charset and charset != "UTF-8":
+            args += ["-sub_charenc", charset]
+        args += ["-i", a.path]
     for tr in keep:
         args += ["-map", f"0:{tr.stream}"]
+    for n, _a in enumerate(add, 1):
+        args += ["-map", f"{n}:0"]
     args += ["-c", "copy", "-map_metadata", "0", "-map_chapters", "0"]
+    if add:
+        args += ["-c:s", "mov_text"]  # L-1412: Text-Untertitel für MP4 umwandeln
+    for k, a in enumerate(add):
+        i = len(keep) + k
+        args += [f"-metadata:s:{i}", f"title={a.name}", f"-metadata:s:{i}", f"handler_name={a.name}",
+                 f"-metadata:s:{i}", f"language={m4.to_t(a.lang or 'und')}",
+                 f"-disposition:{i}", "+".join(x for x in ("default" if a.default else "",
+                                                          "forced" if a.forced else "") if x) or "0"]
     for i, tr in enumerate(keep):
         v = values[id(tr)]
         args += [f"-metadata:s:{i}", f"title={v['name']}", f"-metadata:s:{i}", f"handler_name={v['name']}"]
@@ -346,7 +461,8 @@ def _remove_mp4(files, keep, values, tmp, duration, progress, cancel) -> None:
 
 # --- Formatwechsel (L-1330 ff.) ----------------------------------------------------------------------
 MKV, MP4 = "mkv", "mp4"
-_SOURCE_TO_MKV = (".mp4", ".m4v", ".mov", ".avi")
+_TS_SOURCES = (".mts", ".m2ts", ".m2t")  # v1.14, L-1420
+_SOURCE_TO_MKV = (".mp4", ".m4v", ".mov", ".avi") + _TS_SOURCES
 _BAD_MP4_AUDIO = ("dts", "truehd", "mlp", "pcm", "flac", "vorbis")
 
 
@@ -385,7 +501,12 @@ def convert(path: str, target: str, files: mt.FileTracks | None, progress=None, 
     try:
         if target == MKV:
             _to_mkv(path, files, tmp, progress, cancel)
-            expected = len(mt.read(tmp).tracks) if files is None else len(files.tracks)
+            if path.lower().endswith(_TS_SOURCES):
+                # MPEG-TS: maßgeblich ist, was mkvmerge selbst in der Quelle erkennt (leere Datenströme zählen nicht)
+                src = mt.read(path)
+                expected = len(src.tracks) if not src.error else len(mt.read(tmp).tracks)
+            else:
+                expected = len(mt.read(tmp).tracks) if files is None else len(files.tracks)
         else:
             tracks = files.tracks if files else []
             args = [_tool("ffmpeg"), "-nostdin", "-hide_banner", "-v", "error", "-y", "-i", path]
@@ -415,7 +536,9 @@ def _to_mkv(path: str, files, tmp: str, progress, cancel) -> None:
 
     from .videotags import _fail, _run
 
-    subs = [tr for tr in (files.tracks if files else []) if tr.kind == mt.SUBS]
+    # Nur MP4-Text-Untertitel; Bild-Untertitel aus MPEG-TS (PGS) liest mkvmerge selbst (v1.14)
+    mp4 = path.lower().endswith((".mp4", ".m4v", ".mov"))
+    subs = [tr for tr in (files.tracks if files else []) if tr.kind == mt.SUBS] if mp4 else []
     args = [_tool("mkvmerge"), "--gui-mode", "-o", tmp]
     work = tempfile.mkdtemp(prefix=".panepilot-subs-", dir=os.path.dirname(os.path.abspath(tmp)))
     try:

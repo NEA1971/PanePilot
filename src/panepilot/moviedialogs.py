@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from PySide6.QtCore import QByteArray, QSize, Qt, QThread, Signal
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (QAbstractItemView, QDialog, QDialogButtonBox, QHBoxLayout, QHeaderView, QLabel,
-                               QListWidget, QListWidgetItem, QPushButton, QTreeWidget, QTreeWidgetItem,
+                               QLineEdit, QListWidget, QListWidgetItem, QPushButton, QTreeWidget, QTreeWidgetItem,
                                QVBoxLayout)
 
 from . import moviedb as md
@@ -115,7 +115,7 @@ class LookupThread(QThread):
         if not job.title:
             job.reason = t("online.no_id")
             return
-        hits = self.service.search(job.title, job.year)
+        hits = md.search_fallback(self.service.search, job.title, job.year)  # L-1430
         if not hits:
             job.reason = t("online.not_found")
             return
@@ -136,7 +136,7 @@ class LookupThread(QThread):
             return
         if not g.tmdb and not g.searched:
             g.searched = True
-            hits = self.service.search_tv(g.name, g.year)
+            hits = md.search_fallback(self.service.search_tv, g.name, g.year)
             hit = md.pick(hits, g.year) if hits else None
             if not hits:
                 g.reason = t("online.not_found")
@@ -283,6 +283,9 @@ def proposals(job: Job) -> list[tuple[str, str, str, object]]:
     add(tg.EXTRA + md.F_TMDB, m.tmdb)
     if m.original_title and m.original_title.casefold() != (m.title or "").casefold():
         add(tg.EXTRA + md.F_ORIG, m.original_title)
+    add(tg.EXTRA + md.F_ACTORS, "; ".join(m.actors))  # L-1433
+    add(tg.EXTRA + md.F_RATING, m.rating)
+    add(tg.EXTRA + md.F_CERT, m.certification)
     return out
 
 
@@ -301,12 +304,14 @@ class ReviewDialog(QDialog):
 
     ROLE = Qt.ItemDataRole.UserRole + 1
 
-    def __init__(self, parent, jobs: list[Job], source: str) -> None:
+    def __init__(self, parent, jobs: list[Job], source: str, service=None) -> None:
         super().__init__(parent)
         free_window(self)
+        self.service = service  # v1.14: für „Manuell suchen …“ (L-1431)
         self.setWindowTitle(t("online.review_title"))
         self.resize(1000, 640)
         self.jobs = jobs
+        self.source = source
         lay = QVBoxLayout(self)
         found = sum(1 for j in jobs if j.movie is not None)
         intro = QLabel(t("online.review_intro", n=found, total=len(jobs),
@@ -328,10 +333,14 @@ class ReviewDialog(QDialog):
         self.tree.setColumnWidth(0, 220)
         self.tree.setColumnWidth(1, 300)
         self.rows: list[tuple[Job, QTreeWidgetItem, str, object]] = []
+        self.tops: dict[int, Job] = {}
         for job in jobs:
             self._group(job)
         self.tree.expandAll()
+        self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.tree.customContextMenuRequested.connect(self._menu)
         lay.addWidget(self.tree, 1)
+        self.intro = intro
         row = QHBoxLayout()
         b_all = QPushButton(t("online.all_fields"), self)
         b_empty = QPushButton(t("online.empty_fields"), self)
@@ -361,10 +370,16 @@ class ReviewDialog(QDialog):
         font.setBold(True)
         top.setFont(0, font)
         top.setFirstColumnSpanned(True)
+        self.tops[id(top)] = job
         m = job.movie
         if m is None:
             top.setText(0, f"{name} – {job.reason or t('online.not_found')}")
             top.setForeground(0, self.palette().placeholderText())
+            if self.service is not None and not job.item.readonly("title"):
+                holder = QTreeWidgetItem(top)
+                btn = QPushButton(t("online.manual"), self.tree)
+                btn.clicked.connect(lambda _c=False, j=job: self.manual(j))
+                self.tree.setItemWidget(holder, 0, btn)
             return
         head = m.title + (f" ({m.year})" if m.year else "")
         if m.series:
@@ -391,6 +406,100 @@ class ReviewDialog(QDialog):
                     child.setIcon(2, QIcon(pm))
             self.rows.append((job, child, key, value))
 
+    # --- Manuelle Suche (v1.14, L-1431/L-1432) -------------------------------------------------
+    def _menu(self, pos) -> None:
+        from PySide6.QtWidgets import QMenu
+
+        item = self.tree.itemAt(pos)
+        while item is not None and item.parent() is not None:
+            item = item.parent()
+        job = self.tops.get(id(item)) if item is not None else None
+        if job is None or self.service is None:
+            return
+        menu = QMenu(self)
+        text = t("online.other_series") if job.ep is not None else t("online.other_movie")
+        menu.addAction(text).triggered.connect(lambda: self.manual(job))
+        menu.exec(self.tree.viewport().mapToGlobal(pos))
+
+    def manual(self, job: Job) -> None:
+        from .dialogs import show_error, show_info
+
+        dlg = ManualSearchDialog(self, job)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        title, year, ident = dlg.values()
+        series = job.ep is not None
+        if series and not isinstance(self.service, md.Tmdb):
+            show_error(self, t("online.title"), t("online.series_no_key"))
+            return
+        imdb, tmdb = md.clean_imdb(ident), (ident.strip() if ident.strip().isdigit() else "")
+
+        def find():
+            if imdb or tmdb:
+                return []
+            search = self.service.search_tv if series else self.service.search
+            hits = md.search_fallback(search, title, year)
+            _thumbs(hits[:8])
+            return hits[:12]
+
+        hits, error = netutil.run_blocking(self, find, t("online.searching"), t("online.title"))
+        if error:
+            show_error(self, t("online.title"), error_text(error))
+            return
+        if not imdb and not tmdb:
+            if not hits:
+                show_info(self, t("online.title"), t("online.manual_none", title=title))
+                return
+            choice = ChoiceDialog(self, title, hits, 1, 1)
+            if choice.exec() != QDialog.DialogCode.Accepted or choice.selected() is None:
+                return
+            hit = choice.selected()
+            imdb, tmdb, qid = hit.imdb, hit.tmdb, hit.qid
+        else:
+            qid = ""
+        targets = [j for j in self.jobs if j.group is job.group] if series else [job]
+
+        def load():
+            if series:
+                tv = tmdb or (self.service.find_imdb(imdb, tv=True) if imdb else "")
+                if not tv:
+                    for j in targets:
+                        j.movie, j.reason = None, t("online.not_found")
+                    return True
+                job.group.tmdb, job.group.hits, job.group.reason = tv, [], ""
+                for j in targets:
+                    j.movie = self.service.episode(tv, j.ep.season, j.ep.episode)
+                    j.reason = "" if j.movie else t("online.episode_not_found", s=f"{j.ep.season:02d}",
+                                                         e=f"{j.ep.episode:02d}")
+            else:
+                job.imdb, job.tmdb, job.qid = imdb, tmdb, qid
+                job.movie = self.service.load(imdb, tmdb, qid)
+                job.reason = "" if job.movie else t("online.not_found")
+            return True
+
+        _ok, error = netutil.run_blocking(self, load, t("online.loading"), t("online.title"))
+        if error:
+            show_error(self, t("online.title"), error_text(error))
+            return
+        self.rebuild()
+
+    def rebuild(self) -> None:
+        """Baum neu aufbauen; Häkchen bleiben, soweit es die Zeile schon gab."""
+        states = {(id(j), key): child.checkState(0) for j, child, key, _v in self.rows}
+        self.tree.clear()
+        self.rows, self.tops = [], {}
+        for job in self.jobs:
+            self._group(job)
+        for j, child, key, _v in self.rows:
+            if (id(j), key) in states:
+                child.setCheckState(0, states[(id(j), key)])
+        self.tree.expandAll()
+        found = sum(1 for j in self.jobs if j.movie is not None)
+        self.intro.setText(t("online.review_intro", n=found, total=len(self.jobs),
+                             source=t("online.source_tmdb" if self.source == md.SOURCE_TMDB
+                                      else "online.source_wikidata")))
+        self.btn_ok.setEnabled(bool(self.rows))
+
     def set_all(self, overwrite: bool) -> None:
         for _job, child, _key, _value in self.rows:
             on = overwrite or not child.data(0, self.ROLE)
@@ -408,3 +517,42 @@ class ReviewDialog(QDialog):
             else:
                 entry[1][key] = value
         return [tuple(v) for v in out.values()]
+
+
+class ManualSearchDialog(QDialog):
+    """Titel und Jahr bzw. Kennung eingeben (L-1431)."""
+
+    def __init__(self, parent, job: Job) -> None:
+        from PySide6.QtWidgets import QFormLayout
+
+        super().__init__(parent)
+        free_window(self)
+        self.setWindowTitle(t("online.manual_title"))
+        self.resize(520, 200)
+        lay = QVBoxLayout(self)
+        intro = QLabel(t("online.manual_intro_series" if job.ep is not None else "online.manual_intro",
+                         name=job.item.display_name), self)
+        intro.setWordWrap(True)
+        lay.addWidget(intro)
+        form = QFormLayout()
+        title = job.group.name if job.group is not None else job.title
+        year = job.group.year if job.group is not None else job.year
+        self.ed_title = QLineEdit(md.title_variants(title)[-1] if title else "", self)
+        self.ed_year = QLineEdit(year or "", self)
+        self.ed_year.setMaxLength(4)
+        self.ed_id = QLineEdit(self)
+        self.ed_id.setPlaceholderText(t("online.manual_id_hint"))
+        form.addRow(t("online.manual_field_title"), self.ed_title)
+        form.addRow(t("online.manual_field_year"), self.ed_year)
+        form.addRow(t("online.manual_field_id"), self.ed_id)
+        lay.addLayout(form)
+        box = QDialogButtonBox(self)
+        box.addButton(t("online.manual_search"), QDialogButtonBox.ButtonRole.AcceptRole).setDefault(True)
+        box.addButton(t("button.cancel"), QDialogButtonBox.ButtonRole.RejectRole)
+        box.accepted.connect(self.accept)
+        box.rejected.connect(self.reject)
+        lay.addWidget(box)
+        self.ed_title.selectAll()
+
+    def values(self) -> tuple[str, str, str]:
+        return self.ed_title.text().strip(), self.ed_year.text().strip(), self.ed_id.text().strip()

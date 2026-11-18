@@ -94,6 +94,14 @@ class TrackDialog(QDialog):
         self.btn_export.clicked.connect(self._export)
         self.btn_export.setEnabled(on_export is not None and any(r.kind == mt.SUBS for r in self.rows))
         bar.addWidget(self.btn_export)
+        self.adds: list = []  # v1.14, L-1410: Untertiteldateien, die dazukommen
+        self.btn_add = QPushButton(t("tracks.add_subs"), self)
+        self.btn_add.setToolTip(t("tracks.add_subs_tip") if len(files) == 1 else t("tracks.add_subs_one"))
+        self.btn_add.setEnabled(len(files) == 1)
+        self.btn_add.clicked.connect(self._add_subs)
+        bar.addWidget(self.btn_add)
+        self.lbl_add = QLabel("", self)
+        bar.addWidget(self.lbl_add)
         bar.addSpacing(16)
         settings = getattr(parent, "settings", None)
         self.chk_export = QCheckBox(t("tracks.export_before"), self)  # L-1320; gemerkt seit v1.13.3
@@ -301,6 +309,18 @@ class TrackDialog(QDialog):
             if trs:
                 out.append((f, trs))
         return out
+
+    def _add_subs(self) -> None:
+        from .subsdialog import AddSubtitlesDialog
+
+        dlg = AddSubtitlesDialog(self, self.files[0], self.adds)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self.adds = dlg.additions()
+            self.lbl_add.setText(t("tracks.add_count", n=len(self.adds)) if self.adds else "")
+
+    def additions(self) -> dict[str, list]:
+        """{Datei: [SubAdd]} – nur bei einem Video (L-1410)."""
+        return {self.files[0].path: list(self.adds)} if self.adds and len(self.files) == 1 else {}
 
     def _export(self) -> None:
         if self.on_export is not None:
