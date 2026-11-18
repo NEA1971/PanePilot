@@ -171,7 +171,7 @@ def _check(path: str, expected_tracks: int, duration: float) -> None:
     tracks = m4.parse_probe(info)
     dur = float((info.get("format") or {}).get("duration") or 0)
     if len(tracks) != expected_tracks or (duration and dur and abs(dur - duration) > 2.0):
-        raise OSError(t("remux.check_failed"))
+        raise OSError(t("remux.check_failed") + f" ({len(tracks)}/{expected_tracks}, {dur:.1f}s/{duration:.1f}s)")
 
 
 def _duration(path: str) -> float:
