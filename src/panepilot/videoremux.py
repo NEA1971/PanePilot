@@ -350,7 +350,7 @@ def convert(path: str, target: str, files: mt.FileTracks | None, progress=None, 
     duration = (files.duration if files else 0) or _duration(path)
     try:
         if target == MKV:
-            _run_progress([_tool("mkvmerge"), "--gui-mode", "-o", tmp, path], _mkvmerge_progress, progress, cancel)
+            _to_mkv(path, files, tmp, progress, cancel)
             expected = len(mt.read(tmp).tracks) if files is None else len(files.tracks)
         else:
             tracks = files.tracks if files else []
@@ -371,6 +371,35 @@ def convert(path: str, target: str, files: mt.FileTracks | None, progress=None, 
         _discard(tmp)
         raise
     return final
+
+
+def _to_mkv(path: str, files, tmp: str, progress, cancel) -> None:
+    """mkvmerge; MP4-Text-Untertitel liest mkvmerge nicht überall – die kommen als .srt dazu."""
+    import tempfile
+
+    from .videotags import _fail, _run
+
+    subs = [tr for tr in (files.tracks if files else []) if tr.kind == mt.SUBS]
+    args = [_tool("mkvmerge"), "--gui-mode", "-o", tmp]
+    work = tempfile.mkdtemp(prefix=".panepilot-subs-", dir=os.path.dirname(os.path.abspath(tmp)))
+    try:
+        extra: list[str] = []
+        if subs:
+            args.append("--no-subtitles")
+            for n, tr in enumerate(subs):
+                srt = os.path.join(work, f"{n}.srt")
+                proc = _run([_tool("ffmpeg"), "-nostdin", "-v", "error", "-y", "-i", path,
+                             "-map", f"0:{tr.stream}", "-c:s", "srt", srt], timeout=600)
+                if proc.returncode != 0:
+                    raise _fail(proc, "ffmpeg")
+                extra += ["--language", f"0:{tr.lang or 'und'}", "--track-name", f"0:{tr.name}",
+                          "--default-track-flag", f"0:{1 if tr.default else 0}",
+                          "--forced-display-flag", f"0:{1 if tr.forced else 0}", srt]
+        _run_progress(args + [path] + extra, _mkvmerge_progress, progress, cancel)
+    finally:
+        import shutil
+
+        shutil.rmtree(work, ignore_errors=True)
 
 
 def transfer_tags(src: str, dst: str) -> None:
