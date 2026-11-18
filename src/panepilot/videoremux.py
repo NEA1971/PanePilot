@@ -160,8 +160,31 @@ def _discard(tmp: str) -> None:
         pass
 
 
-def _check(path: str, expected_tracks: int, duration: float) -> None:
-    """Neue Datei prüfen: Spuranzahl und Länge (L-1303)."""
+def video_length(info: dict | None) -> float:
+    """Länge der Videospur (nicht der ganzen Datei: eine längere Tonspur verlängert die Datei)."""
+    if not info:
+        return 0.0
+    for st in info.get("streams") or []:
+        if st.get("codec_type") != "video" or (st.get("disposition") or {}).get("attached_pic"):
+            continue
+        try:
+            if st.get("duration"):
+                return float(st["duration"])
+        except ValueError:
+            pass
+        tags = {k.upper(): v for k, v in (st.get("tags") or {}).items()}
+        m = re.match(r"^(\d+):(\d\d):(\d\d(?:\.\d+)?)$", str(tags.get("DURATION") or ""))
+        if m:
+            return int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3))
+        break
+    try:
+        return float((info.get("format") or {}).get("duration") or 0)
+    except ValueError:
+        return 0.0
+
+
+def _check(path: str, expected_tracks: int, reference: float) -> None:
+    """Neue Datei prüfen: Spuranzahl und Länge der Videospur (L-1303)."""
     from . import mp4tracks as m4
     from .videotags import probe
 
@@ -169,9 +192,16 @@ def _check(path: str, expected_tracks: int, duration: float) -> None:
     if info is None:
         return  # ohne ffprobe keine Prüfung möglich; das Programm hat ohne Fehler geendet
     tracks = m4.parse_probe(info)
-    dur = float((info.get("format") or {}).get("duration") or 0)
-    if len(tracks) != expected_tracks or (duration and dur and abs(dur - duration) > 2.0):
-        raise OSError(t("remux.check_failed") + f" ({len(tracks)}/{expected_tracks}, {dur:.1f}s/{duration:.1f}s)")
+    dur = video_length(info)
+    tolerance = max(2.0, reference * 0.005)
+    if len(tracks) != expected_tracks or (reference and dur and abs(dur - reference) > tolerance):
+        raise OSError(t("remux.check_failed") + f" ({len(tracks)}/{expected_tracks}, {dur:.1f}s/{reference:.1f}s)")
+
+
+def _reference(path: str) -> float:
+    from .videotags import probe
+
+    return video_length(probe(path))
 
 
 def _duration(path: str) -> float:
@@ -260,7 +290,7 @@ def remove_tracks(files: mt.FileTracks, remove: list[mt.MkvTrack], edits, progre
             _remove_mkv(files, keep, values, tmp, progress, cancel)
         else:
             _remove_mp4(files, keep, values, tmp, duration, progress, cancel)
-        _check(tmp, len(keep), duration)
+        _check(tmp, len(keep), _reference(files.path))
         _finish(tmp, final, files.path)
     except BaseException:
         _discard(tmp)
@@ -364,7 +394,7 @@ def convert(path: str, target: str, files: mt.FileTracks | None, progress=None, 
             _run_progress(args, _ffmpeg_progress(duration), progress, cancel)
             expected = len(tracks)
         if expected:
-            _check(tmp, expected, duration)
+            _check(tmp, expected, _reference(path))
         transfer_tags(path, tmp)
         _finish(tmp, final, path)
     except BaseException:

@@ -52,6 +52,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.13.1" date="2026-11-18">
+      <description>
+        <p>Fix: removing an audio track that is longer than the video no longer fails the check of the new file.</p>
+      </description>
+    </release>
     <release version="1.13.0" date="2026-11-18">
       <description>
         <p>Meta wizard: remove audio and subtitle tracks, export subtitles as files, and change the video format (MP4/AVI to MKV, MKV to MP4) without re-encoding.</p>

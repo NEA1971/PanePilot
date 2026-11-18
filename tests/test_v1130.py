@@ -237,3 +237,20 @@ def test_meta_flows(window, tmp_path, monkeypatch, qtbot):  # noqa: F811
         window.meta_convert(cv.VIDEO_FORMAT)
         assert os.path.exists(folder / "Film (2001).mkv")
     window.meta_close()
+
+
+@needs_ffmpeg
+def test_remove_longer_audio_track(tmp_path):
+    """1.13.1: Ist die entfernte Tonspur länger als das Video, wird die Datei kürzer – das ist kein Fehler."""
+    from panepilot import mp4tracks as m4
+    from panepilot import videoremux as vr
+
+    long = str(tmp_path / "long.m4a")
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "sine=d=8", "-c:a", "aac", long], check=True)
+    src = str(tmp_path / "Film.mp4")
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", os.path.join(VIDEO, "clip.mp4"), "-i", long,
+                    "-map", "0:v", "-map", "0:a", "-map", "1:a", "-c", "copy", src], check=True)
+    f = m4.read(src)
+    assert f.duration > 6 and vr._reference(src) < 2  # Datei lang, Videospur kurz
+    new = vr.remove_tracks(f, [f.find("audio", 2)], [])
+    assert os.path.exists(new) and len(m4.read(new).tracks) == 2
