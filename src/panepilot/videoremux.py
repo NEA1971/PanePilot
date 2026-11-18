@@ -501,12 +501,7 @@ def convert(path: str, target: str, files: mt.FileTracks | None, progress=None, 
     try:
         if target == MKV:
             _to_mkv(path, files, tmp, progress, cancel)
-            if path.lower().endswith(_TS_SOURCES):
-                # MPEG-TS: maßgeblich ist, was mkvmerge selbst in der Quelle erkennt (leere Datenströme zählen nicht)
-                src = mt.read(path)
-                expected = len(src.tracks) if not src.error else len(mt.read(tmp).tracks)
-            else:
-                expected = len(mt.read(tmp).tracks) if files is None else len(files.tracks)
+            expected = len(mt.read(tmp).tracks) if files is None else len(files.tracks)
         else:
             tracks = files.tracks if files else []
             args = [_tool("ffmpeg"), "-nostdin", "-hide_banner", "-v", "error", "-y", "-i", path]

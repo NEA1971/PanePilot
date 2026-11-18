@@ -314,12 +314,12 @@ def test_mts_to_mkv(tmp_path):
     from panepilot import videoremux as vr
 
     src = str(tmp_path / "Urlaub.m2ts")
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", os.path.join(VIDEO, "clip.mp4"), "-c", "copy",
-                    "-f", "mpegts", src], check=True)
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", os.path.join(VIDEO, "clip.mp4"), "-c:v", "copy",
+                    "-c:a", "ac3", "-f", "mpegts", src], check=True)  # wie beim Camcorder: AC3-Ton
     new = vr.convert(src, vr.MKV, m4.read(src))
     assert new.endswith("Urlaub.mkv") and os.path.exists(src)
     kinds = [tr.kind for tr in mt.read(new).tracks]
-    assert "video" in kinds and "audio" in kinds
+    assert kinds == [tr.kind for tr in m4.read(src).tracks], kinds  # keine Spur verloren
 
 
 # --- Online-Daten ------------------------------------------------------------------------------------------
