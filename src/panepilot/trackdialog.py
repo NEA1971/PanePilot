@@ -95,10 +95,13 @@ class TrackDialog(QDialog):
         self.btn_export.setEnabled(on_export is not None and any(r.kind == mt.SUBS for r in self.rows))
         bar.addWidget(self.btn_export)
         bar.addSpacing(16)
-        self.chk_export = QCheckBox(t("tracks.export_before"), self)  # L-1320
-        self.chk_export.setChecked(True)
-        bar.addWidget(self.chk_export)
         settings = getattr(parent, "settings", None)
+        self.chk_export = QCheckBox(t("tracks.export_before"), self)  # L-1320; gemerkt seit v1.13.3
+        saved = settings.get("tracks_export_before") if settings is not None else None
+        self.chk_export.setChecked(True if saved is None else bool(saved))
+        if settings is not None:
+            self.chk_export.toggled.connect(lambda on: settings.set("tracks_export_before", on))
+        bar.addWidget(self.chk_export)
         self.chk_replace = QCheckBox(t("tracks.replace"), self)  # v1.13.2
         self.chk_replace.setToolTip(t("tracks.replace_tip"))
         self.chk_replace.setChecked(bool(settings.get("tracks_replace_original")) if settings else False)

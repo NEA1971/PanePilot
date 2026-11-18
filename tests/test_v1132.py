@@ -48,6 +48,9 @@ def test_checkboxes_remembered(window, tmp_path):  # noqa: F811
     assert not dlg.chk_replace.isChecked()  # Vorgabe: Kopie anlegen
     dlg.chk_replace.setChecked(True)
     assert TrackDialog(window, files).replace_wanted() and window.settings.get("tracks_replace_original")
+    assert dlg.export_wanted()  # Vorgabe: angehakt
+    dlg.chk_export.setChecked(False)
+    assert not TrackDialog(window, files).export_wanted()  # v1.13.3: gemerkt
     conv = ConvertDialog(window, [(str(tmp_path / "a.mp4"), None)])
     assert not conv.replace_wanted()
     conv.chk_replace.setChecked(True)
