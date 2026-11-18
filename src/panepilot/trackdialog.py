@@ -14,7 +14,7 @@ from . import mkvtracks as mt
 from .dialogs import free_window
 from .i18n import t
 
-COL_TRACK, COL_FORMAT, COL_LANG, COL_NAME, COL_DEFAULT, COL_FORCED = range(6)
+COL_TRACK, COL_FORMAT, COL_LANG, COL_NAME, COL_DEFAULT, COL_FORCED, COL_REMOVE = range(7)
 
 
 def lang_label(code: str) -> str:
@@ -52,8 +52,9 @@ class Row:
 
 
 class TrackDialog(QDialog):
-    def __init__(self, parent, files: list[mt.FileTracks]) -> None:
+    def __init__(self, parent, files: list[mt.FileTracks], on_export=None) -> None:
         super().__init__(parent)
+        self.on_export = on_export  # v1.13: Untertitel exportieren ohne Entfernen (L-1321)
         free_window(self)
         self.files = files
         self.setWindowTitle(t("tracks.title"))
@@ -67,10 +68,10 @@ class TrackDialog(QDialog):
         label.setWordWrap(True)
         lay.addWidget(label)
         self.rows = self._rows()
-        self.table = QTableWidget(len(self.rows), 6, self)
+        self.table = QTableWidget(len(self.rows), 7, self)
         self.table.setHorizontalHeaderLabels([t("tracks.col_track"), t("tracks.col_format"), t("tracks.col_lang"),
                                               t("tracks.col_name"), t("tracks.col_default"),
-                                              t("tracks.col_forced")])
+                                              t("tracks.col_forced"), t("tracks.col_remove")])
         self.table.verticalHeader().hide()
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -88,6 +89,15 @@ class TrackDialog(QDialog):
         self.btn_suggest.setToolTip(t("tracks.suggest_tip"))
         self.btn_suggest.clicked.connect(self.suggest_names)
         bar.addWidget(self.btn_suggest)
+        self.btn_export = QPushButton(t("tracks.export"), self)
+        self.btn_export.setToolTip(t("tracks.export_tip"))
+        self.btn_export.clicked.connect(self._export)
+        self.btn_export.setEnabled(on_export is not None and any(r.kind == mt.SUBS for r in self.rows))
+        bar.addWidget(self.btn_export)
+        bar.addSpacing(16)
+        self.chk_export = QCheckBox(t("tracks.export_before"), self)  # L-1320
+        self.chk_export.setChecked(True)
+        bar.addWidget(self.chk_export)
         bar.addStretch(1)
         lay.addLayout(bar)
         hint = QLabel(t("tracks.hint"), self)
@@ -170,6 +180,21 @@ class TrackDialog(QDialog):
             self.table.setCellWidget(r, col, holder)
             w[attr] = box
             w[attr + "0"] = value
+        if row.kind != mt.VIDEO:  # L-1310/L-1311: Spuren entfernen (neue Datei)
+            box = QCheckBox(self.table)
+            single_audio = row.kind == mt.AUDIO and len(self.files) == 1 and \
+                sum(1 for tr in self.files[0].tracks if tr.kind == mt.AUDIO) <= 1
+            if single_audio:
+                box.setEnabled(False)
+                box.setToolTip(t("tracks.last_audio"))
+            else:
+                box.setToolTip(t("tracks.remove_tip"))
+            holder = QWidget(self.table)
+            hl = QHBoxLayout(holder)
+            hl.setContentsMargins(0, 0, 0, 0)
+            hl.addWidget(box, 0, Qt.AlignmentFlag.AlignCenter)
+            self.table.setCellWidget(r, COL_REMOVE, holder)
+            w["remove"] = box
         self.widgets.append(w)
 
     def _mp4_only(self, row: Row) -> bool:
@@ -223,6 +248,50 @@ class TrackDialog(QDialog):
             name = mt.suggest_name(row.kind, lang, codec, channels, forced)
             if name:
                 self.widgets[r]["name"].setText(name)
+
+    def removals(self) -> tuple[dict[str, list], list[str]]:
+        """{Datei: [Spuren zum Entfernen]} und Hinweise (fehlende Spur, letzte Tonspur bleibt)."""
+        out: dict[str, list] = {}
+        notes: list[str] = []
+        for f in self.files:
+            gone = []
+            for r, row in enumerate(self.rows):
+                box = self.widgets[r].get("remove")
+                if box is None or not box.isChecked():
+                    continue
+                tr = f.find(row.kind, row.index)
+                if tr is None:
+                    notes.append(f"{os.path.basename(f.path)} – {mt.kind_label(row.kind, row.index)}")
+                else:
+                    gone.append(tr)
+            audio = [tr for tr in f.tracks if tr.kind == mt.AUDIO]
+            if audio and all(any(tr is g for g in gone) for tr in audio):  # L-1311: letzte Tonspur bleibt
+                keep = audio[0]
+                gone = [g for g in gone if g is not keep]
+                notes.append(f"{os.path.basename(f.path)} – {mt.kind_label(keep.kind, keep.index)}: "
+                             f"{t('tracks.last_audio')}")
+            if gone:
+                out[f.path] = gone
+        return out, notes
+
+    def export_wanted(self) -> bool:
+        return self.chk_export.isChecked()
+
+    def selected_subtitles(self) -> list[tuple[mt.FileTracks, list]]:
+        rows = sorted({i.row() for i in self.table.selectedIndexes()})
+        rows = [r for r in rows if self.rows[r].kind == mt.SUBS] or \
+            [r for r, row in enumerate(self.rows) if row.kind == mt.SUBS]
+        out = []
+        for f in self.files:
+            trs = [f.find(self.rows[r].kind, self.rows[r].index) for r in rows]
+            trs = [tr for tr in trs if tr is not None]
+            if trs:
+                out.append((f, trs))
+        return out
+
+    def _export(self) -> None:
+        if self.on_export is not None:
+            self.on_export(self.selected_subtitles())
 
     def edits(self) -> tuple[dict[str, list], list[str]]:
         """{Datei: [(Spur, Änderung)]} und Liste „Datei – Spur fehlt“ (L-1105)."""

@@ -90,6 +90,17 @@ Im Video-Modus öffnet **„Spuren …“** für die markierten MKV- und MP4-Vid
   - **Spurname** und **„Standard“** gehen nur über eine neue Datei: PanePilot packt sie mit ffmpeg neu (ohne Neukodieren, ohne Qualitätsverlust). Das dauert etwa so lange wie das Kopieren der Datei und braucht vorübergehend genauso viel freien Platz; eine Rückfrage weist vorher darauf hin, der Fortschrittsbalken hat „Abbrechen“. Tags, eigene Felder (z. B. `imdbid`, `Season`) und Cover übernimmt PanePilot; die alte Datei wird erst ersetzt, wenn die neue geprüft ist.
   - **„Erzwungen“** ist bei MP4 ausgegraut, weil MP4 das kaum unterstützt.
 
+- **Spuren entfernen:** In der Spalte **„Entfernen“** Ton- oder Untertitelspuren anhaken. Dafür entsteht eine **neue Datei** `Film-Kopie.mkv` (bzw. `.mp4`) im selben Ordner, das **Original bleibt unverändert** – was danach mit ihm geschieht, entscheidest du. Die Videospur und die letzte Tonspur lassen sich nicht entfernen; war die entfernte Spur „Standard“, übernimmt das die nächste.
+- **Untertitel exportieren:** Beim Entfernen ist **„Untertitel vor dem Entfernen als Datei speichern“** vorgehakt. Der Knopf **„Untertitel exportieren“** speichert die markierten (sonst alle) Untertitel, ohne sie zu entfernen. Text-Untertitel werden zu `.srt`, ASS-Untertitel zu `.ass`, Bild-Untertitel bleiben im Originalformat (`.sup` bzw. `.idx` + `.sub`). Die Dateien heißen wie bei Jellyfin üblich, z. B. `Film (2001).ger.srt` oder `Film (2001).ger.forced.srt`.
+
+## Format wechseln
+**„Format wechseln …“** packt die markierten Videos ohne Neukodieren (ohne Qualitätsverlust) in ein anderes Format: **MP4, M4V, MOV und AVI → MKV** oder **MKV → MP4**.
+- Es entsteht eine **neue Datei** im selben Ordner, z. B. `Film.mkv` neben `Film.mp4`; gibt es die schon, `Film-Kopie.mkv`. Das Original bleibt unverändert.
+- Übernommen werden Titel, Jahr, Genre, Beschreibung, Autor, alle eigenen Felder (z. B. `imdbid`, `Season`), Cover, Sprachen und Namen der Spuren sowie Kapitel.
+- MP4 kann keine Bild-Untertitel (PGS, VobSub) und Tonformate wie DTS oder TrueHD aufnehmen; solche Dateien werden ausgelassen und genannt. Text-Untertitel werden für MP4 umgewandelt (Formatierungen gehen verloren).
+- Das dauert etwa so lange wie das Kopieren und braucht genauso viel freien Platz; „Abbrechen“ verwirft die gerade entstehende Datei. Für MKV als Ziel ist mkvtoolnix nötig, für MP4 ffmpeg.
+- Untertiteldateien neben dem Video (`Film.eng.srt`) bleiben unberührt und passen weiter.
+
 ## Online-Daten für Serien
 **„Online-Daten (Filme, Serien) …“** erkennt Folgen am Muster **`S01E02`** im Dateinamen (auch `s1e2` oder `1x02`).
 - **Serienname:** aus dem Ordner, z. B. `Breaking Bad/Staffel 1/Breaking Bad - S01E02.mkv` oder `Breaking Bad (2008) [tmdbid-1396]/S01E02.mkv`; sonst aus dem Dateinamen vor `S01E02`.

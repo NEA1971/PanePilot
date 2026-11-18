@@ -90,6 +90,17 @@ In video mode **“Tracks …”** opens a table of all tracks of the selected M
   - **Track name** and **“Default”** need a new file: PanePilot repacks it with ffmpeg (no re-encoding, no quality loss). This takes about as long as copying the file and temporarily needs as much free space; a confirmation points this out beforehand, the progress bar has “Cancel”. Tags, custom fields (e.g. `imdbid`, `Season`) and cover are taken over; the old file is only replaced once the new one has been checked.
   - **“Forced”** is greyed out for MP4 because MP4 hardly supports it.
 
+- **Removing tracks:** tick audio or subtitle tracks in the column **“Remove”**. A **new file** `Film-Copy.mkv` (or `.mp4`) is created in the same folder; the **original stays unchanged** – you decide what happens to it afterwards. The video track and the last audio track cannot be removed; if the removed track was “Default”, the next one takes over.
+- **Exporting subtitles:** when removing, **“Save subtitles as files before removing”** is ticked. The button **“Export subtitles”** saves the selected (otherwise all) subtitles without removing them. Text subtitles become `.srt`, ASS subtitles `.ass`, image subtitles keep their original format (`.sup` or `.idx` + `.sub`). The files are named as usual for Jellyfin, e.g. `Film (2001).eng.srt` or `Film (2001).eng.forced.srt`.
+
+## Changing the format
+**“Change format …”** repacks the selected videos without re-encoding (no quality loss) into another format: **MP4, M4V, MOV and AVI → MKV** or **MKV → MP4**.
+- A **new file** is created in the same folder, e.g. `Film.mkv` next to `Film.mp4`; if that exists, `Film-Copy.mkv`. The original stays unchanged.
+- Title, year, genre, description, author, all custom fields (e.g. `imdbid`, `Season`), cover, track languages and names as well as chapters are taken over.
+- MP4 cannot hold image subtitles (PGS, VobSub) or audio formats such as DTS or TrueHD; such files are skipped and listed. Text subtitles are converted for MP4 (formatting is lost).
+- This takes about as long as copying and needs as much free space; “Cancel” discards the file being created. MKV as target needs mkvtoolnix, MP4 needs ffmpeg.
+- Subtitle files next to the video (`Film.eng.srt`) are left alone and still match.
+
 ## Online data for TV series
 **“Online data (movies, series) …”** recognises episodes by the pattern **`S01E02`** in the file name (also `s1e2` or `1x02`).
 - **Series name:** from the folder, e.g. `Breaking Bad/Season 1/Breaking Bad - S01E02.mkv` or `Breaking Bad (2008) [tmdbid-1396]/S01E02.mkv`; otherwise from the file name before `S01E02`.

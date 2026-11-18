@@ -617,7 +617,7 @@ class MetaWizardMixin:
             {cv.TAG_TO_TEXT: self.meta_export_text, cv.TEXT_TO_TAG: self.meta_import_text,
              cv.NUMBER: self.meta_number, cv.DISC: self.meta_disc, cv.MUSICBRAINZ: self.meta_musicbrainz,
              cv.DATESHIFT: self.meta_dateshift, cv.ONLINE: self.meta_online,
-             cv.TRACKS: self.meta_tracks,
+             cv.TRACKS: self.meta_tracks, cv.VIDEO_FORMAT: self.meta_video_format,
              cv.PLAYLIST: self.meta_playlist, cv.REPLAYGAIN: self.meta_replaygain}[kind]()
             return
         pane = self._meta_pane()
@@ -914,16 +914,26 @@ class MetaWizardMixin:
             show_error(self, title, "\n".join(f"{os.path.basename(f.path)}: {f.error}" for f in broken) or
                        t("tracks.none"))
             return
-        dlg = TrackDialog(self, files)
+        dlg = TrackDialog(self, files, on_export=lambda sel: self._export_subtitles(sel, title))
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         edits, missing = dlg.edits()
-        if not edits:
+        removals, notes = dlg.removals()
+        missing += notes
+        if not edits and not removals:
             return
         by_path = {f.path: f for f in files}
-        n_tracks = sum(len(v) for v in edits.values())
-        text = t("tracks.confirm", files=len(edits), tracks=n_tracks)
-        remux = [p for p, e in edits.items() if by_path[p].fmt == "mp4" and m4.plan(e)[1]]
+        in_place = {p: e for p, e in edits.items() if p not in removals}
+        text = ""
+        if in_place:
+            text = t("tracks.confirm", files=len(in_place), tracks=sum(len(v) for v in in_place.values()))
+        if removals:  # L-1300: neue Datei „…-Kopie“, Original bleibt
+            size = sum(os.path.getsize(p) for p in removals if os.path.exists(p))
+            text += ("\n\n" if text else "") + t("tracks.remove_note", n=len(removals), size=util.format_size(size))
+            subs = sum(1 for gone in removals.values() for tr in gone if tr.kind == mt.SUBS)
+            if subs and dlg.export_wanted():
+                text += "\n\n" + t("tracks.export_note", n=subs)
+        remux = [p for p, e in in_place.items() if by_path[p].fmt == "mp4" and m4.plan(e)[1]]
         if remux:  # L-1203: Neupacken dauert wie Kopieren und braucht Platz
             size = sum(os.path.getsize(p) for p in remux if os.path.exists(p))
             text += "\n\n" + t("tracks.remux_note", n=len(remux), size=util.format_size(size))
@@ -936,19 +946,168 @@ class MetaWizardMixin:
                 text += "\n…"
         if not confirm(self, title, text, yes_key="online.apply"):
             return
-        errs, recs, cancelled = self._write_tracks(edits, by_path, title)
+        jobs = {p: (e, []) for p, e in in_place.items()}
+        for p, gone in removals.items():
+            jobs[p] = (edits.get(p, []), gone)
+        errs, recs, cancelled, created = self._write_tracks(jobs, by_path, title,
+                                                            export=bool(removals) and dlg.export_wanted())
         for it in targets:
             rec = recs.get(it.record.path)
             if rec is not None and not rec.error:
                 it.record = rec  # Spalten „Audiospuren“ und „Untertitel“ neu (L-1106)
+        if created:  # neue Dateien gleich im Meta-Wizard zeigen
+            from . import tags as tg
+
+            self._meta_found([tg.read_file(p) for p in created if p.lower().endswith((".mkv", ".mp4", ".m4v",
+                                                                                     ".mov", ".webm"))],
+                             self.meta_mode["base"])
         if errs:
             show_error(self, title, "\n".join(f"{n}: {e}" for n, e in errs))
-        done = len(recs) - len(errs)
-        self._meta_pane().summary.setText(t("tracks.done", n=done) + (" " + t("tracks.cancelled") if cancelled else ""))
+        new_videos = [os.path.basename(p) for p in created if not p.lower().endswith((".srt", ".ass", ".sup", ".idx"))]
+        msg = t("tracks.done", n=len(recs) + len(new_videos))
+        if new_videos:
+            msg += " " + t("tracks.created", names=", ".join(new_videos[:3]) + (" …" if len(new_videos) > 3 else ""))
+        self._meta_pane().summary.setText(msg + (" " + t("tracks.cancelled") if cancelled else ""))
         self._meta_refresh()
 
-    def _write_tracks(self, edits: dict, by_path: dict, title: str):
-        """Schreibt im Hintergrund mit Fortschritt; MP4-Neupacken lässt sich abbrechen (L-1203)."""
+    def meta_video_format(self) -> None:
+        """Formatwechsel MP4/M4V/MOV/AVI → MKV, MKV → MP4 (v1.13, L-1330 ff.); das Original bleibt."""
+        import threading
+
+        from PySide6.QtCore import QEventLoop, Qt, QThread, Signal
+        from PySide6.QtWidgets import QProgressDialog
+
+        from . import mkvtracks as mt
+        from . import mp4tracks as m4
+        from . import netutil
+        from . import tags as tg
+        from . import util
+        from . import videoremux as vr
+        from .convertdialog import ConvertDialog
+        from .dialogs import confirm
+
+        title = t("convert.title")
+        items = self._meta_targets()
+        paths = [it.record.path for it in items]
+        if not paths:
+            return
+        files, error = netutil.run_blocking(self, lambda: [(p, m4.read(p)) for p in paths], t("tracks.reading"), title)
+        if error or files is None:
+            if error:
+                show_error(self, title, error)
+            return
+        dlg = ConvertDialog(self, files)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        jobs, target, skipped = dlg.jobs(), dlg.target(), dlg.skipped()
+        if not jobs:
+            return
+        need = "mkvmerge" if target == vr.MKV else "ffmpeg"
+        from .videotags import ffmpeg
+
+        if (mt.mkvmerge() if target == vr.MKV else ffmpeg()) is None:
+            show_error(self, title, t("remux.missing_tool", tool=need))
+            return
+        size = sum(os.path.getsize(p) for p, _f in jobs if os.path.exists(p))
+        text = t("convert.confirm", n=len(jobs), size=util.format_size(size))
+        if skipped:
+            text += "\n\n" + t("convert.skipped") + "\n" + "\n".join(skipped[:15]) + ("\n…" if len(skipped) > 15 else "")
+        if not confirm(self, title, text, yes_key="convert.start"):
+            return
+        cancel = threading.Event()
+
+        class Worker(QThread):
+            step = Signal(int, int, float, str)
+
+            def __init__(self):
+                super().__init__()
+                self.created, self.errs, self.cancelled = [], [], False
+
+            def run(self):
+                for i, (path, f) in enumerate(jobs):
+                    if cancel.is_set():
+                        self.cancelled = True
+                        break
+                    name = os.path.basename(path)
+                    self.step.emit(i, len(jobs), 0.0, name)
+                    try:
+                        self.created.append(vr.convert(path, target, f,
+                                                       lambda x, i=i, n=name: self.step.emit(i, len(jobs), x, n),
+                                                       cancel))
+                    except vr.Cancelled:
+                        self.cancelled = True
+                        break
+                    except (OSError, ValueError) as exc:
+                        self.errs.append(f"{name}: {exc}")
+
+        prog = QProgressDialog(t("convert.running"), t("button.cancel"), 0, 1000, self)
+        prog.setWindowTitle(title)
+        prog.setWindowModality(Qt.WindowModality.WindowModal)
+        prog.setMinimumDuration(300)
+        prog.setAutoClose(False)
+        prog.setAutoReset(False)
+        worker = Worker()
+
+        def step(i, total, frac, name):
+            prog.setValue(int(1000 * (i + frac) / max(total, 1)))
+            prog.setLabelText(t("tracks.writing_file", n=i + 1, total=total, name=name))
+
+        worker.step.connect(step)
+        prog.canceled.connect(cancel.set)
+        loop = QEventLoop()
+        worker.finished.connect(loop.quit)
+        worker.start()
+        if not worker.isFinished():
+            loop.exec()
+        worker.wait()
+        prog.close()
+        prog.deleteLater()
+        created, errs, cancelled = worker.created, worker.errs, worker.cancelled or cancel.is_set()
+        worker.deleteLater()
+        if created:
+            self._meta_found([tg.read_file(p) for p in created], self.meta_mode["base"])
+        if errs:
+            show_error(self, title, "\n".join(errs))
+        msg = t("convert.done", n=len(created))
+        if cancelled:
+            msg += " " + t("tracks.cancelled")
+        self._meta_pane().summary.setText(msg)
+        self._meta_refresh()
+
+    def _export_subtitles(self, selection, title: str) -> None:
+        """„Untertitel exportieren“ ohne Entfernen (L-1321)."""
+        from . import netutil
+        from . import videoremux as vr
+        from .dialogs import show_info
+
+        if not selection:
+            return
+
+        def run():
+            made, errs = [], []
+            for files, tracks in selection:
+                try:
+                    made += vr.export_subtitles(files, tracks)
+                except OSError as exc:
+                    errs.append(f"{os.path.basename(files.path)}: {exc}")
+            return made, errs
+
+        result, error = netutil.run_blocking(self, run, t("tracks.exporting"), title)
+        if error or result is None:
+            if error:
+                show_error(self, title, error)
+            return
+        made, errs = result
+        if errs:
+            show_error(self, title, "\n".join(errs))
+        if made:
+            show_info(self, title, t("tracks.exported", n=len(made)) + "\n\n" +
+                      "\n".join(os.path.basename(p) for p in made[:20]))
+
+    def _write_tracks(self, jobs: dict, by_path: dict, title: str, export: bool = False):
+        """Schreibt im Hintergrund mit Fortschritt; Neupacken lässt sich abbrechen (L-1203, L-1302).
+
+        jobs: {Pfad: (Änderungen, zu entfernende Spuren)}."""
         import threading
 
         from PySide6.QtCore import QEventLoop, Qt, QThread, Signal
@@ -957,6 +1116,7 @@ class MetaWizardMixin:
         from . import mkvtracks as mt
         from . import mp4tracks as m4
         from . import tags as tg
+        from . import videoremux as vr
 
         cancel = threading.Event()
 
@@ -965,10 +1125,10 @@ class MetaWizardMixin:
 
             def __init__(self):
                 super().__init__()
-                self.errs, self.recs, self.cancelled = [], {}, False
+                self.errs, self.recs, self.cancelled, self.created = [], {}, False, []
 
             def run(self):
-                paths = list(edits)
+                paths = list(jobs)
                 for i, path in enumerate(paths):
                     if cancel.is_set():
                         self.cancelled = True
@@ -976,13 +1136,20 @@ class MetaWizardMixin:
                     name = os.path.basename(path)
                     self.step.emit(i, len(paths), 0.0, name)
                     f = by_path[path]
+                    changes, gone = jobs[path]
+                    report = (lambda x, i=i, n=name: self.step.emit(i, len(paths), x, n))
                     try:
+                        if gone:
+                            subs = [tr for tr in gone if tr.kind == mt.SUBS]
+                            if export and subs:  # L-1320: vorher sichern
+                                self.created += vr.export_subtitles(f, subs)
+                            self.created.append(vr.remove_tracks(f, gone, changes, report, cancel))
+                            continue
                         if f.fmt == "mp4":
-                            m4.write(f, edits[path], lambda x, i=i, n=name: self.step.emit(i, len(paths), x, n),
-                                     cancel)
+                            m4.write(f, changes, report, cancel)
                         else:
-                            mt.write(path, edits[path])
-                    except m4.Cancelled:
+                            mt.write(path, changes)
+                    except (m4.Cancelled, vr.Cancelled):
                         self.cancelled = True
                         break
                     except (OSError, ValueError) as exc:
@@ -1012,7 +1179,7 @@ class MetaWizardMixin:
         worker.wait()
         dlg.close()
         dlg.deleteLater()
-        result = (worker.errs, worker.recs, worker.cancelled or cancel.is_set())
+        result = (worker.errs, worker.recs, worker.cancelled or cancel.is_set(), worker.created)
         worker.deleteLater()
         return result
 

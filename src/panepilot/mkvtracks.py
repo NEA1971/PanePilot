@@ -91,7 +91,8 @@ def parse_identify(data: dict) -> list[MkvTrack]:
             channels = 0
         tracks.append(MkvTrack(int(number), kind, counts[kind], tr.get("codec") or "",
                                (p.get("language") or "und").strip() or "und", (p.get("track_name") or "").strip(),
-                               bool(p.get("default_track")), bool(p.get("forced_track")), channels))
+                               bool(p.get("default_track")), bool(p.get("forced_track")), channels,
+                               int(tr.get("id", int(number) - 1))))
     return tracks
 
 
