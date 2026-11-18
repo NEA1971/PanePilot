@@ -929,7 +929,8 @@ class MetaWizardMixin:
             text = t("tracks.confirm", files=len(in_place), tracks=sum(len(v) for v in in_place.values()))
         if removals:  # L-1300: neue Datei „…-Kopie“, Original bleibt
             size = sum(os.path.getsize(p) for p in removals if os.path.exists(p))
-            text += ("\n\n" if text else "") + t("tracks.remove_note", n=len(removals), size=util.format_size(size))
+            key = "tracks.remove_note_replace" if dlg.replace_wanted() else "tracks.remove_note"  # v1.13.2
+            text += ("\n\n" if text else "") + t(key, n=len(removals), size=util.format_size(size))
             subs = sum(1 for gone in removals.values() for tr in gone if tr.kind == mt.SUBS)
             if subs and dlg.export_wanted():
                 text += "\n\n" + t("tracks.export_note", n=subs)
@@ -950,7 +951,8 @@ class MetaWizardMixin:
         for p, gone in removals.items():
             jobs[p] = (edits.get(p, []), gone)
         errs, recs, cancelled, created = self._write_tracks(jobs, by_path, title,
-                                                            export=bool(removals) and dlg.export_wanted())
+                                                            export=bool(removals) and dlg.export_wanted(),
+                                                            replace=dlg.replace_wanted())
         for it in targets:
             rec = recs.get(it.record.path)
             if rec is not None and not rec.error:
@@ -1010,6 +1012,9 @@ class MetaWizardMixin:
             return
         size = sum(os.path.getsize(p) for p, _f in jobs if os.path.exists(p))
         text = t("convert.confirm", n=len(jobs), size=util.format_size(size))
+        replace = dlg.replace_wanted()
+        if replace:  # v1.13.2: Originale werden danach gelöscht
+            text += "\n\n" + t("convert.replace_warning")
         if skipped:
             text += "\n\n" + t("convert.skipped") + "\n" + "\n".join(skipped[:15]) + ("\n…" if len(skipped) > 15 else "")
         if not confirm(self, title, text, yes_key="convert.start"):
@@ -1021,7 +1026,7 @@ class MetaWizardMixin:
 
             def __init__(self):
                 super().__init__()
-                self.created, self.errs, self.cancelled = [], [], False
+                self.created, self.errs, self.cancelled, self.removed = [], [], False, []
 
             def run(self):
                 for i, (path, f) in enumerate(jobs):
@@ -1033,7 +1038,9 @@ class MetaWizardMixin:
                     try:
                         self.created.append(vr.convert(path, target, f,
                                                        lambda x, i=i, n=name: self.step.emit(i, len(jobs), x, n),
-                                                       cancel))
+                                                       cancel, replace=replace))
+                        if replace and not os.path.exists(path):
+                            self.removed.append(path)
                     except vr.Cancelled:
                         self.cancelled = True
                         break
@@ -1063,7 +1070,13 @@ class MetaWizardMixin:
         prog.close()
         prog.deleteLater()
         created, errs, cancelled = worker.created, worker.errs, worker.cancelled or cancel.is_set()
+        removed = set(worker.removed)
         worker.deleteLater()
+        if removed:  # ersetzte Originale aus der Liste nehmen
+            model = self._meta_pane().meta_model
+            model.beginResetModel()
+            model.items = [it for it in model.items if it.record.path not in removed]
+            model.endResetModel()
         if created:
             self._meta_found([tg.read_file(p) for p in created], self.meta_mode["base"])
         if errs:
@@ -1104,7 +1117,7 @@ class MetaWizardMixin:
             show_info(self, title, t("tracks.exported", n=len(made)) + "\n\n" +
                       "\n".join(os.path.basename(p) for p in made[:20]))
 
-    def _write_tracks(self, jobs: dict, by_path: dict, title: str, export: bool = False):
+    def _write_tracks(self, jobs: dict, by_path: dict, title: str, export: bool = False, replace: bool = False):
         """Schreibt im Hintergrund mit Fortschritt; Neupacken lässt sich abbrechen (L-1203, L-1302).
 
         jobs: {Pfad: (Änderungen, zu entfernende Spuren)}."""
@@ -1143,7 +1156,11 @@ class MetaWizardMixin:
                             subs = [tr for tr in gone if tr.kind == mt.SUBS]
                             if export and subs:  # L-1320: vorher sichern
                                 self.created += vr.export_subtitles(f, subs)
-                            self.created.append(vr.remove_tracks(f, gone, changes, report, cancel))
+                            new = vr.remove_tracks(f, gone, changes, report, cancel, replace=replace)
+                            if replace:
+                                self.recs[path] = tg.read_file(path)
+                            else:
+                                self.created.append(new)
                             continue
                         if f.fmt == "mp4":
                             m4.write(f, changes, report, cancel)

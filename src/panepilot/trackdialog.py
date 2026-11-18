@@ -98,6 +98,13 @@ class TrackDialog(QDialog):
         self.chk_export = QCheckBox(t("tracks.export_before"), self)  # L-1320
         self.chk_export.setChecked(True)
         bar.addWidget(self.chk_export)
+        settings = getattr(parent, "settings", None)
+        self.chk_replace = QCheckBox(t("tracks.replace"), self)  # v1.13.2
+        self.chk_replace.setToolTip(t("tracks.replace_tip"))
+        self.chk_replace.setChecked(bool(settings.get("tracks_replace_original")) if settings else False)
+        if settings is not None:
+            self.chk_replace.toggled.connect(lambda on: settings.set("tracks_replace_original", on))
+        bar.addWidget(self.chk_replace)
         bar.addStretch(1)
         lay.addLayout(bar)
         hint = QLabel(t("tracks.hint"), self)
@@ -273,6 +280,9 @@ class TrackDialog(QDialog):
             if gone:
                 out[f.path] = gone
         return out, notes
+
+    def replace_wanted(self) -> bool:
+        return self.chk_replace.isChecked()
 
     def export_wanted(self) -> bool:
         return self.chk_export.isChecked()

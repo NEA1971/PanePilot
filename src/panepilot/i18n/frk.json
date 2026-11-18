@@ -1360,5 +1360,11 @@
   "convert.confirm": "{n} Videos wern umgwandlt ({size}). Des dauert ungefähr so lang wie s Kobiern und brauchd genauso viel freien Blatz. De Originale bleibn wie se sin.",
   "convert.skipped": "Auslassn:",
   "convert.running": "Videos wern umgwandlt …",
-  "convert.done": "{n} Videos umgwandlt – die neien Dadein stehn etz a in der Listn."
+  "convert.done": "{n} Videos umgwandlt – die neien Dadein stehn etz a in der Listn.",
+  "tracks.replace": "Original ersetzn (ka Kopie)",
+  "tracks.replace_tip": "Beim Wegmachn vo Schburn wird die neie Dadei erschd brüfd und ersetzt dann des Original. Ohne Häkla gibts a neie Dadei „…-Kopie“.",
+  "tracks.remove_note_replace": "Bei {n} Videos wern Schburn weggmacht und de Originale ersetzt – des kannst ned rückgängi machn. Die neie Dadei wird vorher brüfd; bei am Fehler oder Abbruch bleibt des Original. Des dauert ungefähr so lang wie s Kobiern ({size}) und brauchd zwischndurch genauso viel freien Blatz.",
+  "convert.replace": "Original danach löschn (bloß die neie Dadei bhaltn)",
+  "convert.replace_tip": "Des Original wird erschd glöschd, wenn die neie Dadei ferdi und brüfd is.",
+  "convert.replace_warning": "De Originale wern nach erfolgreicher Umwandlung glöschd und kenna ned wiederherstellt wern."
 }

@@ -1360,5 +1360,11 @@
   "convert.confirm": "{n} videos will be converted ({size}). This takes about as long as copying and needs as much free space. The originals stay unchanged.",
   "convert.skipped": "Skipped:",
   "convert.running": "Converting videos …",
-  "convert.done": "{n} videos converted – the new files are now also in the list."
+  "convert.done": "{n} videos converted – the new files are now also in the list.",
+  "tracks.replace": "Replace original (no copy)",
+  "tracks.replace_tip": "When removing tracks, the new file is checked first and then replaces the original. Without the tick a new file “…-Copy” is created.",
+  "tracks.remove_note_replace": "Tracks are removed in {n} videos and the originals replaced – this cannot be undone. The new file is checked first; on an error or cancel the original stays. This takes about as long as copying ({size}) and temporarily needs as much free space.",
+  "convert.replace": "Delete original afterwards (keep only the new file)",
+  "convert.replace_tip": "The original is only deleted once the new file is finished and checked.",
+  "convert.replace_warning": "The originals are deleted after a successful conversion and cannot be restored."
 }

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 
-from PySide6.QtWidgets import (QButtonGroup, QDialog, QDialogButtonBox, QHBoxLayout, QLabel, QRadioButton,
+from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QDialog, QDialogButtonBox, QHBoxLayout, QLabel, QRadioButton,
                                QTreeWidget, QTreeWidgetItem, QVBoxLayout)
 
 from . import videoremux as vr
@@ -39,6 +39,13 @@ class ConvertDialog(QDialog):
         self.tree.setHeaderLabels([t("convert.col_file"), t("convert.col_result")])
         self.tree.setColumnWidth(0, 360)
         lay.addWidget(self.tree, 1)
+        settings = getattr(parent, "settings", None)
+        self.chk_replace = QCheckBox(t("convert.replace"), self)  # v1.13.2
+        self.chk_replace.setToolTip(t("convert.replace_tip"))
+        self.chk_replace.setChecked(bool(settings.get("convert_replace_original")) if settings else False)
+        if settings is not None:
+            self.chk_replace.toggled.connect(lambda on: settings.set("convert_replace_original", on))
+        lay.addWidget(self.chk_replace)
         note = QLabel(t("convert.note"), self)
         note.setWordWrap(True)
         note.setEnabled(False)
@@ -82,6 +89,9 @@ class ConvertDialog(QDialog):
                 item.setText(1, "→ " + os.path.basename(new))
                 ok += 1
         self.btn_ok.setEnabled(ok > 0)
+
+    def replace_wanted(self) -> bool:
+        return self.chk_replace.isChecked()
 
     def jobs(self) -> list[tuple[str, object]]:
         return [(p, f) for p, f, problem, _n in self.plan() if not problem]

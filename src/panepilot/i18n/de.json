@@ -1361,5 +1361,11 @@
   "convert.confirm": "{n} Videos werden umgewandelt ({size}). Das dauert etwa so lange wie das Kopieren und braucht genauso viel freien Platz. Die Originale bleiben unverändert.",
   "convert.skipped": "Ausgelassen:",
   "convert.running": "Videos werden umgewandelt …",
-  "convert.done": "{n} Videos umgewandelt – die neuen Dateien stehen jetzt auch in der Liste."
+  "convert.done": "{n} Videos umgewandelt – die neuen Dateien stehen jetzt auch in der Liste.",
+  "tracks.replace": "Original ersetzen (keine Kopie anlegen)",
+  "tracks.replace_tip": "Beim Entfernen von Spuren wird die neue Datei erst geprüft und ersetzt dann das Original. Ohne Häkchen entsteht eine neue Datei „…-Kopie“.",
+  "tracks.remove_note_replace": "Bei {n} Videos werden Spuren entfernt und die Originale ersetzt – das lässt sich nicht rückgängig machen. Die neue Datei wird vorher geprüft; bei einem Fehler oder Abbruch bleibt das Original. Das dauert etwa so lange wie das Kopieren ({size}) und braucht vorübergehend genauso viel freien Platz.",
+  "convert.replace": "Original danach löschen (nur die neue Datei behalten)",
+  "convert.replace_tip": "Das Original wird erst gelöscht, wenn die neue Datei fertig und geprüft ist.",
+  "convert.replace_warning": "Die Originale werden nach erfolgreicher Umwandlung gelöscht und lassen sich nicht wiederherstellen."
 }

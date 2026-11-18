@@ -1360,5 +1360,11 @@
   "convert.confirm": "{n} vidéos vont être converties ({size}). Cela prend à peu près le temps d'une copie et nécessite autant d'espace libre. Les originaux restent inchangés.",
   "convert.skipped": "Ignorés :",
   "convert.running": "Conversion des vidéos …",
-  "convert.done": "{n} vidéos converties – les nouveaux fichiers figurent aussi dans la liste."
+  "convert.done": "{n} vidéos converties – les nouveaux fichiers figurent aussi dans la liste.",
+  "tracks.replace": "Remplacer l'original (pas de copie)",
+  "tracks.replace_tip": "Lors du retrait de pistes, le nouveau fichier est d'abord vérifié puis remplace l'original. Sans la case, un nouveau fichier « …-copie » est créé.",
+  "tracks.remove_note_replace": "Des pistes sont retirées dans {n} vidéos et les originaux remplacés – impossible d'annuler. Le nouveau fichier est vérifié avant ; en cas d'erreur ou d'annulation, l'original est conservé. Cela prend à peu près le temps d'une copie ({size}) et nécessite temporairement autant d'espace libre.",
+  "convert.replace": "Supprimer ensuite l'original (garder seulement le nouveau fichier)",
+  "convert.replace_tip": "L'original n'est supprimé qu'une fois le nouveau fichier terminé et vérifié.",
+  "convert.replace_warning": "Les originaux sont supprimés après une conversion réussie et ne peuvent pas être restaurés."
 }

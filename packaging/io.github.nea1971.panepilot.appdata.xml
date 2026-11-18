@@ -52,6 +52,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.13.2" date="2026-11-18">
+      <description>
+        <p>Removing tracks and changing the format can optionally replace the original instead of creating a copy.</p>
+      </description>
+    </release>
     <release version="1.13.1" date="2026-11-18">
       <description>
         <p>Fix: removing an audio track that is longer than the video no longer fails the check of the new file.</p>

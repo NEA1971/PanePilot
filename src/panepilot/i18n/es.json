@@ -1360,5 +1360,11 @@
   "convert.confirm": "Se convertirán {n} vídeos ({size}). Tarda aproximadamente lo que una copia y necesita el mismo espacio libre. Los originales no cambian.",
   "convert.skipped": "Omitidos:",
   "convert.running": "Convirtiendo vídeos …",
-  "convert.done": "{n} vídeos convertidos: los archivos nuevos ya aparecen en la lista."
+  "convert.done": "{n} vídeos convertidos: los archivos nuevos ya aparecen en la lista.",
+  "tracks.replace": "Sustituir el original (sin copia)",
+  "tracks.replace_tip": "Al quitar pistas, el archivo nuevo se comprueba primero y luego sustituye al original. Sin la marca se crea un archivo nuevo «…-copia».",
+  "tracks.remove_note_replace": "Se quitan pistas en {n} vídeos y se sustituyen los originales; no se puede deshacer. El archivo nuevo se comprueba antes; si hay un error o se cancela, el original se conserva. Tarda aproximadamente lo que una copia ({size}) y necesita temporalmente el mismo espacio libre.",
+  "convert.replace": "Borrar después el original (conservar solo el archivo nuevo)",
+  "convert.replace_tip": "El original solo se borra cuando el archivo nuevo está terminado y comprobado.",
+  "convert.replace_warning": "Los originales se borran tras una conversión correcta y no se pueden recuperar."
 }

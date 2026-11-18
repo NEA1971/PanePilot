@@ -275,14 +275,15 @@ def plan_removal(files: mt.FileTracks, remove: list[mt.MkvTrack],
     return keep, values
 
 
-def remove_tracks(files: mt.FileTracks, remove: list[mt.MkvTrack], edits, progress=None, cancel=None) -> str:
+def remove_tracks(files: mt.FileTracks, remove: list[mt.MkvTrack], edits, progress=None, cancel=None,
+                  replace: bool = False) -> str:
     """Neue Datei ohne die Spuren; liefert ihren Pfad. Das Original bleibt (L-1300)."""
     if any(tr.kind == mt.VIDEO for tr in remove):
         raise OSError(t("remux.no_video_removal"))
     keep, values = plan_removal(files, remove, edits)
     if not any(tr.kind == mt.AUDIO for tr in keep) and any(tr.kind == mt.AUDIO for tr in files.tracks):
         raise OSError(t("remux.last_audio"))  # L-1311
-    final = copy_name(files.path)
+    final = files.path if replace else copy_name(files.path)  # v1.13.2: auf Wunsch Original ersetzen
     tmp = _tmp_for(final)
     duration = files.duration or _duration(files.path)
     try:
@@ -373,8 +374,11 @@ def convert_problem(path: str, target: str, files: mt.FileTracks | None = None) 
     return ""
 
 
-def convert(path: str, target: str, files: mt.FileTracks | None, progress=None, cancel=None) -> str:
-    """Neue Datei im Zielformat neben dem Original; Tags und Cover übertragen (L-1304)."""
+def convert(path: str, target: str, files: mt.FileTracks | None, progress=None, cancel=None,
+            replace: bool = False) -> str:
+    """Neue Datei im Zielformat neben dem Original; Tags und Cover übertragen (L-1304).
+
+    replace (v1.13.2): nach erfolgreicher Prüfung wird das Original gelöscht."""
     final = copy_name(path, ".mkv" if target == MKV else ".mp4")
     tmp = _tmp_for(final)
     duration = (files.duration if files else 0) or _duration(path)
@@ -397,6 +401,8 @@ def convert(path: str, target: str, files: mt.FileTracks | None, progress=None, 
             _check(tmp, expected, _reference(path))
         transfer_tags(path, tmp)
         _finish(tmp, final, path)
+        if replace and os.path.abspath(final) != os.path.abspath(path):
+            os.remove(path)
     except BaseException:
         _discard(tmp)
         raise
