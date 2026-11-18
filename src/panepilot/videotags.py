@@ -45,6 +45,9 @@ _MKV = {"title": ("TITLE",), "description": ("DESCRIPTION", "COMMENT", "SUMMARY"
         "author": ("ARTIST", "AUTHOR", "DIRECTOR"), "copyright": ("COPYRIGHT",), "genre": ("GENRE",),
         "year": ("DATE_RELEASED", "DATE", "YEAR")}
 # Angaben, die ffprobe für MKV als Tag meldet, die aber keine Tags im eigentlichen Sinn sind
+# Matroska-Zielebene 50 (der ganze Film): ffprobe meldet Tags mit „TargetType MOVIE“ ohne Zahlenwert als
+# „MOVIE/DATE_RELEASED“ usw. – die gehören trotzdem zum Film (v1.14.1)
+_MKV_GLOBAL_TYPES = {"MOVIE", "EPISODE", "CONCERT", "ALBUM", "OPERA"}
 _MKV_SKIP = {"TITLE", "ENCODER", "CREATION_TIME", "DURATION", "MAJOR_BRAND", "MINOR_VERSION", "COMPATIBLE_BRANDS"}
 
 _CODECS = {"h264": "H.264", "hevc": "H.265 (HEVC)", "vp8": "VP8", "vp9": "VP9", "av1": "AV1", "mpeg4": "MPEG-4",
@@ -457,9 +460,23 @@ def _read_asf(rec) -> None:
             rec.pictures.append(pic)
 
 
+def _mkv_plain_tags(tags: dict) -> dict:
+    """„MOVIE/GENRE“ → „GENRE“, sofern es den Namen nicht schon ohne Vorsatz gibt."""
+    out = dict(tags)
+    plain = {k.upper() for k in tags if "/" not in k}
+    for key, value in tags.items():
+        prefix, sep, name = key.partition("/")
+        if sep and prefix.upper() in _MKV_GLOBAL_TYPES and name and "/" not in name and name.upper() not in plain:
+            out.pop(key)
+            out[name] = value
+            plain.add(name.upper())
+    return out
+
+
 def _read_mkv(rec, tags: dict, info: dict | None) -> None:
     from . import tags as tg
 
+    tags = _mkv_plain_tags(tags)
     upper = {k.upper(): (k, v) for k, v in tags.items()}
     used = set()
     title = tags.get("title") or upper.get("TITLE", ("", ""))[1]
@@ -843,7 +860,10 @@ def _is_global(tag: ET.Element) -> bool:
     if any(targets.find(uid) is not None for uid in ("TrackUID", "EditionUID", "ChapterUID", "AttachmentUID")):
         return False
     tv = targets.findtext("TargetTypeValue")
-    return tv in (None, "", "50")
+    if tv in (None, ""):  # nur „TargetType“ angegeben (z. B. MOVIE) oder gar nichts
+        kind = (targets.findtext("TargetType") or "").strip().upper()
+        return kind in ("", *_MKV_GLOBAL_TYPES)
+    return tv == "50"
 
 
 def _global_tag(root: ET.Element, create: bool) -> ET.Element | None:
