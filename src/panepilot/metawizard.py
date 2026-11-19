@@ -1215,7 +1215,7 @@ class MetaPane(ToolPane):
     long_text_requested = Signal(str)  # F-980
 
     def __init__(self, parent=None) -> None:
-        super().__init__(t("meta.title"), parent, x_close=True)  # v1.18.1: ✕ wie bei „Synchronisieren“
+        super().__init__(t("meta.title"), parent)
         self.layout_keys: list[str] = mp.default_sidebar()
         self.boxes: dict[str, FieldBox] = {}
         self.rows: dict[str, QWidget] = {}
@@ -1438,8 +1438,7 @@ class MetaPane(ToolPane):
     def update_state(self, scanning: bool, saving: bool, has_changes: bool, can_undo: bool) -> None:
         """Knöpfe passend zum Zustand (F-925): Stopp nur beim Einlesen, Speichern nur mit Änderungen."""
         self.btn_stop.setVisible(scanning)
-        if not self.x_close:
-            self.btn_close.setVisible(not scanning)
+        self.btn_close.setVisible(not scanning)
         busy = scanning or saving
         self.btn_save.setEnabled(has_changes and not busy)
         self.btn_discard.setEnabled(has_changes and not busy)

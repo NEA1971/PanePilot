@@ -41,11 +41,11 @@ SEARCH_PROFILES = "Suche"
 class ToolPane(QWidget):
     close_clicked = Signal()
 
-    def __init__(self, title: str, parent=None, x_close: bool = False) -> None:
+    def __init__(self, title: str, parent=None, x_close: bool = True) -> None:
         from PySide6.QtCore import Qt
 
         super().__init__(parent)
-        self.x_close = x_close  # v1.18.1: „✕“ in der Titelzeile statt Knopf „Schließen“
+        self.x_close = x_close  # v1.18.2: „✕“ in der Titelzeile und zusätzlich der Knopf „Schließen“
         self._title = QLabel(title, self)
         self._title.setObjectName("renameTitle")
         self._title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -77,7 +77,6 @@ class ToolPane(QWidget):
             self.x_button.clicked.connect(self.close_clicked)
             head.addWidget(self.x_button)
             layout.addLayout(head)
-            self.btn_close.hide()
         else:
             layout.addWidget(self._title)
         layout.addWidget(scroll, 1)
@@ -94,8 +93,7 @@ class ToolPane(QWidget):
 
     def finish_layout(self) -> None:
         self.inner_layout.addStretch(1)
-        if not self.x_close:
-            self.buttons.addWidget(self.btn_close)
+        self.buttons.addWidget(self.btn_close)
 
 
 # --- Profile (Suche) ---------------------------------------------------------------------------

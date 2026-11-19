@@ -210,7 +210,7 @@ def test_sync_pane(window, trees, monkeypatch, tmp_path):  # noqa: F811
     top = {tree.topLevelItem(i).text(sm.L_NAME) or tree.topLevelItem(i).text(sm.R_NAME): tree.topLevelItem(i)
            for i in range(tree.topLevelItemCount())}
     assert "same.txt" not in top and "newdir" in top and "conflict.txt" in top
-    assert "sub" in top and top["sub"].childCount() == 1 and top["sub"].isExpanded()  # Baum, aufgeklappt (L-1804)
+    assert "sub" in top and top["sub"].childCount() == 1 and not top["sub"].isExpanded()  # Baum, zugeklappt (1.18.2)
     assert top["sub"].child(0).text(sm.L_NAME) == "new.txt" and top["sub"].child(0).text(sm.R_NAME) == ""
     assert top["only_right.txt"].text(sm.L_NAME) == "" and top["only_right.txt"].text(sm.R_NAME) == "only_right.txt"
     assert top["conflict.txt"].data(sm.ACT, sm.ROLE_ICON)[0] == "!"
@@ -389,11 +389,22 @@ def test_one_sided_folder_tree_and_partial(window, trees, monkeypatch, tmp_path)
     pane.set_paths(left, right)
     assert pane.compare()
     item = [it for it in _items(pane.tree) if it.text(sm.L_NAME) == "neu2"][0]
-    assert item.childCount() == 2 and item.isExpanded()
+    assert item.childCount() == 2 and not item.isExpanded()
     opened = []
     monkeypatch.setattr(sm.util, "open_with_default_app", lambda p: opened.append(p))
     pane._open(item, sm.L_NAME)
-    assert not item.isExpanded() and opened == []
+    assert item.isExpanded() and opened == []
+    # Rechtsklick „Ordner ausschließen“: Name kommt unter „Ausschließen“, danach ist er weg (1.18.2)
+    pane.tree.clearSelection()
+    item.setSelected(True)
+    assert pane.selected_folder_names() == ["neu2"]
+    pane.exclude_folders(["neu2"])
+    assert "neu2" in pane.ed_exclude.text()
+    assert not [it for it in _items(pane.tree) if it.text(sm.L_NAME) == "neu2"]
+    _file(f"{left}/neu3/x.txt", "x")
+    _file(f"{left}/neu3/y.txt", "y")
+    assert pane.compare()
+    item = [it for it in _items(pane.tree) if it.text(sm.L_NAME) == "neu3"][0]
     pane.tree.clearSelection()
     item.child(0).setSelected(True)
     pane.set_selected(fd.NONE)

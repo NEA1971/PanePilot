@@ -100,7 +100,7 @@ def test_import_mirror_and_update(window, tmp_path):  # noqa: F811
     assert (p.name, p.left, p.right) == ("Backup_App", "/home/alice/.config/app", "/mnt/nas/Backup/app")
     o = p.options
     assert (o.direction, o.mirror, o.content, o.dst, o.include, o.exclude) == \
-        (fd.LR, True, False, False, "*", ".Trash-*; .recycle")
+        (fd.LR, True, False, False, "*", ".Trash-*; .recycle; *.ffs_db")
     assert (p.after.kind, p.after.command, p.after.when) == (sp.AFTER_COMMAND, "sh /opt/scripts/after.sh",
                                                              sp.WHEN_ALWAYS)
     profs, notes = ffs.parse(_write(tmp_path, "Upd.ffs_gui", UPDATE))
@@ -117,7 +117,7 @@ def test_import_batch_with_notes(window, tmp_path):  # noqa: F811
     assert [p.name for p in profs] == ["Zwei", "Zwei (2)"]
     o = profs[0].options
     assert o.direction == fd.BOTH and o.content and o.dst
-    assert o.include == "*.jpg" and o.exclude == "Cache; Thumbs.db"
+    assert o.include == "*.jpg" and o.exclude == "Cache; Thumbs.db; *.ffs_db"
     assert profs[0].after.when == sp.WHEN_ALWAYS
     text = "\n".join(notes)
     for part in ("Datenbank", "Fotos", "/Cache/", "Größen", "Fehlern", "sftp://server/D", "2 Ordnerpaare"):
@@ -152,7 +152,7 @@ def test_export_roundtrip(window, tmp_path):  # noqa: F811
         b = back[0]
         assert (b.left, b.right) == (p.left, p.right)
         assert (b.options.direction, b.options.mirror) == (direction, mirror)
-        assert b.options.include == "*.jpg; *.png" and b.options.exclude == "Thumbs.db; .Trash-*"
+        assert b.options.include == "*.jpg; *.png" and b.options.exclude == "Thumbs.db; .Trash-*; *.ffs_db"
         assert (b.after.command, b.after.when) == ("sh run.sh", sp.WHEN_OK)
     assert ffs.safe_file_name("Fotos → NAS") == "Fotos → NAS" and ffs.safe_file_name('a/b:c') == "a_b_c"
     assert ffs.export_notes(p)  # Sommerzeit steht nicht in der Datei

@@ -439,6 +439,9 @@ class SyncPane(QWidget):
         row.addWidget(self.btn_compare)
         row.addWidget(self.btn_start)
         fl2.addLayout(row)
+        self.btn_close = QPushButton(t("button.close"), foot)  # v1.18.2: ✕ und Knopf, wie bei den anderen
+        self.btn_close.clicked.connect(self.close_clicked)
+        fl2.addWidget(self.btn_close)
         outer.addWidget(foot)
 
         last = (self.settings.get("sync_last") if self.settings is not None else None) or {}
@@ -730,7 +733,7 @@ class SyncPane(QWidget):
             if e.status == fd.SAME:
                 for c in range(7):
                     item.setForeground(c, self.palette().placeholderText())
-        tree.expandAll()
+        tree.collapseAll()  # v1.18.2: zuerst nur die oberste Ebene
         self.refresh_actions()
         self.view.relayout()
 
@@ -782,13 +785,44 @@ class SyncPane(QWidget):
         self.refresh_actions()
 
     def _menu(self, pos) -> None:
-        if not self.tree.selectedItems():
-            return
+        """Rechtsklick: Aktionen für die Markierten, „Ordner ausschließen“; im leeren Bereich
+        nur „Vergleichen“ und „Synchronisieren“ (v1.18.2)."""
         menu = QMenu(self)
-        for action in ACTIONS:
-            menu.addAction(f"{BUTTON_GLYPHS[action]}  {menu_label(action)}").triggered.connect(
-                lambda _c=False, a=action: self.set_selected(a))
+        on_item = self.tree.itemAt(pos) is not None and self.tree.selectedItems()
+        if on_item:
+            for action in ACTIONS:
+                menu.addAction(f"{BUTTON_GLYPHS[action]}  {menu_label(action)}").triggered.connect(
+                    lambda _c=False, a=action: self.set_selected(a))
+            names = self.selected_folder_names()
+            if names:
+                menu.addSeparator()
+                text = t("sync.exclude_folder", name=names[0]) if len(names) == 1 else \
+                    t("sync.exclude_folders", n=len(names))
+                menu.addAction(text).triggered.connect(lambda: self.exclude_folders(names))
+            menu.addSeparator()
+        menu.addAction(t("sync.compare")).triggered.connect(self.compare)
+        act = menu.addAction(t("sync.start"))
+        act.setEnabled(self.btn_start.isEnabled())
+        act.triggered.connect(self.start)
         menu.exec(self.tree.viewport().mapToGlobal(pos))
+
+    def selected_folder_names(self) -> list[str]:
+        out = []
+        for item in self.tree.selectedItems():
+            idx = item.data(L_NAME, ROLE_ENTRY)
+            is_dir = (idx is None or idx < 0) or self.entries[idx].is_dir
+            name = item.text(L_NAME) or item.text(R_NAME)
+            if is_dir and name and name not in out:
+                out.append(name)
+        return out
+
+    def exclude_folders(self, names: list[str]) -> None:
+        """Ordnernamen unter „Ausschließen“ eintragen und neu vergleichen (v1.18.2)."""
+        current = fd.patterns(self.ed_exclude.text())
+        low = {c.lower() for c in current}
+        current += [n for n in names if n.lower() not in low]
+        self.ed_exclude.setText("; ".join(current))
+        self.compare()
 
     def _open(self, item: QTreeWidgetItem, column: int) -> None:
         """L-1807: Doppelklick öffnet die Datei der angeklickten Seite."""

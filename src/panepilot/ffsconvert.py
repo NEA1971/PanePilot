@@ -96,7 +96,7 @@ def _direction(sync: ET.Element | None) -> tuple[str, bool, list[str]]:
 def _filters(filt: ET.Element | None) -> tuple[str, str, list[str]]:
     notes: list[str] = []
     if filt is None:
-        return "*", "", notes
+        return "*", "*.ffs_db", notes
     inc, exc = [], []
     for tag, out in (("Include", inc), ("Exclude", exc)):
         node = filt.find(tag)
@@ -122,6 +122,8 @@ def _filters(filt: ET.Element | None) -> tuple[str, str, list[str]]:
         if node is not None and (node.text or "0").strip() not in ("", "0"):
             notes.append(t("ffs.note_size_time"))
             break
+    if not any(x.lower() == "*.ffs_db" for x in exc):  # v1.18.2: Datenbank von FFS nie übertragen
+        exc.append("*.ffs_db")
     include = "; ".join(inc) if inc and inc != ["*"] else "*"
     return include, "; ".join(exc), notes
 
