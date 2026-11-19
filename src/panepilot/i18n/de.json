@@ -1585,5 +1585,22 @@
   "ffs.note_not_local": "„{path}“ ist kein lokaler Ordner – PanePilot synchronisiert nur lokale Ordner und eingehängte Freigaben.",
   "ffs.note_pairs": "{n} Ordnerpaare – je Paar ein eigener Abgleich.",
   "ffs.export_dst": "„1 Stunde ignorieren“ steht nicht in der Datei – bei Bedarf in FreeFileSync nachtragen.",
-  "ffs.export_power": "Bereitschaft/Herunterfahren nach dem Abgleich steht nicht in der Datei."
+  "ffs.export_power": "Bereitschaft/Herunterfahren nach dem Abgleich steht nicht in der Datei.",
+  "sync.close": "Synchronisieren schließen (Esc)",
+  "sync.direction": "Richtung",
+  "sync.comparison": "Vergleich",
+  "sync.filter": "Filter",
+  "sync.col_name": "Name",
+  "sync.col_size": "Größe",
+  "sync.col_modified": "Geändert",
+  "sync.n_files": "{n} Dateien",
+  "sync.folder_all": "Ordner: alles darin „{action}“",
+  "sync.folder_mixed": "Ordner: unterschiedliche Aktionen darin",
+  "sync.tip_copy_right": "nach rechts kopieren",
+  "sync.tip_copy_left": "nach links kopieren",
+  "sync.tip_over_right": "rechts überschreiben",
+  "sync.tip_over_left": "links überschreiben",
+  "sync.tip_del_right": "rechts löschen (Papierkorb)",
+  "sync.tip_del_left": "links löschen (Papierkorb)",
+  "sync.tip_none": "nichts tun"
 }

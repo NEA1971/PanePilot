@@ -1584,5 +1584,22 @@
   "ffs.note_not_local": "„{path}“ is keen lokalor Ordnor – PanePilot gleichd nur lokale Ordnor un eingehängde Freigabn ab.",
   "ffs.note_pairs": "{n} Ordnorpaare – je Paar e eichnor Abgleich.",
   "ffs.export_dst": "„1 Schdunde ignoriern“ schdehd nich in dor Dadei – bei Bedarf in FreeFileSync nachdragn.",
-  "ffs.export_power": "Bereidschaft/Runnorfahrn nachm Abgleich schdehd nich in dor Dadei."
+  "ffs.export_power": "Bereidschaft/Runnorfahrn nachm Abgleich schdehd nich in dor Dadei.",
+  "sync.close": "Abgleichn zumachn (Esc)",
+  "sync.direction": "Richdung",
+  "sync.comparison": "Vorgleich",
+  "sync.filter": "Filtor",
+  "sync.col_name": "Naame",
+  "sync.col_size": "Größe",
+  "sync.col_modified": "Geändord",
+  "sync.n_files": "{n} Dadein",
+  "sync.folder_all": "Ordnor: alles drin „{action}“",
+  "sync.folder_mixed": "Ordnor: vorschiedne Agdsionen drin",
+  "sync.tip_copy_right": "nach rechts kobiern",
+  "sync.tip_copy_left": "nach links kobiern",
+  "sync.tip_over_right": "rechts überschreibn",
+  "sync.tip_over_left": "links überschreibn",
+  "sync.tip_del_right": "rechts löschn (Babierkorb)",
+  "sync.tip_del_left": "links löschn (Babierkorb)",
+  "sync.tip_none": "nischd machn"
 }

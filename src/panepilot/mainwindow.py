@@ -39,6 +39,7 @@ from .icons import IconProvider, app_icon
 from .operations import OperationController
 from .mounts import MountManager
 from .metacontrol import META_ALLOWED, MODE_META, MetaWizardMixin
+from .synccontrol import MODE_SYNC, SYNC_ALLOWED, SYNC_FKEYS, SyncMixin
 from .remotecontrol import MODE_SERVERS, REMOTE_BLOCKED, RemoteMixin
 from .remotefs import is_remote_uri
 from .favsets import FavoriteSets
@@ -145,6 +146,13 @@ class KeyFilter(QObject):
                 self.window.leave_rename_mode()  # Esc = Abbrechen (F-704)
                 return True
         if (etype == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Escape
+                and self.window.sync_mode is not None and QApplication.activeModalWidget() is None
+                and QApplication.activePopupWidget() is None):
+            focus = QApplication.focusWidget()
+            if focus is not None and focus.window() is self.window:
+                self.window.leave_sync_mode()  # v1.18 (L-1800)
+                return True
+        if (etype == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Escape
                 and self.window.meta_mode is not None and QApplication.activeModalWidget() is None
                 and QApplication.activePopupWidget() is None):
             focus = QApplication.focusWidget()
@@ -190,7 +198,7 @@ class KeyFilter(QObject):
         return False
 
 
-class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
+class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.settings = Settings()
@@ -245,7 +253,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         self.outer.setStretchFactor(1, 0)
         self.outer.setStretchFactor(2, 1)
         self.fkey_bar = FKeyBar()
-        self.fkey_bar.triggered.connect(lambda key: self.trigger(self.fkeys.get(key) or ""))
+        self.fkey_bar.triggered.connect(lambda key: self.trigger(self.fkey_action(key) or ""))
         self.fkey_bar.assign_requested.connect(self._assign_fkey_menu)
         central = QWidget(self)
         vbox = QVBoxLayout(central)
@@ -286,6 +294,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
             MODE_SEARCH: lambda n=name: self._make_search_pane(n),
             MODE_CHECKSUM: lambda n=name: self._make_checksum_pane(n),
             MODE_META: lambda n=name: self._make_meta_pane(n),
+            MODE_SYNC: lambda n=name: self._make_sync_pane(n),
         })
         panel = FilePanel(name, self.icons)
         panel.mounts = self.mounts
@@ -1098,6 +1107,8 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
             return
         if self.meta_mode is not None and action_id not in META_ALLOWED:
             return
+        if self.sync_mode is not None and action_id not in SYNC_ALLOWED:
+            return
         if self.single_mode and action_id in self.SINGLE_BLOCKED:
             return
         if self.active.in_trash and action_id in self.TRASH_BLOCKED:
@@ -1189,15 +1200,6 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
             show_error(self, t("action.open_terminal"), t("error.no_terminal"))
 
     # --- Ordner vergleichen / synchronisieren (v1.16) --------------------------------------------------
-    def _sync_folders(self) -> tuple[str, str]:
-        """Linker und rechter Ordner, sofern es lokale Ordner sind (L-1619)."""
-        out = []
-        for side in ("left", "right"):
-            p = self.sides[side].panel
-            ok = not p.in_trash and not p.search_mode and p.remote is None and os.path.isdir(p.current_path or "")
-            out.append(p.current_path if ok else "")
-        return out[0], out[1]
-
     def do_compare_folders(self) -> None:
         """L-1600: Unterschiede in beiden Fenstern markieren."""
         from . import folderdiff as fd
@@ -1221,33 +1223,6 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         self.sides["left"].panel.select_names(lnames)
         self.sides["right"].panel.select_names(rnames)
         self.statusBar().showMessage(t("sync.quick_result", left=len(lnames), right=len(rnames)), 8000)
-
-    def do_sync_folders(self, profile: str | None = None) -> None:
-        """L-1610: Dialog „Ordner synchronisieren …“."""
-        from PySide6.QtCore import QTimer
-
-        from .syncdialog import SyncDialog
-
-        left, right = self._sync_folders()
-        dlg = SyncDialog(self, left, right, profile)
-        dlg.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-        dlg.show()
-        if profile:  # L-1621: gleich vergleichen
-            QTimer.singleShot(0, dlg.compare)
-
-    def _fill_sync_menu(self) -> None:
-        from . import syncprofiles as sp
-
-        self.sync_menu.clear()
-        profiles = sp.load()
-        if not profiles:
-            act = self.sync_menu.addAction(t("menu.sync_profiles_none"))
-            act.setEnabled(False)
-        for p in profiles:
-            self.sync_menu.addAction(p.name).triggered.connect(lambda _c=False, n=p.name: self.do_sync_folders(n))
-
-    def sync_profiles_changed(self) -> None:
-        pass  # das Menü wird beim Öffnen neu gefüllt
 
     def do_find_duplicates(self, folder: str | None = None) -> None:
         """Duplikate suchen (v1.6): eigenes Fenster, der Ordner des anderen Fensters ist wählbar (L-622)."""
@@ -1413,6 +1388,8 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
 
     # --- F-Tasten ------------------------------------------------------------------------
     def fkey_action(self, key: str) -> str | None:
+        if getattr(self, "sync_mode", None) is not None:  # v1.18 (L-1806)
+            return SYNC_FKEYS.get(key)
         return self.fkeys.get(key)
 
     def _refresh_fkey_display(self) -> None:

@@ -178,62 +178,151 @@ def test_profiles_and_after(tmp_path, monkeypatch):
     assert sp.power_command(sp.AFTER_SHUTDOWN) == ["systemctl", "poweroff"]
 
 
-def test_dialog(window, trees, monkeypatch, tmp_path):  # noqa: F811
+def _items(tree):
+    out = []
+
+    def visit(item):
+        out.append(item)
+        for i in range(item.childCount()):
+            visit(item.child(i))
+
+    root = tree.invisibleRootItem()
+    for i in range(root.childCount()):
+        visit(root.child(i))
+    return out
+
+
+def test_sync_pane(window, trees, monkeypatch, tmp_path):  # noqa: F811
     from panepilot import folderdiff as fd
     from panepilot import netutil
-    from panepilot import syncdialog as sd
+    from panepilot import syncmode as sm
     from panepilot import syncprofiles as sp
 
     monkeypatch.setattr(sp, "config_dir", lambda: tmp_path / "cfg")
     monkeypatch.setattr(netutil, "run_blocking", lambda parent, fn, text, title: (fn(), None))
     left, right = trees
-    dlg = sd.SyncDialog(window, left, right)
-    assert not dlg.btn_start.isEnabled()
-    dlg.ed_exclude.setText("Thumbs.db")
-    assert dlg.compare()
-    shown = [dlg.tree.topLevelItem(i).text(0) for i in range(dlg.tree.topLevelItemCount())]
-    assert "same.txt" not in shown and "newdir/" in shown and "conflict.txt" in shown
-    dlg.chk_same.setChecked(True)
-    assert dlg.tree.topLevelItemCount() == len(dlg.entries)
-    dlg.chk_same.setChecked(False)
-    assert dlg.btn_start.isEnabled()
+    pane = sm.SyncPane(window)
+    pane.set_paths(left, right)
+    assert not pane.btn_start.isEnabled()
+    pane.ed_exclude.setText("Thumbs.db")
+    assert pane.compare()
+    tree = pane.tree
+    top = {tree.topLevelItem(i).text(sm.L_NAME) or tree.topLevelItem(i).text(sm.R_NAME): tree.topLevelItem(i)
+           for i in range(tree.topLevelItemCount())}
+    assert "same.txt" not in top and "newdir" in top and "conflict.txt" in top
+    assert "sub" in top and top["sub"].childCount() == 1 and top["sub"].isExpanded()  # Baum, aufgeklappt (L-1804)
+    assert top["sub"].child(0).text(sm.L_NAME) == "new.txt" and top["sub"].child(0).text(sm.R_NAME) == ""
+    assert top["only_right.txt"].text(sm.L_NAME) == "" and top["only_right.txt"].text(sm.R_NAME) == "only_right.txt"
+    assert top["conflict.txt"].data(sm.ACT, sm.ROLE_ICON)[0] == "!"
+    assert top["only_left.jpg"].data(sm.ACT, sm.ROLE_ICON)[0] == "→"
+    assert top["only_left.jpg"].toolTip(sm.ACT) == "nach rechts kopieren"  # nur Symbol, Text als Tooltip
+    assert top["sub"].data(sm.ACT, sm.ROLE_ICON)[0] == "→"
+    pane.chk_same.setChecked(True)
+    assert sum(1 for it in _items(tree) if it.data(sm.L_NAME, sm.ROLE_ENTRY) >= 0) == len(pane.entries)
+    pane.chk_same.setChecked(False)
+    assert pane.btn_start.isEnabled()
     # alle markieren und auf „nichts tun“ setzen (L-1615)
-    dlg.tree.selectAll()
-    dlg.set_selected(fd.NONE)
-    assert all(e.action == fd.NONE for e in dlg.entries) and not dlg.btn_start.isEnabled()
-    item = [dlg.tree.topLevelItem(i) for i in range(dlg.tree.topLevelItemCount())
-            if dlg.tree.topLevelItem(i).text(0) == "only_left.jpg"][0]
-    dlg.tree.clearSelection()
-    item.setSelected(True)
-    dlg.set_selected(fd.TO_RIGHT)
-    assert item.text(2) == "→ kopieren" and dlg.btn_start.isEnabled()
+    tree.selectAll()
+    pane.view.buttons[fd.NONE].click()
+    assert all(e.action == fd.NONE for e in pane.entries) and not pane.btn_start.isEnabled()
+    top = {tree.topLevelItem(i).text(sm.L_NAME) or tree.topLevelItem(i).text(sm.R_NAME): tree.topLevelItem(i)
+           for i in range(tree.topLevelItemCount())}
+    # Ordner markieren: gilt für alles darin (L-1805); dann eine Datei darin umstellen → „gemischt“
+    _file(f"{left}/sub/second.txt", "x")
+    assert pane.compare()
+    top = {tree.topLevelItem(i).text(sm.L_NAME) or tree.topLevelItem(i).text(sm.R_NAME): tree.topLevelItem(i)
+           for i in range(tree.topLevelItemCount())}
+    tree.clearSelection()
+    top["sub"].setSelected(True)
+    pane.set_selected(fd.NONE)
+    assert {e.action for e in pane.entries if e.rel.startswith("sub/")} == {fd.NONE}
+    tree.clearSelection()
+    top["sub"].child(0).setSelected(True)
+    pane.set_selected(fd.TO_RIGHT)
+    assert top["sub"].data(sm.ACT, sm.ROLE_ICON)[0] == "•"
+    # Aufklappen per „+“/„−“
+    top["sub"].setExpanded(False)
+    assert not top["sub"].isExpanded()
+    tree.clearSelection()
+    for e in pane.entries:
+        e.action = fd.NONE
+    top["only_left.jpg"].setSelected(True)
+    pane.set_selected(fd.TO_RIGHT)
+    assert pane.btn_start.isEnabled()
     # Abgleich speichern (L-1620)
-    monkeypatch.setattr(sd.QInputDialog, "getText", lambda *a, **k: ("Test", True))
-    dlg.cb_after.setCurrentIndex(dlg.cb_after.findData(sp.AFTER_COMMAND))
+    monkeypatch.setattr(sm.QInputDialog, "getText", lambda *a, **k: ("Test", True))
+    pane.cb_after.setCurrentIndex(pane.cb_after.findData(sp.AFTER_COMMAND))
     out = tmp_path / "res.txt"
-    dlg.ed_command.setText(f'echo "$PANEPILOT_RESULT" > "{out}"')
-    dlg.save_profile()
-    assert [p.name for p in sp.load()] == ["Test"] and dlg.current_profile() == "Test"
+    pane.ed_command.setText(f'echo "$PANEPILOT_RESULT" > "{out}"')
+    pane.save_profile()
+    assert [p.name for p in sp.load()] == ["Test"] and pane.current_profile() == "Test"
     # Starten
-    monkeypatch.setattr(sd, "confirm", lambda *a, **k: True)
+    monkeypatch.setattr(sm, "confirm", lambda *a, **k: True)
     infos = []
-    monkeypatch.setattr(sd, "show_info", lambda *a: infos.append(a[2]))
-    dlg.start()
+    monkeypatch.setattr(sm, "show_info", lambda *a: infos.append(a[2]))
+    pane.start()
     assert os.path.exists(os.path.join(right, "only_left.jpg"))
-    assert not os.path.exists(os.path.join(right, "newer_left.txt.x"))
     assert out.read_text().strip() == "ok" and "1 kopiert" in infos[0]
     assert window.settings.get("sync_last")["options"]["exclude"] == "Thumbs.db"
-    # Profil laden in neuem Dialog
-    d2 = sd.SyncDialog(window, "", "", "Test")
-    assert d2.ed_left.text() == left and d2.ed_command.text().startswith("echo")
-    d2.ed_right.setText(os.path.join(left, "sub"))
+    # Doppelklick öffnet die Datei der angeklickten Seite (L-1807)
+    opened = []
+    monkeypatch.setattr(sm.util, "open_with_default_app", lambda p: opened.append(p))
+    item = [it for it in _items(tree) if it.text(sm.R_NAME) == "only_right.txt"][0]
+    pane._open(item, sm.R_NAME)
+    pane._open(item, sm.L_NAME)  # links gibt es sie nicht
+    assert opened == [os.path.join(right, "only_right.txt")]
+    # Profil laden
+    p2 = sm.SyncPane(window)
+    assert p2.load_profile("Test") and p2.ed_left.text() == left and p2.ed_command.text().startswith("echo")
+    p2.ed_right.setText(os.path.join(left, "sub"))
     errors = []
-    monkeypatch.setattr(sd, "show_error", lambda *a: errors.append(a[2]))
-    assert not d2.compare() and errors  # ineinander
+    monkeypatch.setattr(sm, "show_error", lambda *a: errors.append(a[2]))
+    assert not p2.compare() and errors  # ineinander
+
+
+def test_sync_mode_in_window(window, trees, monkeypatch, tmp_path, qtbot):  # noqa: F811
+    from panepilot import folderdiff as fd
+    from panepilot import netutil
+    from panepilot import syncmode as sm
+    from panepilot import syncprofiles as sp
+    from panepilot.synccontrol import MODE_SYNC
+
+    monkeypatch.setattr(sp, "config_dir", lambda: tmp_path / "cfg")
+    monkeypatch.setattr(netutil, "run_blocking", lambda parent, fn, text, title: (fn(), None))
+    left, right = trees
+    window.sides["left"].panel.navigate(left)
+    window.sides["right"].panel.navigate(right)
+    single = window.single_mode
+    window.do_sync_folders()
+    assert window.sync_mode is not None and window.sides["left"].sidebar.mode == MODE_SYNC
+    pane = window.sync_pane()
+    assert (pane.ed_left.text(), pane.ed_right.text()) == (left, right)
+    assert pane.view.isVisibleTo(window) and window.single_mode
+    assert not window.qactions["copy"].isEnabled()
+    assert window.fkey_action("F5") == "sync_start" and window.fkey_action("F8") == "sync_delete_right"
+    assert "F2" in window.fkey_bar._disabled and "F5" not in window.fkey_bar._disabled  # L-1806
+    assert pane.compare()
+    pane.tree.selectAll()
+    window.trigger("sync_delete_right")  # F8
+    assert any(e.action == fd.DEL_RIGHT for e in pane.entries)
+    window.trigger("copy")  # gesperrt
+    called = []
+    monkeypatch.setattr(sm.SyncPane, "start", lambda self: called.append(1))
+    window.trigger(window.fkey_action("F5"))
+    assert called == [1]
+    window.leave_sync_mode()
+    assert window.sync_mode is None and window.qactions["copy"].isEnabled() and window.single_mode == single
+    assert window.fkey_action("F5") == window.fkeys.get("F5")
+    # gespeicherter Abgleich über das Menü: Ansicht öffnet sich und vergleicht sofort
+    sp.put(sp.Profile("Fotos", left, right))
+    window.do_sync_folders("Fotos")
+    qtbot.waitUntil(lambda: window.sync_pane().scanned is not None, timeout=3000)
+    assert window.sync_pane().current_profile() == "Fotos"
+    window.leave_sync_mode()
 
 
 def test_countdown(window, monkeypatch):  # noqa: F811
-    from panepilot import syncdialog as sd
+    from panepilot import syncmode as sd
     from panepilot import syncprofiles as sp
 
     d = sd.CountdownDialog(window, sp.AFTER_SHUTDOWN, 2)

@@ -52,6 +52,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.18.0" date="2026-11-19">
+      <description>
+        <p>Folder synchronization in the main window: sidebar with settings, both folders side by side as a tree with the action per row in the middle.</p>
+      </description>
+    </release>
     <release version="1.17.0" date="2026-11-19">
       <description>
         <p>Import synchronizations from FreeFileSync (.ffs_gui, .ffs_batch) and export them as .ffs_gui.</p>

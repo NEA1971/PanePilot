@@ -160,14 +160,14 @@ def test_export_roundtrip(window, tmp_path):  # noqa: F811
 
 def test_dialog_import_export(window, tmp_path, monkeypatch):  # noqa: F811
     from panepilot import netutil
-    from panepilot import syncdialog as sd
+    from panepilot import syncmode as sd
     from panepilot import syncprofiles as sp
 
     monkeypatch.setattr(sp, "config_dir", lambda: tmp_path / "cfg")
     monkeypatch.setattr(netutil, "run_blocking", lambda parent, fn, text, title: (fn(), None))
     a = _write(tmp_path, "Backup_App.ffs_gui", MIRROR)
     b = _write(tmp_path, "Upd.ffs_gui", UPDATE)
-    dlg = sd.SyncDialog(window, "", "")
+    dlg = sd.SyncPane(window)
     monkeypatch.setattr(sd.QFileDialog, "getOpenFileNames", lambda *x, **k: ([a, b], ""))
     infos, asked = [], []
     monkeypatch.setattr(sd, "show_info", lambda *x: infos.append(x[2]))

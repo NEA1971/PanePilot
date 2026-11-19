@@ -1584,5 +1584,22 @@
   "ffs.note_not_local": "«{path}» — не локальная папка; PanePilot синхронизирует только локальные папки и подключённые ресурсы.",
   "ffs.note_pairs": "Пар папок: {n} — по одной синхронизации на пару.",
   "ffs.export_dst": "«Игнорировать 1 час» не записано в файл — при необходимости добавьте в FreeFileSync.",
-  "ffs.export_power": "Сон/выключение после синхронизации не записано в файл."
+  "ffs.export_power": "Сон/выключение после синхронизации не записано в файл.",
+  "sync.close": "Закрыть синхронизацию (Esc)",
+  "sync.direction": "Направление",
+  "sync.comparison": "Сравнение",
+  "sync.filter": "Фильтр",
+  "sync.col_name": "Имя",
+  "sync.col_size": "Размер",
+  "sync.col_modified": "Изменён",
+  "sync.n_files": "файлов: {n}",
+  "sync.folder_all": "Папка: всё внутри — «{action}»",
+  "sync.folder_mixed": "Папка: внутри разные действия",
+  "sync.tip_copy_right": "копировать направо",
+  "sync.tip_copy_left": "копировать налево",
+  "sync.tip_over_right": "перезаписать справа",
+  "sync.tip_over_left": "перезаписать слева",
+  "sync.tip_del_right": "удалить справа (в корзину)",
+  "sync.tip_del_left": "удалить слева (в корзину)",
+  "sync.tip_none": "ничего не делать"
 }

@@ -1584,5 +1584,22 @@
   "ffs.note_not_local": "«{path}» no es una carpeta local; PanePilot solo sincroniza carpetas locales y recursos montados.",
   "ffs.note_pairs": "{n} pares de carpetas: una sincronización por par.",
   "ffs.export_dst": "«Ignorar 1 hora» no está en el archivo; añádelo en FreeFileSync si hace falta.",
-  "ffs.export_power": "Suspender/apagar tras la sincronización no está en el archivo."
+  "ffs.export_power": "Suspender/apagar tras la sincronización no está en el archivo.",
+  "sync.close": "Cerrar sincronización (Esc)",
+  "sync.direction": "Dirección",
+  "sync.comparison": "Comparación",
+  "sync.filter": "Filtro",
+  "sync.col_name": "Nombre",
+  "sync.col_size": "Tamaño",
+  "sync.col_modified": "Modificado",
+  "sync.n_files": "{n} archivos",
+  "sync.folder_all": "Carpeta: todo su contenido «{action}»",
+  "sync.folder_mixed": "Carpeta: acciones distintas dentro",
+  "sync.tip_copy_right": "copiar a la derecha",
+  "sync.tip_copy_left": "copiar a la izquierda",
+  "sync.tip_over_right": "sobrescribir a la derecha",
+  "sync.tip_over_left": "sobrescribir a la izquierda",
+  "sync.tip_del_right": "borrar a la derecha (papelera)",
+  "sync.tip_del_left": "borrar a la izquierda (papelera)",
+  "sync.tip_none": "no hacer nada"
 }

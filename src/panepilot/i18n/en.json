@@ -1584,5 +1584,22 @@
   "ffs.note_not_local": "“{path}” is not a local folder – PanePilot only synchronizes local folders and mounted shares.",
   "ffs.note_pairs": "{n} folder pairs – one synchronization per pair.",
   "ffs.export_dst": "“Ignore 1 hour” is not in the file – add it in FreeFileSync if needed.",
-  "ffs.export_power": "Suspend/shut down after the synchronization is not in the file."
+  "ffs.export_power": "Suspend/shut down after the synchronization is not in the file.",
+  "sync.close": "Close synchronization (Esc)",
+  "sync.direction": "Direction",
+  "sync.comparison": "Comparison",
+  "sync.filter": "Filter",
+  "sync.col_name": "Name",
+  "sync.col_size": "Size",
+  "sync.col_modified": "Modified",
+  "sync.n_files": "{n} files",
+  "sync.folder_all": "Folder: everything inside “{action}”",
+  "sync.folder_mixed": "Folder: different actions inside",
+  "sync.tip_copy_right": "copy to the right",
+  "sync.tip_copy_left": "copy to the left",
+  "sync.tip_over_right": "overwrite on the right",
+  "sync.tip_over_left": "overwrite on the left",
+  "sync.tip_del_right": "delete on the right (trash)",
+  "sync.tip_del_left": "delete on the left (trash)",
+  "sync.tip_none": "do nothing"
 }
