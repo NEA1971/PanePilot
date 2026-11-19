@@ -52,6 +52,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.15.0" date="2026-11-19">
+      <description>
+        <p>Edit video chapters: table, fixed interval, import from ChapterDB TXT, XML or a simple list, save as file. Tracks dialog: click the column header to tick all.</p>
+      </description>
+    </release>
     <release version="1.14.1" date="2026-11-18">
       <description>
         <p>Fix: MKV movie tags marked only with the target type MOVIE (year, IDs, custom fields) are read again after saving.</p>
