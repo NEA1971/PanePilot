@@ -21,6 +21,12 @@ Zwei Dateien gelten als **gleich**, wenn Name, Größe und Änderungsdatum über
 ## Gespeicherte Abgleiche
 Mit **Speichern …** merkt sich PanePilot den Abgleich unter einem Namen (z. B. „Fotos → NAS“): beide Ordner, alle Einstellungen und die Aktion nach dem Beenden. Aufrufen über die Auswahl oben im Dialog oder über **Datei → Gespeicherte Abgleiche** – dann wird sofort verglichen; gestartet wird nach deiner Durchsicht mit „Starten“. Die Abgleiche sind in der Sicherung der Einstellungen enthalten.
 
+## FreeFileSync
+- **Aus FreeFileSync importieren …** übernimmt `.ffs_gui`- und `.ffs_batch`-Dateien (mehrere auf einmal) als gespeicherte Abgleiche; der Name ist der Dateiname. Gibt es ihn schon, fragt PanePilot nach.
+- Übernommen werden Ordnerpaar (bei mehreren je Paar ein Abgleich), Richtung, Spiegeln, Vergleich nach Inhalt, Filter und der Befehl nach dem Abgleich. „Aktualisieren“ wird zu „links → rechts“ ohne Spiegeln, „Spiegeln“ zu „links → rechts“ mit Spiegeln, echte Zwei-Wege-Abgleiche zu „beide Richtungen“.
+- Was sich nicht übernehmen lässt (z. B. Versionierung, Größen- und Zeitfilter, Pfade in Filtern, Änderungserkennung per FFS-Datenbank), steht im Bericht nach dem Import.
+- **Nach FreeFileSync exportieren …** speichert den eingestellten Abgleich als `.ffs_gui`, **Alle exportieren …** alle gespeicherten in einen Ordner. „1 Stunde ignorieren“ steht nicht in der Datei und muss bei Bedarf in FreeFileSync nachgetragen werden.
+
 ## Nach dem Beenden
 - **Befehl oder Skript ausführen:** läuft im Hintergrund ohne Terminal. Das Skript bekommt diese Umgebungsvariablen: `PANEPILOT_LEFT`, `PANEPILOT_RIGHT`, `PANEPILOT_RESULT` (`ok` oder `errors`), `PANEPILOT_COPIED`, `PANEPILOT_DELETED`, `PANEPILOT_FAILED`, `PANEPILOT_PROFILE`. Meldet das Skript einen Fehler (Rückgabewert ungleich 0), zeigt die Zusammenfassung das mit den letzten Zeilen seiner Ausgabe.
 - **Rechner in Bereitschaft versetzen** bzw. **herunterfahren:** vorher läuft ein Countdown von 30 Sekunden mit „Abbrechen“.

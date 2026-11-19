@@ -71,11 +71,17 @@ class SyncDialog(QDialog):
         row = QHBoxLayout()
         row.addWidget(QLabel(t("sync.profile"), self))
         self.cb_profile = QComboBox(self)
-        self.cb_profile.setMinimumWidth(260)
+        self.cb_profile.setMinimumWidth(200)
         row.addWidget(self.cb_profile)
         for text, slot in ((t("sync.profile_save"), self.save_profile),
                            (t("sync.profile_rename"), self.rename_profile),
                            (t("sync.profile_delete"), self.delete_profile)):
+            b = QPushButton(text, self)
+            b.clicked.connect(slot)
+            row.addWidget(b)
+        row.addSpacing(12)
+        for text, slot in ((t("ffs.import"), self.import_ffs), (t("ffs.export"), self.export_ffs),
+                           (t("ffs.export_all"), self.export_all_ffs)):  # v1.17 (L-1700, L-1710 ff.)
             b = QPushButton(text, self)
             b.clicked.connect(slot)
             row.addWidget(b)
@@ -307,6 +313,91 @@ class SyncDialog(QDialog):
         sp.remove(name)
         self._fill_profiles(None)
         self._notify_profiles()
+
+    # --- FreeFileSync (v1.17) -----------------------------------------------------------------------------
+    def import_ffs(self) -> None:
+        from . import ffsconvert as ffs
+
+        paths, _f = QFileDialog.getOpenFileNames(self, t("ffs.import"), os.path.expanduser("~"),
+                                                 t("ffs.filter"))
+        if not paths:
+            return
+        existing = {p.name.lower() for p in sp.load()}
+        done, lines, last = [], [], None
+        for path in paths:
+            name = os.path.basename(path)
+            try:
+                profiles, notes = ffs.parse(path)
+            except ValueError as exc:
+                lines.append(f"✕ {name}: {exc}")
+                continue
+            if not profiles:
+                lines.append(f"✕ {name}: {t('ffs.no_pairs')}")
+                continue
+            for prof in profiles:
+                if prof.name.lower() in existing and not confirm(
+                        self, t("ffs.import"), t("ffs.replace_q", name=prof.name)):
+                    lines.append(f"– {prof.name}: {t('ffs.skipped')}")
+                    continue
+                sp.put(prof)
+                existing.add(prof.name.lower())
+                done.append(prof.name)
+                last = prof.name
+                lines.append(f"✓ {prof.name}")
+            lines += [f"    • {n}" for n in notes]
+        if last:
+            self._fill_profiles(last)
+            self._load_profile(last)
+            self._notify_profiles()
+        show_info(self, t("ffs.import"), t("ffs.import_done", n=len(done)) + "\n\n" + "\n".join(lines))
+
+    def _profile_now(self) -> sp.Profile:
+        """Der aktuell eingestellte Abgleich (auch ungespeichert)."""
+        return sp.Profile(self.current_profile() or "PanePilot", self.ed_left.text().strip(),
+                          self.ed_right.text().strip(), self.options(), self.after())
+
+    def export_ffs(self) -> None:
+        from . import ffsconvert as ffs
+
+        prof = self._profile_now()
+        start = os.path.join(os.path.expanduser("~"), ffs.safe_file_name(prof.name) + ".ffs_gui")
+        path, _f = QFileDialog.getSaveFileName(self, t("ffs.export"), start, t("ffs.filter_gui"))
+        if not path:
+            return
+        if not path.lower().endswith(".ffs_gui"):
+            path += ".ffs_gui"
+        try:
+            ffs.save(prof, path)
+        except OSError as exc:
+            show_error(self, t("ffs.export"), str(exc))
+            return
+        notes = ffs.export_notes(prof)
+        show_info(self, t("ffs.export"), "\n".join([t("ffs.export_done", path=path)] + [f"• {n}" for n in notes]))
+
+    def export_all_ffs(self) -> None:
+        from . import ffsconvert as ffs
+
+        profiles = sp.load()
+        if not profiles:
+            show_info(self, t("ffs.export_all"), t("menu.sync_profiles_none"))
+            return
+        folder = QFileDialog.getExistingDirectory(self, t("ffs.export_all"), os.path.expanduser("~"))
+        if not folder:
+            return
+        targets = [(p, os.path.join(folder, ffs.safe_file_name(p.name) + ".ffs_gui")) for p in profiles]
+        clash = [os.path.basename(path) for _p, path in targets if os.path.exists(path)]
+        if clash and not confirm(self, t("ffs.export_all"), t("ffs.overwrite_q", n=len(clash),
+                                                               names=", ".join(clash[:5]))):
+            return
+        errors, notes = [], []
+        for prof, path in targets:
+            try:
+                ffs.save(prof, path)
+            except OSError as exc:
+                errors.append(f"{prof.name}: {exc}")
+            notes += [f"• {prof.name}: {n}" for n in ffs.export_notes(prof)]
+        text = t("ffs.export_all_done", n=len(targets) - len(errors), folder=folder)
+        (show_error if errors else show_info)(self, t("ffs.export_all"), "\n".join([text] + errors + notes))
 
     def _notify_profiles(self) -> None:
         fn = getattr(self.window_, "sync_profiles_changed", None)

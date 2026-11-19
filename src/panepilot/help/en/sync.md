@@ -21,6 +21,12 @@ Two files are **identical** if name, size and modification date match. Differenc
 ## Saved synchronizations
 **Save …** stores the synchronization under a name (e.g. “Photos → NAS”): both folders, all settings and the action when finished. Open it from the selection at the top of the dialog or via **File → Saved synchronizations** – it is compared at once; it starts after your review with “Start”. Saved synchronizations are part of the settings backup.
 
+## FreeFileSync
+- **Import from FreeFileSync …** imports `.ffs_gui` and `.ffs_batch` files (several at once) as saved synchronizations; the name is the file name. If it exists, PanePilot asks.
+- Imported are the folder pair (one synchronization per pair), direction, mirroring, content comparison, filters and the command after synchronizing. “Update” becomes “left → right” without mirroring, “Mirror” becomes “left → right” with mirroring, real two-way synchronizations become “both directions”.
+- What cannot be imported (e.g. versioning, size and time filters, paths in filters, change detection via the FFS database) is listed in the report after the import.
+- **Export to FreeFileSync …** saves the current synchronization as `.ffs_gui`, **Export all …** all saved ones into a folder. “Ignore 1 hour” is not written to the file; add it in FreeFileSync if needed.
+
 ## When finished
 - **Run command or script:** runs in the background without a terminal. The script gets these environment variables: `PANEPILOT_LEFT`, `PANEPILOT_RIGHT`, `PANEPILOT_RESULT` (`ok` or `errors`), `PANEPILOT_COPIED`, `PANEPILOT_DELETED`, `PANEPILOT_FAILED`, `PANEPILOT_PROFILE`. If the script reports an error (exit code other than 0), the summary shows it with the last lines of its output.
 - **Suspend** or **shut down the computer:** a 30-second countdown with “Cancel” comes first.
