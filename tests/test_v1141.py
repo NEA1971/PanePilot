@@ -55,3 +55,25 @@ def test_movie_target_read_and_write(tmp_path):
     again = tg.read_file(src)
     assert again.fields.get("year") == "2019" and again.fields.get(tg.EXTRA + "RATING") == "6.3"
     assert again.fields.get(tg.EXTRA + "IMDBID") == "tt5726086"
+
+
+EMPTY = """<?xml version="1.0"?>
+<Tags>
+  <Tag><Targets /><Simple><Name>ENCODER</Name><String>Lavf56.1.0</String></Simple></Tag>
+  <Tag><Targets><TrackUID>2</TrackUID></Targets></Tag>
+</Tags>
+"""
+
+
+def test_empty_tag_dropped(tmp_path):
+    """v1.15.1: Tag ohne „Simple“ (von anderen Programmen) wird vor mkvpropedit entfernt."""
+    from panepilot import videotags as vt
+
+    root = ET.fromstring(EMPTY)
+    vt.mkv_set_simple(root, "DATE_RELEASED", "1954")
+    args = vt._mkv_tags_args(root, str(tmp_path))
+    written = ET.parse(args[1].split(":", 1)[1]).getroot()
+    assert len(written.findall("Tag")) == 1
+    assert [s.findtext("Name") for s in written.find("Tag").findall("Simple")] == ["ENCODER", "DATE_RELEASED"]
+    only_empty = ET.fromstring("<Tags><Tag><Targets><TrackUID>2</TrackUID></Targets></Tag></Tags>")
+    assert vt._mkv_tags_args(only_empty, str(tmp_path)) == ["--tags", "all:"]

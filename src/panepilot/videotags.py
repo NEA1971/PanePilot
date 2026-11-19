@@ -902,6 +902,11 @@ def _mkv_date_args(datetaken) -> list[str]:
 
 
 def _mkv_tags_args(root: ET.Element, tmp: str) -> list[str]:
+    # v1.15.1: leere Tag-Bereiche (nur „Targets“, kein „Simple“) lehnt mkvpropedit ab – manche Programme
+    # hinterlassen solche Bereiche, z. B. für einzelne Spuren; sie enthalten nichts und fallen weg
+    for tag in list(root.findall("Tag")):
+        if tag.find("Simple") is None:
+            root.remove(tag)
     if not root.findall("Tag"):
         return ["--tags", "all:"]
     out = os.path.join(tmp, "tags.xml")
