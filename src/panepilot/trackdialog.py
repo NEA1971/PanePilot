@@ -78,6 +78,10 @@ class TrackDialog(QDialog):
         head = self.table.horizontalHeader()
         head.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         head.setSectionResizeMode(COL_NAME, QHeaderView.ResizeMode.Stretch)
+        # v1.15, L-1510: Klick auf „Erzwungen“ / „Entfernen“ hakt alle an bzw. wieder ab
+        for col in (COL_FORCED, COL_REMOVE):
+            self.table.horizontalHeaderItem(col).setToolTip(t("tracks.header_toggle"))
+        head.sectionClicked.connect(self.toggle_column)
         self.widgets: list[dict] = []
         for r, row in enumerate(self.rows):
             self._fill(r, row)
@@ -266,6 +270,19 @@ class TrackDialog(QDialog):
             name = mt.suggest_name(row.kind, lang, codec, channels, forced)
             if name:
                 self.widgets[r]["name"].setText(name)
+
+    def toggle_column(self, col: int) -> None:
+        """Alle anhaken; sind schon alle angehakt, alle Haken heraus (L-1510, L-1511)."""
+        key = {COL_FORCED: "forced", COL_REMOVE: "remove"}.get(col)
+        if key is None:
+            return
+        boxes = [w[key] for w in self.widgets if w.get(key) is not None and w[key].isEnabled()]
+        if not boxes:
+            return
+        on = not all(b.checkState() == Qt.CheckState.Checked for b in boxes)
+        for b in boxes:
+            b.setTristate(False)
+            b.setChecked(on)
 
     def removals(self) -> tuple[dict[str, list], list[str]]:
         """{Datei: [Spuren zum Entfernen]} und Hinweise (fehlende Spur, letzte Tonspur bleibt)."""

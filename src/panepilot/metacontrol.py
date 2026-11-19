@@ -15,6 +15,12 @@ MODE_META = "meta"
 META_ALLOWED = {"quit", "about", "help", "help_online", "check_updates", "donate"}  # während des Meta-Wizards erlaubte Funktionen
 
 
+def vr_tools_ok() -> bool:
+    import shutil
+
+    return shutil.which("ffmpeg") is not None
+
+
 class MetaWizardMixin:
     meta_mode = None  # dict mit dem vorherigen Zustand, solange der Meta-Wizard läuft
 
@@ -617,7 +623,7 @@ class MetaWizardMixin:
             {cv.TAG_TO_TEXT: self.meta_export_text, cv.TEXT_TO_TAG: self.meta_import_text,
              cv.NUMBER: self.meta_number, cv.DISC: self.meta_disc, cv.MUSICBRAINZ: self.meta_musicbrainz,
              cv.DATESHIFT: self.meta_dateshift, cv.ONLINE: self.meta_online,
-             cv.SUBTITLES: self.meta_subtitles,
+             cv.SUBTITLES: self.meta_subtitles, cv.CHAPTERS: self.meta_chapters,
              cv.TRACKS: self.meta_tracks, cv.VIDEO_FORMAT: self.meta_video_format,
              cv.PLAYLIST: self.meta_playlist, cv.REPLAYGAIN: self.meta_replaygain}[kind]()
             return
@@ -1113,6 +1119,74 @@ class MetaWizardMixin:
         self._meta_pane().summary.setText(msg)
         self._meta_refresh()
 
+    def meta_chapters(self) -> None:
+        """Kapitel bearbeiten (v1.15, L-1500 ff.)."""
+        from . import chapters as chp
+        from . import mkvtracks as mt
+        from . import mp4tracks as m4
+        from . import netutil
+        from .chaptersdialog import ChapterDialog
+        from .dialogs import show_info
+
+        title = t("chapters.title")
+        items = [it for it in self._meta_targets() if it.record.kind in ("video-mkv", "video-mp4")]
+        if not items:
+            show_info(self, title, t("chapters.no_videos"))
+            return
+        paths = [it.record.path for it in items]
+
+        def load():
+            out = []
+            for p in paths:
+                v = chp.read(p)
+                f = m4.read(p) if v.fmt == "mp4" else mt.FileTracks(p, [], fmt="mkv")
+                out.append((v, f))
+            return out
+
+        loaded, error = netutil.run_blocking(self, load, t("tracks.reading"), title)
+        if error or loaded is None:
+            if error:
+                show_error(self, title, error)
+            return
+        bad = [f"{os.path.basename(v.path)}: {v.error or f.error}" for v, f in loaded if v.error or f.error]
+        loaded = [(v, f) for v, f in loaded if not v.error and not f.error]
+        if not loaded:
+            show_error(self, title, "\n".join(bad))
+            return
+        missing = []
+        if any(v.fmt == "mkv" for v, _f in loaded) and not mt.available():
+            missing.append("mkvtoolnix (mkvpropedit)")
+        if any(v.fmt == "mp4" for v, _f in loaded) and not vr_tools_ok():
+            missing.append("ffmpeg")
+        if missing:
+            show_error(self, title, t("chapters.missing_tools", tools=", ".join(missing)))
+            return
+        dlg = ChapterDialog(self, [v for v, _f in loaded])
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        changes = dlg.result_chapters()
+        if not changes:
+            return
+        by_path = {v.path: f for v, f in loaded}
+        jobs = {p: ([], [], [], chs) for p, chs in changes.items()}
+        errs, recs, cancelled, created = self._write_tracks(jobs, by_path, title, replace=dlg.replace_wanted())
+        for it in items:
+            rec = recs.get(it.record.path)
+            if rec is not None and not rec.error:
+                it.record = rec
+        if created:
+            from . import tags as tg
+
+            self._meta_found([tg.read_file(p) for p in created], self.meta_mode["base"])
+        msg = t("chapters.done", n=len(recs) + len(created))
+        if cancelled:
+            msg += " " + t("tracks.cancelled")
+        problems = bad + [f"{n}: {e}" for n, e in errs]
+        if problems:
+            show_error(self, title, "\n".join(problems[:20]))
+        self._meta_pane().summary.setText(msg)
+        self._meta_refresh()
+
     def meta_video_format(self) -> None:
         """Formatwechsel MP4/M4V/MOV/AVI/MTS/M2TS → MKV, MKV → MP4 (v1.13, L-1330 ff.); das Original bleibt."""
         import threading
@@ -1292,13 +1366,21 @@ class MetaWizardMixin:
                     f = by_path[path]
                     changes, gone, *rest = jobs[path]
                     adds = rest[0] if rest else []  # v1.14: Untertiteldateien dazu
+                    chapters = rest[1] if len(rest) > 1 else None  # v1.15: neue Kapitel
                     report = (lambda x, i=i, n=name: self.step.emit(i, len(paths), x, n))
                     try:
-                        if gone or adds:
+                        if chapters is not None and f.fmt == "mkv" and not gone and not adds:
+                            from . import chapters as chp
+
+                            chp.write_mkv(path, chapters)  # L-1508: MKV direkt in der Datei
+                            self.recs[path] = tg.read_file(path)
+                            continue
+                        if gone or adds or chapters is not None:
                             subs = [tr for tr in gone if tr.kind == mt.SUBS]
                             if export and subs:  # L-1320: vorher sichern
                                 self.created += vr.export_subtitles(f, subs)
-                            new = vr.remove_tracks(f, gone, changes, report, cancel, replace=replace, add=adds)
+                            new = vr.remove_tracks(f, gone, changes, report, cancel, replace=replace, add=adds,
+                                                   chapters=chapters)
                             if replace:
                                 self.recs[path] = tg.read_file(path)
                             else:

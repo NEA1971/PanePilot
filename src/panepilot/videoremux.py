@@ -362,7 +362,7 @@ def add_problem(files: mt.FileTracks, adds: list[SubAdd]) -> str:
 
 
 def remove_tracks(files: mt.FileTracks, remove: list[mt.MkvTrack], edits, progress=None, cancel=None,
-                  replace: bool = False, add: list[SubAdd] | None = None) -> str:
+                  replace: bool = False, add: list[SubAdd] | None = None, chapters=None) -> str:
     """Neue Datei ohne die Spuren (und mit neuen Untertiteln, v1.14); liefert ihren Pfad.
 
     Das Original bleibt (L-1300), außer bei replace."""
@@ -382,7 +382,7 @@ def remove_tracks(files: mt.FileTracks, remove: list[mt.MkvTrack], edits, progre
         if files.fmt == "mkv":
             _remove_mkv(files, keep, values, tmp, progress, cancel, add)
         else:
-            _remove_mp4(files, keep, values, tmp, duration, progress, cancel, add)
+            _remove_mp4(files, keep, values, tmp, duration, progress, cancel, add, chapters)
         _check(tmp, len(keep) + len(add), _reference(files.path))
         _finish(tmp, final, files.path)
     except BaseException:
@@ -423,7 +423,24 @@ def _remove_mkv(files, keep, values, tmp, progress, cancel, add=()) -> None:
     _run_progress(args, _mkvmerge_progress, progress, cancel)
 
 
-def _remove_mp4(files, keep, values, tmp, duration, progress, cancel, add=()) -> None:
+def _remove_mp4(files, keep, values, tmp, duration, progress, cancel, add=(), chapters=None) -> None:
+    """chapters (v1.15): None = Kapitel übernehmen, sonst die neue Liste ([] = keine Kapitel)."""
+    import tempfile
+
+    if chapters:
+        from . import chapters as chp
+
+        with tempfile.TemporaryDirectory(prefix="panepilot-") as meta_dir:
+            meta = os.path.join(meta_dir, "chapters.txt")
+            with open(meta, "w", encoding="utf-8") as fh:
+                fh.write(chp.to_ffmetadata(chapters, duration or 0))
+            _remove_mp4_run(files, keep, values, tmp, duration, progress, cancel, add, meta)
+    else:
+        _remove_mp4_run(files, keep, values, tmp, duration, progress, cancel, add,
+                        "" if chapters is not None else None)
+
+
+def _remove_mp4_run(files, keep, values, tmp, duration, progress, cancel, add, meta) -> None:
     from . import mp4tracks as m4
     from . import tags as tg
 
@@ -434,11 +451,14 @@ def _remove_mp4(files, keep, values, tmp, duration, progress, cancel, add=()) ->
         if charset and charset != "UTF-8":
             args += ["-sub_charenc", charset]
         args += ["-i", a.path]
+    if meta:
+        args += ["-f", "ffmetadata", "-i", meta]
     for tr in keep:
         args += ["-map", f"0:{tr.stream}"]
     for n, _a in enumerate(add, 1):
         args += ["-map", f"{n}:0"]
-    args += ["-c", "copy", "-map_metadata", "0", "-map_chapters", "0"]
+    source = "0" if meta is None else ("-1" if not meta else str(len(add) + 1))  # v1.15: Kapitel
+    args += ["-c", "copy", "-map_metadata", "0", "-map_chapters", source]
     if add:
         args += ["-c:s", "mov_text"]  # L-1412: Text-Untertitel für MP4 umwandeln
     for k, a in enumerate(add):

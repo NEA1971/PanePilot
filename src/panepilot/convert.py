@@ -17,13 +17,14 @@ DISC, MUSICBRAINZ = "disc", "musicbrainz"  # v1.2
 DATESHIFT = "dateshift"  # v1.4: Aufnahmedatum verschieben (Fotos, ab v1.5 auch Videos)
 ONLINE = "online"  # v1.9: Film-Daten von TMDb/Wikidata
 SUBTITLES = "subtitles"  # v1.14: Untertitel von OpenSubtitles
+CHAPTERS = "chapters"  # v1.15: Kapitel bearbeiten
 TRACKS = "tracks"  # v1.11: Spuren von MKV-Dateien bearbeiten
 VIDEO_FORMAT = "videoformat"  # v1.13: Formatwechsel MP4/AVI ↔ MKV
 TOOLS = KINDS + (TAG_TO_TEXT, TEXT_TO_TAG, NUMBER, DISC, MUSICBRAINZ, PLAYLIST, REPLAYGAIN, DATESHIFT, ONLINE,
-                 SUBTITLES, TRACKS, VIDEO_FORMAT)
+                 SUBTITLES, TRACKS, CHAPTERS, VIDEO_FORMAT)
 AUDIO_ONLY = (NUMBER, DISC, MUSICBRAINZ, PLAYLIST, REPLAYGAIN)
 PHOTO_ONLY = (DATESHIFT,)  # Fotos und Videos
-VIDEO_ONLY = (ONLINE, SUBTITLES, TRACKS, VIDEO_FORMAT)
+VIDEO_ONLY = (ONLINE, SUBTITLES, TRACKS, CHAPTERS, VIDEO_FORMAT)
 
 ALIASES = {"tracknumber": "track", "discnumber": "disc", "date": "year", "album artist": "albumartist",
            "band": "albumartist"}

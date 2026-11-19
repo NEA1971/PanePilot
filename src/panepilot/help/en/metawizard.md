@@ -92,7 +92,7 @@ In video mode **“Tracks …”** opens a table of all tracks of the selected M
   - **Track name** and **“Default”** need a new file: PanePilot repacks it with ffmpeg (no re-encoding, no quality loss). This takes about as long as copying the file and temporarily needs as much free space; a confirmation points this out beforehand, the progress bar has “Cancel”. Tags, custom fields (e.g. `imdbid`, `Season`) and cover are taken over; the old file is only replaced once the new one has been checked.
   - **“Forced”** is greyed out for MP4 because MP4 hardly supports it.
 
-- **Removing tracks:** tick audio or subtitle tracks in the column **“Remove”**. A **new file** `Film-Copy.mkv` (or `.mp4`) is created in the same folder; the **original stays unchanged** – you decide what happens to it afterwards. With the tick **“Replace original (no copy)”** the checked new file replaces the original instead; PanePilot remembers the choice. The video track and the last audio track cannot be removed; if the removed track was “Default”, the next one takes over.
+- **Removing tracks:** tick audio or subtitle tracks in the column **“Remove”**. A **new file** `Film-Copy.mkv` (or `.mp4`) is created in the same folder; the **original stays unchanged** – you decide what happens to it afterwards. With the tick **“Replace original (no copy)”** the checked new file replaces the original instead; PanePilot remembers the choice. The video track and the last audio track cannot be removed; if the removed track was “Default”, the next one takes over. Clicking the column header **“Remove”** ticks all tracks, a second click unticks them all – handy if you only want to keep a few. The first audio track is kept anyway. **“Forced”** works the same way.
 - **Adding subtitles:** for a single video, **“Add subtitles …”** adds subtitle files as new tracks. Matching files from the folder are already listed (e.g. `Film.eng.srt` and `Film.eng.forced.srt` for `Film.mkv`), others via **“Other file …”**. Language and “forced” come from the file name and can be changed, as can the name. The result is saved like removing: as `Film-Copy.mkv` or, with “Replace original”, into the original file; the subtitle file stays. For MP4, text subtitles are converted (formatting is lost); image subtitles (`.sup`, `.idx`) only fit into MKV. Older SRT files in the Windows character set are recognised.
 - **Exporting subtitles:** when removing, **“Save subtitles as files before removing”** is ticked. The button **“Export subtitles”** saves the selected (otherwise all) subtitles without removing them. Text subtitles become `.srt`, ASS subtitles `.ass`, image subtitles keep their original format (`.sup` or `.idx` + `.sub`). The files are named as usual for Jellyfin, e.g. `Film (2001).eng.srt` or `Film (2001).eng.forced.srt`.
 
@@ -103,6 +103,15 @@ In video mode **“Tracks …”** opens a table of all tracks of the selected M
 - MP4 cannot hold image subtitles (PGS, VobSub) or audio formats such as DTS or TrueHD; such files are skipped and listed. Text subtitles are converted for MP4 (formatting is lost).
 - This takes about as long as copying and needs as much free space; “Cancel” discards the file being created. MKV as target needs mkvtoolnix, MP4 needs ffmpeg.
 - Subtitle files next to the video (`Film.eng.srt`) are left alone and still match.
+
+## Chapters
+**“Chapters …”** edits the chapters of the selected MKV and MP4 videos.
+- **One video:** the table shows the existing chapters with time and name. Both can be edited directly (time e.g. `00:12:30` or `01:02:03.500`); **“Add chapter”** inserts a chapter after the selected row, **“Delete selected”** removes rows. Chapters are sorted by time.
+- **Fixed interval:** **“Every … minutes”** and **“Create chapters”** sets chapters from 00:00 at the chosen interval (default 10 minutes, remembered), named “Chapter 01”, “Chapter 02” … This also works for several selected videos at once.
+- **Read from file:** TXT in ChapterDB format (`CHAPTER01=00:00:00.000` / `CHAPTER01NAME=…`, e.g. from the chapterdb.plex.tv archive), Matroska XML or a simple list with one line per chapter (“00:12:30 Arrival”). If a file with the same name lies next to the video (`Film.chapters.txt`, `Film.xml`), there is a button for it. Quotes around names are removed, as is an empty final chapter. Chapters after the end of the film are left out; if the file apparently belongs to a different version, a warning appears.
+- **Save as file:** writes the chapters as `Film.chapters.txt` (ChapterDB format) or as Matroska XML.
+- New chapters replace the old ones; **“Delete all chapters”** removes them.
+- **Saving:** MKV directly in the file (fast, no copy). MP4 is rewritten – as `Film-Copy.mp4` or, with “Replace original”, instead of the original. Chapter names get the language of the user interface.
 
 ## Downloading subtitles (OpenSubtitles)
 **“Search subtitles …”** searches **opensubtitles.com** for subtitles for the selected videos.
