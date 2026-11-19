@@ -352,3 +352,49 @@ def test_main_window(window, trees, monkeypatch, qtbot, tmp_path):  # noqa: F811
     sp.put(sp.Profile("Fotos", trees[0], trees[1]))
     window._fill_sync_menu()
     assert [a.text() for a in window.sync_menu.actions()] == ["Fotos"]
+
+
+def test_one_sided_folder_tree_and_partial(window, trees, monkeypatch, tmp_path):  # noqa: F811
+    """v1.18.1: Ordner, die nur auf einer Seite liegen, lassen sich aufklappen; Teile davon bleiben stehen."""
+    import shutil
+
+    from panepilot import folderdiff as fd
+    from panepilot import netutil
+    from panepilot import syncmode as sm
+
+    left, right = trees
+    e = _by(fd.scan(left, right, fd.Options(mirror=True)))
+    assert {"newdir", "newdir/a.txt", "newdir/b.txt", "olddir", "olddir/c.txt"} <= set(e)
+    c = fd.summary_counts(list(e.values()))
+    assert c["bytes"] == sum(x.left.size for x in e.values() if x.action == fd.TO_RIGHT and not x.is_dir)
+    # nur b.txt nicht kopieren, olddir/c.txt behalten
+    e["newdir/b.txt"].action = fd.NONE
+    e["olddir/c.txt"].action = fd.NONE
+    trashed = []
+
+    def trash(p):
+        trashed.append(os.path.relpath(p, right))
+        shutil.rmtree(p) if os.path.isdir(p) else os.unlink(p)
+
+    res = fd.execute(list(e.values()), left, right, fd.Options(mirror=True), trash)
+    assert not res.errors
+    assert os.path.exists(os.path.join(right, "newdir", "a.txt"))
+    assert not os.path.exists(os.path.join(right, "newdir", "b.txt"))
+    assert os.path.exists(os.path.join(right, "olddir", "c.txt")) and "olddir" not in trashed
+    # in der Ansicht: Ordner mit Inhalt, Doppelklick klappt auf/zu statt zu öffnen
+    monkeypatch.setattr(netutil, "run_blocking", lambda parent, fn, text, title: (fn(), None))
+    _file(f"{left}/neu2/x.txt", "x")
+    _file(f"{left}/neu2/y.txt", "y")
+    pane = sm.SyncPane(window)
+    pane.set_paths(left, right)
+    assert pane.compare()
+    item = [it for it in _items(pane.tree) if it.text(sm.L_NAME) == "neu2"][0]
+    assert item.childCount() == 2 and item.isExpanded()
+    opened = []
+    monkeypatch.setattr(sm.util, "open_with_default_app", lambda p: opened.append(p))
+    pane._open(item, sm.L_NAME)
+    assert not item.isExpanded() and opened == []
+    pane.tree.clearSelection()
+    item.child(0).setSelected(True)
+    pane.set_selected(fd.NONE)
+    assert item.data(sm.ACT, sm.ROLE_ICON)[0] == "•"

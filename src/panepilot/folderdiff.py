@@ -179,6 +179,7 @@ def scan(left: str, right: str, opts: Options, cancel: threading.Event | None = 
                 one = a or b
                 one.files, one.size = _count(os.path.join(lp if a else rp, name), opts)
                 out.append(Entry(r, a, b, LEFT_ONLY if a else RIGHT_ONLY))
+                walk(r)  # v1.18.1: Inhalt aufklappbar; die Ordnerzeile gilt für alles darin
                 continue
             if a is None or b is None:
                 out.append(Entry(r, a, b, LEFT_ONLY if a else RIGHT_ONLY))
@@ -326,12 +327,19 @@ def execute(entries: list[Entry], left: str, right: str, opts: Options, trash, p
     res = Result()
     todo = [e for e in entries if e.action != NONE]
     total = sum((e.left if e.action == TO_RIGHT else e.right).size for e in todo
-                if e.action in (TO_RIGHT, TO_LEFT)) or 1
+                if e.action in (TO_RIGHT, TO_LEFT) and not e.is_dir) or 1
     done = 0
+    skip: list[str] = []  # Ordner, die als Ganzes erledigt wurden („rel/“)
+
+    def under(rel: str) -> list[Entry]:
+        return [x for x in entries if x.rel.startswith(rel + "/")]
+
     for e in todo:
         if cancel is not None and cancel.is_set():
             res.cancelled = True
             break
+        if any(e.rel.startswith(p) for p in skip):
+            continue
         lp = os.path.join(left, *e.rel.split("/"))
         rp = os.path.join(right, *e.rel.split("/"))
         try:
@@ -341,8 +349,18 @@ def execute(entries: list[Entry], left: str, right: str, opts: Options, trash, p
                 if side.is_dir:
                     if over and os.path.isfile(dst):
                         raise OSError("file exists")
-                    n = _copy_tree(src, dst, opts, cancel)
-                    res.copied += n
+                    inner = under(e.rel)
+                    if all(x.action == e.action for x in inner):  # alles darin gleich: am Stück
+                        n = _copy_tree(src, dst, opts, cancel)
+                        res.copied += n
+                        done += sum(x.left.size if e.action == TO_RIGHT else x.right.size
+                                    for x in inner if not x.is_dir)
+                        skip.append(e.rel + "/")
+                    else:  # nur den Ordner anlegen, der Inhalt folgt einzeln
+                        os.makedirs(dst, exist_ok=True)
+                    if progress is not None:
+                        progress(done, total, e.rel)
+                    continue
                 else:
                     if os.path.isdir(dst):
                         raise OSError("folder exists")
@@ -353,6 +371,11 @@ def execute(entries: list[Entry], left: str, right: str, opts: Options, trash, p
                         res.copied += 1
                 done += side.size
             elif e.action in (DEL_RIGHT, DEL_LEFT):
+                if e.is_dir:
+                    inner = under(e.rel)
+                    if not all(x.action == e.action for x in inner):
+                        continue  # Teile sollen bleiben: Ordner nicht löschen, Inhalt einzeln
+                    skip.append(e.rel + "/")
                 trash(rp if e.action == DEL_RIGHT else lp)
                 res.deleted += 1
         except Cancelled:
@@ -367,7 +390,10 @@ def execute(entries: list[Entry], left: str, right: str, opts: Options, trash, p
 
 def summary_counts(entries: list[Entry]) -> dict:
     c = {"to_right": 0, "to_left": 0, "delete": 0, "conflict": 0, "bytes": 0}
+    parents = {e.rel.rsplit("/", 1)[0] for e in entries if "/" in e.rel}
     for e in entries:
+        if e.is_dir and e.rel in parents:
+            continue  # Ordner mit Inhalt: gezählt werden die Einträge darin
         if e.action == TO_RIGHT:
             c["to_right"] += 1
             c["bytes"] += e.left.size

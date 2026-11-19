@@ -41,10 +41,11 @@ SEARCH_PROFILES = "Suche"
 class ToolPane(QWidget):
     close_clicked = Signal()
 
-    def __init__(self, title: str, parent=None) -> None:
+    def __init__(self, title: str, parent=None, x_close: bool = False) -> None:
         from PySide6.QtCore import Qt
 
         super().__init__(parent)
+        self.x_close = x_close  # v1.18.1: „✕“ in der Titelzeile statt Knopf „Schließen“
         self._title = QLabel(title, self)
         self._title.setObjectName("renameTitle")
         self._title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -61,7 +62,24 @@ class ToolPane(QWidget):
         self.btn_close.clicked.connect(self.close_clicked)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(2, 2, 2, 4)
-        layout.addWidget(self._title)
+        if x_close:
+            from PySide6.QtWidgets import QToolButton
+
+            head = QHBoxLayout()
+            head.setContentsMargins(0, 0, 0, 0)
+            head.addSpacing(22)
+            head.addWidget(self._title, 1)
+            self.x_button = QToolButton(self)
+            self.x_button.setObjectName("sidebarClose")
+            self.x_button.setAutoRaise(True)
+            self.x_button.setText("✕")
+            self.x_button.setToolTip(t("button.close") + " (Esc)")
+            self.x_button.clicked.connect(self.close_clicked)
+            head.addWidget(self.x_button)
+            layout.addLayout(head)
+            self.btn_close.hide()
+        else:
+            layout.addWidget(self._title)
         layout.addWidget(scroll, 1)
         layout.addWidget(self.summary)
         layout.addLayout(self.buttons)
@@ -76,7 +94,8 @@ class ToolPane(QWidget):
 
     def finish_layout(self) -> None:
         self.inner_layout.addStretch(1)
-        self.buttons.addWidget(self.btn_close)
+        if not self.x_close:
+            self.buttons.addWidget(self.btn_close)
 
 
 # --- Profile (Suche) ---------------------------------------------------------------------------

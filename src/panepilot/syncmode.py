@@ -142,6 +142,19 @@ class ActionDelegate(QStyledItemDelegate):
 class SyncTree(QTreeWidget):
     toggle_clicked = Signal(object)
 
+    def paintEvent(self, event) -> None:
+        """Die Mittelspalte zieht sich bis nach unten durch (v1.18.1)."""
+        x = self.header().sectionViewportPosition(ACT)
+        w = self.header().sectionSize(ACT)
+        p = QPainter(self.viewport())
+        rect = QRect(x, 0, w, self.viewport().height())
+        p.fillRect(rect, QColor("#f1f1f1"))
+        p.setPen(QPen(QColor("#c8c8c8")))
+        p.drawLine(rect.topLeft(), rect.bottomLeft())
+        p.drawLine(rect.topRight(), rect.bottomRight())
+        p.end()
+        super().paintEvent(event)
+
     def mousePressEvent(self, event) -> None:
         index = self.indexAt(event.position().toPoint())
         if index.isValid() and index.column() in (L_NAME, R_NAME):
@@ -248,7 +261,7 @@ class SyncView(QWidget):
         lay.addWidget(self.hint)
 
     def _pick(self, edit: QLineEdit) -> None:
-        path = QFileDialog.getExistingDirectory(self, t("sync.pick_folder"), edit.text() or os.path.expanduser("~"))
+        path = QFileDialog.getExistingDirectory(None, t("sync.pick_folder"), edit.text() or os.path.expanduser("~"))
         if path:
             edit.setText(path)
             self.paths_changed.emit()
@@ -299,14 +312,13 @@ class SyncPane(QWidget):
         hb = QHBoxLayout(bar)
         hb.setContentsMargins(4, 1, 1, 1)
         title = QLabel(t("sync.title"), bar)
+        title.setObjectName("renameTitle")  # gleiche Titelzeile wie beim Meta-Wizard
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        font = title.font()
-        font.setBold(True)
-        title.setFont(font)
         hb.addWidget(title, 1)
         close = QToolButton(bar)
         close.setAutoRaise(True)
         close.setText("✕")
+        close.setObjectName("sidebarClose")
         close.setToolTip(t("sync.close"))
         close.clicked.connect(self.close_clicked)
         hb.addWidget(close)
@@ -475,7 +487,7 @@ class SyncPane(QWidget):
         self.cb_when.setEnabled(self.cb_after.currentData() != sp.AFTER_NONE)
 
     def _pick_command(self) -> None:
-        path, _f = QFileDialog.getOpenFileName(self, t("sync.after_command"), os.path.expanduser("~"))
+        path, _f = QFileDialog.getOpenFileName(None, t("sync.after_command"), os.path.expanduser("~"))
         if path:
             self.ed_command.setText(f'"{path}"' if " " in path else path)
 
@@ -549,7 +561,7 @@ class SyncPane(QWidget):
     def import_ffs(self) -> None:
         from . import ffsconvert as ffs
 
-        paths, _f = QFileDialog.getOpenFileNames(self, t("ffs.import"), os.path.expanduser("~"), t("ffs.filter"))
+        paths, _f = QFileDialog.getOpenFileNames(None, t("ffs.import"), os.path.expanduser("~"), t("ffs.filter"))
         if not paths:
             return
         existing = {p.name.lower() for p in sp.load()}
@@ -588,7 +600,7 @@ class SyncPane(QWidget):
 
         prof = self._profile_now()
         start = os.path.join(os.path.expanduser("~"), ffs.safe_file_name(prof.name) + ".ffs_gui")
-        path, _f = QFileDialog.getSaveFileName(self, t("ffs.export"), start, t("ffs.filter_gui"))
+        path, _f = QFileDialog.getSaveFileName(None, t("ffs.export"), start, t("ffs.filter_gui"))
         if not path:
             return
         if not path.lower().endswith(".ffs_gui"):
@@ -608,7 +620,7 @@ class SyncPane(QWidget):
         if not profiles:
             show_info(self, t("ffs.export_all"), t("menu.sync_profiles_none"))
             return
-        folder = QFileDialog.getExistingDirectory(self, t("ffs.export_all"), os.path.expanduser("~"))
+        folder = QFileDialog.getExistingDirectory(None, t("ffs.export_all"), os.path.expanduser("~"))
         if not folder:
             return
         targets = [(p, os.path.join(folder, ffs.safe_file_name(p.name) + ".ffs_gui")) for p in profiles]
@@ -699,6 +711,8 @@ class SyncPane(QWidget):
             parent = folder(parent_rel)
             item = QTreeWidgetItem(parent if parent is not None else tree)
             item.setData(L_NAME, ROLE_ENTRY, i)
+            if e.is_dir:
+                folders[e.rel] = item  # v1.18.1: Inhalt hängt darunter
             depth = e.rel.count("/")
             for side, cols, base in ((e.left, (L_NAME, L_SIZE, L_DATE), left), (e.right, (R_NAME, R_SIZE, R_DATE), right)):
                 c_name, c_size, c_date = cols
@@ -722,9 +736,7 @@ class SyncPane(QWidget):
 
     def _entries_under(self, item: QTreeWidgetItem) -> list[fd.Entry]:
         idx = item.data(L_NAME, ROLE_ENTRY)
-        if idx is not None and idx >= 0:
-            return [self.entries[idx]]
-        out = []
+        out = [self.entries[idx]] if idx is not None and idx >= 0 else []
         for i in range(item.childCount()):
             out += self._entries_under(item.child(i))
         return out
@@ -736,7 +748,7 @@ class SyncPane(QWidget):
                 visit(item.child(i))
             entries = self._entries_under(item)
             idx = item.data(L_NAME, ROLE_ENTRY)
-            if idx is not None and idx >= 0:
+            if idx is not None and idx >= 0 and not item.childCount():
                 e = entries[0]
                 item.setData(ACT, ROLE_ICON, entry_glyph(e))
                 item.setToolTip(ACT, action_text(e))
@@ -783,8 +795,8 @@ class SyncPane(QWidget):
         if self.scanned is None or column == ACT:
             return
         idx = item.data(L_NAME, ROLE_ENTRY)
-        if idx is None or idx < 0:
-            item.setExpanded(not item.isExpanded())
+        if idx is None or idx < 0 or item.childCount() or self.entries[idx].is_dir:
+            item.setExpanded(not item.isExpanded())  # Ordner: auf-/zuklappen statt öffnen
             return
         e = self.entries[idx]
         left_side = column < ACT
