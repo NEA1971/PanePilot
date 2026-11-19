@@ -948,8 +948,12 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         for aid in ("open", "edit_text", "open_with_other", "open_terminal", "server_manager", None, "new_folder",
                     "new_textfile",
                     "rename", "duplicate", "multi_rename", "rename_undo", None, "search", "find_duplicates", "checksums", "dir_list",
-                    "properties", None,
+                    "properties", None, "compare_folders", "sync_folders", "sync_profiles", None,
                     "copy", "move", None, "delete", "delete_permanent", None):
+            if aid == "sync_profiles":  # v1.16 (L-1621): gespeicherte Abgleiche
+                self.sync_menu = m.addMenu(t("menu.sync_profiles"))
+                self.sync_menu.aboutToShow.connect(self._fill_sync_menu)
+                continue
             m.addSeparator() if aid is None else m.addAction(a[aid])
         # Einstellungen als Untermenü direkt über „Beenden“ (v0.9.10, vorher eigenes Menü)
         sm = m.addMenu(t("menu.settings"))
@@ -1183,6 +1187,67 @@ class MainWindow(RemoteMixin, MetaWizardMixin, QMainWindow):
         folder = folder or self._plain_folder() or str(Path.home())
         if not util.open_terminal(folder):
             show_error(self, t("action.open_terminal"), t("error.no_terminal"))
+
+    # --- Ordner vergleichen / synchronisieren (v1.16) --------------------------------------------------
+    def _sync_folders(self) -> tuple[str, str]:
+        """Linker und rechter Ordner, sofern es lokale Ordner sind (L-1619)."""
+        out = []
+        for side in ("left", "right"):
+            p = self.sides[side].panel
+            ok = not p.in_trash and not p.search_mode and p.remote is None and os.path.isdir(p.current_path or "")
+            out.append(p.current_path if ok else "")
+        return out[0], out[1]
+
+    def do_compare_folders(self) -> None:
+        """L-1600: Unterschiede in beiden Fenstern markieren."""
+        from . import folderdiff as fd
+        from .dialogs import show_info
+
+        left, right = self._sync_folders()
+        title = t("action.compare_folders").replace("&", "")
+        if not left or not right:
+            show_info(self, title, t("sync.local_only"))
+            return
+        if os.path.normpath(left) == os.path.normpath(right):
+            show_info(self, title, t("sync.same_folder"))
+            return
+        last = (self.settings.get("sync_last") or {}).get("options")
+        opts = fd.Options.from_dict(last)
+        try:
+            lnames, rnames = fd.quick_compare(left, right, opts)
+        except OSError as exc:
+            show_error(self, title, str(exc))
+            return
+        self.sides["left"].panel.select_names(lnames)
+        self.sides["right"].panel.select_names(rnames)
+        self.statusBar().showMessage(t("sync.quick_result", left=len(lnames), right=len(rnames)), 8000)
+
+    def do_sync_folders(self, profile: str | None = None) -> None:
+        """L-1610: Dialog „Ordner synchronisieren …“."""
+        from PySide6.QtCore import QTimer
+
+        from .syncdialog import SyncDialog
+
+        left, right = self._sync_folders()
+        dlg = SyncDialog(self, left, right, profile)
+        dlg.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        dlg.show()
+        if profile:  # L-1621: gleich vergleichen
+            QTimer.singleShot(0, dlg.compare)
+
+    def _fill_sync_menu(self) -> None:
+        from . import syncprofiles as sp
+
+        self.sync_menu.clear()
+        profiles = sp.load()
+        if not profiles:
+            act = self.sync_menu.addAction(t("menu.sync_profiles_none"))
+            act.setEnabled(False)
+        for p in profiles:
+            self.sync_menu.addAction(p.name).triggered.connect(lambda _c=False, n=p.name: self.do_sync_folders(n))
+
+    def sync_profiles_changed(self) -> None:
+        pass  # das Menü wird beim Öffnen neu gefüllt
 
     def do_find_duplicates(self, folder: str | None = None) -> None:
         """Duplikate suchen (v1.6): eigenes Fenster, der Ordner des anderen Fensters ist wählbar (L-622)."""

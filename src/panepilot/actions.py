@@ -61,6 +61,8 @@ ACTION_DEFS: tuple[ActionDef, ...] = (
     ActionDef("search", "action.search", ("Ctrl+F",), "window"),
     ActionDef("checksums", "action.checksums", (), "window"),
     ActionDef("find_duplicates", "action.find_duplicates", (), "window"),  # v1.6
+    ActionDef("compare_folders", "action.compare_folders", ("Ctrl+Shift+V",), "window"),  # v1.16 (L-1600)
+    ActionDef("sync_folders", "action.sync_folders", ("Ctrl+Shift+S",), "window"),  # v1.16 (L-1610)
     ActionDef("properties", "action.properties", ("Alt+Return",), "window"),
     ActionDef("settings_dialog", "action.settings_dialog", (), "window"),
     ActionDef("backup_now", "action.backup_now", (), "window"),

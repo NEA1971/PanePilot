@@ -44,6 +44,9 @@ THEME_NAMES: dict[str, tuple[str, ...]] = {
     "dir_list": ("view-list-text", "text-x-generic", "x-office-document"),
     # v1.6
     "find_duplicates": ("edit-copy", "edit-find-replace", "edit-find"),
+    # v1.16
+    "compare_folders": ("view-dual", "view-split-left-right", "document-compare", "edit-find"),
+    "sync_folders": ("view-refresh", "emblem-synchronizing", "folder-sync", "system-software-update"),
 }
 
 _cache: dict[str, QIcon] = {}
