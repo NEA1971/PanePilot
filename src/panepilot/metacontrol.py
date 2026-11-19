@@ -420,6 +420,15 @@ class MetaWizardMixin:
         has = bool(pane.meta_view.selected_items())
         menu = QMenu(self)
         has_any = bool(pane.meta_model.items)
+        # v1.18.3: oben „Öffnen“ und „Öffnen mit …“, dann ein Trennstrich
+        files = [it.record.path for it in pane.meta_view.selected_items() if os.path.isfile(it.record.path)]
+        if files:
+            from .util import open_with_default_app
+
+            menu.addAction(self.qactions["open"].icon(), t("action.open")).triggered.connect(
+                lambda _c=False, f=files: [open_with_default_app(p) for p in f])
+            self._open_with_menu(menu, files)
+            menu.addSeparator()
         for kind in mp.tools():
             if kind == cv.TAG_TO_TEXT:
                 menu.addSeparator()

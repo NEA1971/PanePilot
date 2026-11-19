@@ -1337,8 +1337,8 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         if editor is None or not desktop_apps.launch(editor, files):
             show_error(self, t("title.open"), t("error.no_text_editor"))
 
-    def do_open_with_other(self) -> None:
-        files = self._selected_files()
+    def do_open_with_other(self, files: list[str] | None = None) -> None:
+        files = files if files is not None else self._selected_files()
         if not files:
             return
         mime = desktop_apps.mime_of(files[0])
@@ -1357,8 +1357,9 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         if not desktop_apps.launch(app, files):
             show_error(self, t("title.open"), t("error.launch_failed", app=app.name))
 
-    def _open_with_menu(self, menu: QMenu) -> None:
-        files = self._selected_files()
+    def _open_with_menu(self, menu: QMenu, files: list[str] | None = None) -> None:
+        own = files is not None  # v1.18.3: auch für den Meta-Wizard (dort sind die Aktionen gesperrt)
+        files = files if own else self._selected_files()
         if not files:
             return
         sub = menu.addMenu(t("menu.open_with"))
@@ -1370,7 +1371,11 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
             act.triggered.connect(lambda _c=False, a=app, f=files: self._launch_app(a, f))
         if sub.actions():
             sub.addSeparator()
-        sub.addAction(self.qactions["open_with_other"])
+        if own:
+            sub.addAction(self.qactions["open_with_other"].icon(), self.qactions["open_with_other"].text()).triggered.connect(
+                lambda _c=False, f=files: self.do_open_with_other(f))
+        else:
+            sub.addAction(self.qactions["open_with_other"])
 
     def do_toggle_buttonbar(self) -> None:
         if self.single_mode:
