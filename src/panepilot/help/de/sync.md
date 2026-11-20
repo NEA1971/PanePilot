@@ -24,6 +24,8 @@ Zwei Dateien gelten als **gleich**, wenn Name, Größe und Änderungsdatum über
 ## Gespeicherte Abgleiche
 In der Seitenleiste merkt sich PanePilot mit **Speichern …** den Abgleich unter einem Namen (z. B. „Fotos → NAS“): beide Ordner, alle Einstellungen und die Aktion nach dem Beenden. Aufrufen über die Auswahl oben in der Seitenleiste oder über **Datei → Gespeicherte Abgleiche** – dann wird sofort verglichen; synchronisiert wird nach deiner Durchsicht mit „Synchronisieren“. Die Abgleiche sind in der Sicherung der Einstellungen enthalten.
 
+Unter der Auswahl steht der **letzte Lauf** des gewählten Abgleichs: grüner Haken = fehlerfrei, Verbotsschild = mit Fehlern oder abgebrochen. Der Infotext zeigt Datum, Zahlen und bei Fehlern die ersten Meldungen. Dasselbe steht im Menü **Datei → Gespeicherte Abgleiche** hinter dem Namen.
+
 ## FreeFileSync
 - **FreeFileSync → Aus FreeFileSync importieren …** übernimmt `.ffs_gui`- und `.ffs_batch`-Dateien (mehrere auf einmal) als gespeicherte Abgleiche; der Name ist der Dateiname. Gibt es ihn schon, fragt PanePilot nach.
 - Übernommen werden Ordnerpaar (bei mehreren je Paar ein Abgleich), Richtung, Spiegeln, Vergleich nach Inhalt, Filter und der Befehl nach dem Abgleich. „Aktualisieren“ wird zu „links → rechts“ ohne Spiegeln, „Spiegeln“ zu „links → rechts“ mit „Spiegeln: Ziel wird genau wie die Quelle“, echte Zwei-Wege-Abgleiche zu „beide Richtungen“.

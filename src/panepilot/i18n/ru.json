@@ -1603,5 +1603,17 @@
   "sync.tip_del_left": "удалить слева (в корзину)",
   "sync.tip_none": "ничего не делать",
   "sync.exclude_folder": "Исключить папку «{name}»",
-  "sync.exclude_folders": "Исключить папки: {n}"
+  "sync.exclude_folders": "Исключить папки: {n}",
+  "sync.last_run": "Последний запуск: {date}",
+  "sync.last_ok": "Завершено без ошибок",
+  "sync.last_errors": "Завершено с ошибками",
+  "sync.last_cancelled": "Отменено",
+  "action.toggle_icon_view": "Значки",
+  "action.icons_small": "Мелкие значки",
+  "action.icons_medium": "Средние значки",
+  "action.icons_large": "Крупные значки",
+  "menu.icon_size": "Размер значков",
+  "menu.sort_by": "Сортировать по",
+  "menu.sort_name": "Имя",
+  "menu.sort_desc": "По убыванию"
 }

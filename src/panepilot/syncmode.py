@@ -338,6 +338,17 @@ class SyncPane(QWidget):
         gl = QVBoxLayout(gp)
         self.cb_profile = QComboBox(gp)
         gl.addWidget(self.cb_profile)
+        # letzter Lauf des gewählten Abgleichs (v1.19, L-1901)
+        self.last_row = QWidget(gp)
+        lr = QHBoxLayout(self.last_row)
+        lr.setContentsMargins(2, 0, 2, 0)
+        lr.setSpacing(6)
+        self.last_icon = QLabel(self.last_row)
+        self.last_text = QLabel(self.last_row)
+        lr.addWidget(self.last_icon)
+        lr.addWidget(self.last_text, 1)
+        self.last_row.hide()
+        gl.addWidget(self.last_row)
         row = QHBoxLayout()
         for text, slot in ((t("sync.profile_save"), self.save_profile),
                            (t("sync.profile_rename"), self.rename_profile),
@@ -448,6 +459,7 @@ class SyncPane(QWidget):
         self.set_options(fd.Options.from_dict(last.get("options")), sp.After.from_dict(last.get("after")))
         self._fill_profiles(None)
         self.cb_profile.activated.connect(lambda _i: self._load_profile(self.cb_profile.currentData()))
+        self.cb_profile.currentIndexChanged.connect(lambda _i: self.show_last_run())
         self._update_buttons()
 
     # --- Einstellungen ------------------------------------------------------------------------------------
@@ -510,6 +522,26 @@ class SyncPane(QWidget):
             self.cb_profile.addItem(p.name, p.name)
         i = self.cb_profile.findData(current) if current else 0
         self.cb_profile.setCurrentIndex(max(i, 0))
+        self.show_last_run()
+
+    def show_last_run(self) -> None:
+        """L-1901: Haken bzw. Verbotsschild mit Datum unter der Auswahl."""
+        from .toolicons import last_run_icon
+
+        name = self.current_profile()
+        prof = next((p for p in sp.load() if p.name == name), None) if name else None
+        last = prof.last if prof is not None else None
+        if last is None:
+            self.last_row.hide()
+            return
+        size = self.fontMetrics().height() + 2
+        self.last_icon.setPixmap(last_run_icon(last).pixmap(size, size))
+        self.last_text.setText(t("sync.last_run", date=last_run_date(last)))
+        tip = last_run_tooltip(last)
+        self.last_row.setToolTip(tip)
+        self.last_icon.setToolTip(tip)
+        self.last_text.setToolTip(tip)
+        self.last_row.show()
 
     def current_profile(self) -> str | None:
         return self.cb_profile.currentData()
@@ -903,6 +935,9 @@ class SyncPane(QWidget):
         return worker.result
 
     def finish(self, left: str, right: str, result: fd.Result) -> None:
+        if self.current_profile():  # L-1900: letzten Lauf merken
+            sp.record_run(self.current_profile(), result)
+            self.show_last_run()
         lines = [t("sync.done", copied=result.copied, over=result.overwritten, deleted=result.deleted,
                    failed=result.failed)]
         if result.cancelled:
@@ -933,6 +968,25 @@ class SyncPane(QWidget):
                 if problem:
                     show_error(self, t("sync.title"), t("sync.power_failed", reason=problem))
         self.compare()
+
+
+def last_run_date(last: sp.LastRun) -> str:
+    try:
+        return datetime.fromisoformat(last.at).strftime("%d.%m.%Y %H:%M")
+    except ValueError:
+        return last.at
+
+
+def last_run_tooltip(last: sp.LastRun) -> str:
+    """L-1901: Datum, Ergebnis, Zahlen und bei Fehlern die ersten Meldungen."""
+    key = {sp.RESULT_OK: "sync.last_ok", sp.RESULT_ERRORS: "sync.last_errors",
+           sp.RESULT_CANCELLED: "sync.last_cancelled"}[last.result]
+    lines = [t("sync.last_run", date=last_run_date(last)), t(key),
+             t("sync.done", copied=last.copied, over=last.overwritten, deleted=last.deleted, failed=last.failed)]
+    lines += [f"• {e}" for e in last.errors]
+    if last.failed > len(last.errors):
+        lines.append("…")
+    return "\n".join(lines)
 
 
 class CountdownDialog(QDialog):

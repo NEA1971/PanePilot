@@ -11,6 +11,7 @@ from PySide6.QtCore import (
     QItemSelectionModel,
     QModelIndex,
     QPoint,
+    QSize,
     Qt,
     QTimer,
     QFileSystemWatcher,
@@ -25,6 +26,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QLineEdit,
+    QListView,
     QStyledItemDelegate,
     QTreeView,
     QVBoxLayout,
@@ -58,30 +60,8 @@ class RenameDelegate(QStyledItemDelegate):
             QTimer.singleShot(0, lambda: editor.setSelection(0, stem_len))
 
 
-class FileView(QTreeView):
-    """Dateiliste mit Drag & Drop für Dateien."""
-
-    drop_requested = Signal(list, str, object)  # Pfade, Zielordner, Qt.DropAction
-    remote_drop_requested = Signal(object, str, object)  # {side, paths, dirs} aus einem Server-Fenster (v1.3)
-    focus_entered = Signal()
-
-    def __init__(self, parent=None) -> None:
-        super().__init__(parent)
-        self.setRootIsDecorated(False)
-        self.setItemsExpandable(False)
-        self.setUniformRowHeights(True)
-        self.setAllColumnsShowFocus(True)
-        self.setSortingEnabled(True)
-        self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.setDragEnabled(True)
-        self.setAcceptDrops(True)
-        self.setDropIndicatorShown(True)
-        self.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
-        self.setDefaultDropAction(Qt.DropAction.CopyAction)
-        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.setItemDelegate(RenameDelegate(self))
+class _FileListMixin:
+    """Gemeinsames Ziehen und Ablegen von Liste und Symbolansicht (v1.19)."""
 
     def focusInEvent(self, event) -> None:
         super().focusInEvent(event)
@@ -220,6 +200,233 @@ class FileView(QTreeView):
         self.drop_requested.emit(paths, target, action)
 
 
+class FileView(_FileListMixin, QTreeView):
+    """Dateiliste mit Drag & Drop für Dateien."""
+
+    drop_requested = Signal(list, str, object)  # Pfade, Zielordner, Qt.DropAction
+    remote_drop_requested = Signal(object, str, object)  # {side, paths, dirs} aus einem Server-Fenster (v1.3)
+    focus_entered = Signal()
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self.setRootIsDecorated(False)
+        self.setItemsExpandable(False)
+        self.setUniformRowHeights(True)
+        self.setAllColumnsShowFocus(True)
+        self.setSortingEnabled(True)
+        self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+        self.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
+        self.setDefaultDropAction(Qt.DropAction.CopyAction)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.setItemDelegate(RenameDelegate(self))
+
+
+# --- Symbolansicht (v1.19, L-1910 ff.) ------------------------------------------------------------------------
+ICON_SIZES = (64, 128, 256)  # klein, mittel, groß (L-1911)
+NAME_LINES = 2  # Name unter dem Bild, höchstens zwei Zeilen (L-1913)
+
+
+class IconDelegate(RenameDelegate):
+    """Zeichnet Vorschaubild bzw. Dateisymbol mit dem Namen darunter."""
+
+    PAD = 4
+
+    def __init__(self, view: "IconView") -> None:
+        super().__init__(view)
+        self.view = view
+
+    def _metrics(self, option):
+        from PySide6.QtGui import QFontMetrics
+
+        return QFontMetrics(option.font)
+
+    def cell_size(self, option=None):
+        from PySide6.QtCore import QSize
+
+        fm = self.view.fontMetrics()
+        s = self.view.icon_px
+        width = max(s + 2 * self.PAD, fm.averageCharWidth() * 14)
+        return QSize(width + 2 * self.PAD, s + 3 * self.PAD + NAME_LINES * fm.height() + self.PAD)
+
+    def sizeHint(self, option, index):
+        return self.cell_size(option)
+
+    def _rects(self, rect):
+        from PySide6.QtCore import QRect
+
+        s = self.view.icon_px
+        icon = QRect(rect.x() + (rect.width() - s) // 2, rect.y() + self.PAD, s, s)
+        text = QRect(rect.x() + self.PAD, icon.bottom() + 1 + self.PAD, rect.width() - 2 * self.PAD,
+                     rect.bottom() - icon.bottom() - 2 * self.PAD)
+        return icon, text
+
+    def _lines(self, text: str, fm, width: int) -> list[str]:
+        from PySide6.QtGui import QTextLayout, QTextOption
+
+        layout = QTextLayout(text, self.view.font())
+        opt = QTextOption()
+        opt.setWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
+        layout.setTextOption(opt)
+        layout.beginLayout()
+        lines = []
+        while True:
+            line = layout.createLine()
+            if not line.isValid():
+                break
+            line.setLineWidth(width)
+            lines.append((line.textStart(), line.textLength()))
+        layout.endLayout()
+        out = []
+        for i, (start, length) in enumerate(lines[:NAME_LINES]):
+            if i == NAME_LINES - 1 and len(lines) > NAME_LINES:
+                out.append(fm.elidedText(text[start:], Qt.TextElideMode.ElideMiddle, width))
+            else:
+                out.append(text[start:start + length].strip())
+        return out
+
+    def paint(self, painter, option, index):
+        from PySide6.QtWidgets import QStyle, QStyleOptionViewItem
+
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+        style = self.view.style()
+        painter.save()
+        # Hintergrund samt Markierung wie in der Liste
+        opt_bg = QStyleOptionViewItem(opt)
+        opt_bg.text = ""
+        opt_bg.icon = type(opt.icon)()
+        style.drawPrimitive(QStyle.PrimitiveElement.PE_PanelItemViewItem, opt_bg, painter, self.view)
+        icon_rect, text_rect = self._rects(opt.rect)
+        pix = self.view.thumbnail_for(index)
+        if pix is not None and not pix.isNull():
+            dpr = pix.devicePixelRatio() or 1
+            w, h = pix.width() / dpr, pix.height() / dpr
+            scale = min(icon_rect.width() / max(w, 1), icon_rect.height() / max(h, 1), 1.0)
+            tw, th = int(w * scale), int(h * scale)
+            from PySide6.QtCore import QRect
+
+            target = QRect(icon_rect.x() + (icon_rect.width() - tw) // 2,
+                           icon_rect.y() + (icon_rect.height() - th) // 2, tw, th)
+            painter.setRenderHint(painter.RenderHint.SmoothPixmapTransform, True)
+            painter.drawPixmap(target, pix)
+            if opt.state & QStyle.StateFlag.State_Selected:  # markierte Vorschaubilder gut erkennbar umrahmen
+                from PySide6.QtGui import QPen
+
+                painter.setPen(QPen(opt.palette.color(opt.palette.ColorRole.Highlight), 3))
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                painter.drawRect(target.adjusted(-1, -1, 1, 1))
+        else:
+            icon = index.data(Qt.ItemDataRole.DecorationRole)
+            if icon is not None:
+                icon.paint(painter, icon_rect, Qt.AlignmentFlag.AlignCenter)
+        fm = self._metrics(opt)
+        selected = bool(opt.state & QStyle.StateFlag.State_Selected)
+        role = opt.palette.ColorRole.HighlightedText if selected else opt.palette.ColorRole.Text
+        color = opt.palette.color(role)
+        fg = index.data(Qt.ItemDataRole.ForegroundRole)
+        if fg is not None and not selected:
+            color = fg.color() if hasattr(fg, "color") else fg
+        painter.setPen(color)
+        painter.setFont(opt.font)
+        y = text_rect.y()
+        for line in self._lines(str(index.data(Qt.ItemDataRole.DisplayRole) or ""), fm, text_rect.width()):
+            painter.drawText(text_rect.x(), y, text_rect.width(), fm.height(),
+                             int(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop), line)
+            y += fm.height()
+        painter.restore()
+
+    def updateEditorGeometry(self, editor, option, index):
+        _icon, text = self._rects(option.rect)
+        h = editor.sizeHint().height()
+        editor.setGeometry(option.rect.x(), text.y(), max(option.rect.width(), 160), h)
+
+
+class IconView(_FileListMixin, QListView):
+    """Symbolansicht: gleiches Modell und gleiche Markierung wie die Liste (L-1913)."""
+
+    drop_requested = Signal(list, str, object)
+    remote_drop_requested = Signal(object, str, object)
+    focus_entered = Signal()
+    zoom_requested = Signal(int)  # +1 größer, -1 kleiner (Strg+Mausrad, L-1911)
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self.icon_px = 128
+        self.thumbs = None  # ThumbnailLoader, beim ersten Zeichnen
+        self.setViewMode(QListView.ViewMode.IconMode)
+        self.setMovement(QListView.Movement.Static)
+        self.setResizeMode(QListView.ResizeMode.Adjust)
+        self.setLayoutMode(QListView.LayoutMode.Batched)
+        self.setBatchSize(200)
+        self.setUniformItemSizes(True)
+        self.setWrapping(True)
+        self.setWordWrap(True)
+        self.setSpacing(2)
+        self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.setSelectionRectVisible(True)
+        self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+        self.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
+        self.setDefaultDropAction(Qt.DropAction.CopyAction)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.delegate = IconDelegate(self)
+        self.setItemDelegate(self.delegate)
+        self.set_icon_px(128)
+
+    def set_icon_px(self, px: int) -> None:
+        self.icon_px = px
+        self.setIconSize(QSize(px, px))
+        self.setGridSize(self.delegate.cell_size())
+        self.scheduleDelayedItemsLayout()
+        self.viewport().update()
+
+    def thumbnail_for(self, index):
+        """Vorschaubild aus dem Speicher – fehlt es, wird es im Hintergrund erzeugt (L-1912)."""
+        model = self.model()
+        entry = model.entry(index.row()) if model is not None else None
+        if entry is None or entry.is_dir or entry.remote or model.trash_mode:
+            return None
+        from . import thumbnails
+
+        if self.thumbs is None:
+            self.thumbs = thumbnails.loader()
+            self.thumbs.ready.connect(self._thumb_ready)
+            model.modelReset.connect(self.thumbs.drop_pending)
+        if not self.thumbs.wanted(entry.path):
+            return None
+        return self.thumbs.get(entry.path, entry.mtime, self.icon_px)
+
+    def _thumb_ready(self, _path: str) -> None:
+        if self.isVisible():
+            self._repaint_timer().start()
+
+    def _repaint_timer(self) -> QTimer:
+        timer = getattr(self, "_rt", None)
+        if timer is None:
+            timer = self._rt = QTimer(self)
+            timer.setSingleShot(True)
+            timer.setInterval(60)
+            timer.timeout.connect(self.viewport().update)
+        return timer
+
+    def wheelEvent(self, event) -> None:
+        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            delta = event.angleDelta().y()
+            if delta:
+                self.zoom_requested.emit(1 if delta > 0 else -1)
+            event.accept()
+            return
+        super().wheelEvent(event)
+
+
 class FilePanel(QWidget):
     focus_entered = Signal()
     path_changed = Signal(str)
@@ -234,6 +441,7 @@ class FilePanel(QWidget):
     profile_chosen = Signal(str)  # Spaltenprofil im Kopf-Kontextmenü gewählt
     new_profile_requested = Signal()
     filter_changed = Signal()
+    icon_size_changed = Signal(int)  # v1.19
 
     def __init__(self, side: str, icons: IconProvider, parent=None) -> None:
         super().__init__(parent)
@@ -307,6 +515,23 @@ class FilePanel(QWidget):
         hdr.setMinimumSectionSize(40)
         hdr.setSortIndicator(COL_NAME, Qt.SortOrder.AscendingOrder)
         self.view.selectionModel().selectionChanged.connect(self._update_status)
+        # Symbolansicht (v1.19): gleiches Modell, gleiche Markierung und gleicher Cursor wie die Liste
+        self.icon_mode = False
+        self.icon_view = IconView(self)
+        self.icon_view.setModel(self.model)
+        own = self.icon_view.selectionModel()
+        self.icon_view.setSelectionModel(self.view.selectionModel())
+        own.deleteLater()
+        self.icon_view.setModelColumn(self.model.icon_column)
+        self.icon_view.focus_entered.connect(self.focus_entered)
+        self.icon_view.doubleClicked.connect(self._on_double_click)
+        self.icon_view.customContextMenuRequested.connect(
+            lambda pos: self.context_menu_requested.emit(self.icon_view.viewport().mapToGlobal(pos))
+        )
+        self.icon_view.drop_requested.connect(self.drop_requested)
+        self.icon_view.remote_drop_requested.connect(self.remote_drop_requested)
+        self.icon_view.zoom_requested.connect(self.zoom_icons)
+        self.icon_view.hide()
 
         self.status = QLabel(self)
         self.status.setObjectName("panelStatus")
@@ -317,6 +542,7 @@ class FilePanel(QWidget):
         layout.setSpacing(2)
         layout.addWidget(self.header)
         layout.addWidget(self.view, 1)
+        layout.addWidget(self.icon_view, 1)
         # Vorschau für „Mehrfach umbenennen“ (F-702) – ersetzt die Liste, solange der Modus läuft
         self.preview = QTreeView(self)
         self.preview.setObjectName("renamePreview")
@@ -482,6 +708,51 @@ class FilePanel(QWidget):
 
     def set_remote_color(self, color: str) -> None:
         self.view.setStyleSheet(f"QTreeView {{ background-color: {color}; }}" if color else "")
+        self.icon_view.setStyleSheet(f"QListView {{ background-color: {color}; }}" if color else "")
+
+    # --- Liste oder Symbolansicht (v1.19) -------------------------------------------------------------------
+    def list_widget(self) -> QAbstractItemView:
+        """Die gerade gezeigte Dateiansicht (Liste oder Symbolansicht)."""
+        return self.icon_view if self.icon_mode else self.view
+
+    def focus_view(self) -> None:
+        self.list_widget().setFocus()
+
+    def set_icon_mode(self, on: bool) -> None:
+        """L-1910: zwischen Liste und Symbolansicht umschalten."""
+        on = bool(on)
+        if on == self.icon_mode:
+            return
+        had_focus = self.list_widget().hasFocus()
+        busy = self.preview.isVisible() or getattr(self, "_custom_view", None) is not None
+        self.icon_mode = on
+        if not busy:
+            self.view.setVisible(not on)
+            self.icon_view.setVisible(on)
+        cur = self.view.currentIndex()
+        if cur.isValid():
+            self.list_widget().scrollTo(cur)
+        if had_focus and not busy:
+            self.focus_view()
+
+    @property
+    def icon_size(self) -> int:
+        return self.icon_view.icon_px
+
+    def set_icon_size(self, px: int) -> None:
+        """L-1911: klein, mittel, groß."""
+        px = min(ICON_SIZES, key=lambda s: abs(s - int(px)))
+        if px != self.icon_view.icon_px:
+            self.icon_view.set_icon_px(px)
+            cur = self.view.currentIndex()
+            if cur.isValid() and self.icon_mode:
+                QTimer.singleShot(0, lambda: self.icon_view.scrollTo(self.view.currentIndex()))
+        self.icon_size_changed.emit(px)
+
+    def zoom_icons(self, step: int) -> None:
+        i = ICON_SIZES.index(self.icon_view.icon_px) + step
+        if 0 <= i < len(ICON_SIZES):
+            self.set_icon_size(ICON_SIZES[i])
 
     def navigate(self, path: str, select_name: str | None = None, add_history: bool = True) -> bool:
         if self.locked:
@@ -533,7 +804,7 @@ class FilePanel(QWidget):
         sel.setCurrentIndex(index, QItemSelectionModel.SelectionFlag.ClearAndSelect | QItemSelectionModel.SelectionFlag.Rows)
         if not select_name:
             sel.clearSelection()
-        self.view.scrollTo(index)
+        self.list_widget().scrollTo(index)
 
     def _select_name_later(self, name: str) -> None:
         QTimer.singleShot(0, lambda: self.select_names([name], current=name))
@@ -562,30 +833,30 @@ class FilePanel(QWidget):
             if row >= 0:
                 idx = self.model.index(row, self.model.icon_column)
                 sel.setCurrentIndex(idx, QItemSelectionModel.SelectionFlag.NoUpdate)
-                self.view.scrollTo(idx)
+                self.list_widget().scrollTo(idx)
 
     def refresh(self) -> None:
         if not self.current_path:
             return
-        if self.view.state() == QAbstractItemView.State.EditingState:
+        if QAbstractItemView.State.EditingState in (self.view.state(), self.icon_view.state()):
             # Während des Umbenennens nicht neu einlesen – das würde die Eingabe beenden.
             self._refresh_timer.start()
             return
         selected = [e.name for e in self.selected_entries()]
         cur = self.current_entry()
         cur_name = cur.name if cur else None
-        scroll = self.view.verticalScrollBar().value()
+        scroll = self.list_widget().verticalScrollBar().value()
         if self.search_mode:
             self.model.refresh_results()
             self.select_names(selected, current=cur_name)
-            self.view.verticalScrollBar().setValue(scroll)
+            self.list_widget().verticalScrollBar().setValue(scroll)
             self._update_status()
             return
         if self.in_trash:
             items = self.trash.items() if self.trash is not None else []
             self.model.load_trash(items, TRASH_URI)
             self.select_names(selected, current=cur_name)
-            self.view.verticalScrollBar().setValue(scroll)
+            self.list_widget().verticalScrollBar().setValue(scroll)
             self._update_status()
             return
         if self.in_remote:
@@ -597,7 +868,7 @@ class FilePanel(QWidget):
                 return
             self.model.load_remote(self.remote.base, path, items)
             self.select_names(selected, current=cur_name)
-            self.view.verticalScrollBar().setValue(scroll)
+            self.list_widget().verticalScrollBar().setValue(scroll)
             self._update_status()
             return
         if not os.path.isdir(self.current_path):
@@ -613,7 +884,7 @@ class FilePanel(QWidget):
             self.view.selectionModel().setCurrentIndex(
                 self.model.index(0, self.model.icon_column), QItemSelectionModel.SelectionFlag.NoUpdate
             )
-        self.view.verticalScrollBar().setValue(scroll)
+        self.list_widget().verticalScrollBar().setValue(scroll)
         self._update_free_space()
         self._update_status()
 
@@ -706,13 +977,13 @@ class FilePanel(QWidget):
             return
         if is_trash_uri(text) or text.casefold() == t("trash.title").casefold():
             self.navigate(TRASH_URI)
-            self.view.setFocus()
+            self.focus_view()
             return
         if is_remote_uri(text):
             if not self.navigate(text.rstrip("/") if text.count("/") > 3 else text):
                 self.path_edit.setText(self.current_path)
                 return
-            self.view.setFocus()
+            self.focus_view()
             return
         target = os.path.abspath(os.path.expanduser(text))
         if os.path.isfile(target):
@@ -723,7 +994,7 @@ class FilePanel(QWidget):
             self.message.emit(t("title.folder_error"), t("error.path_not_found", path=target))
             self.path_edit.setText(self.current_path)
             return
-        self.view.setFocus()
+        self.focus_view()
 
     def edit_path(self) -> None:
         self.path_edit.setFocus()
@@ -733,7 +1004,7 @@ class FilePanel(QWidget):
         if obj is self.path_edit and event.type() == event.Type.KeyPress:
             if event.key() == Qt.Key.Key_Escape:
                 self.path_edit.setText(self.current_path)
-                self.view.setFocus()
+                self.focus_view()
                 return True
         if obj is self.path_edit and event.type() == event.Type.FocusIn:
             self.focus_entered.emit()
@@ -774,8 +1045,10 @@ class FilePanel(QWidget):
         if entry is None or entry.is_parent or self.in_trash:
             return
         col = COL_NAME if self.column_visible(COL_NAME) else COL_NAME_STEM
+        if self.icon_mode:
+            col = self.icon_view.modelColumn()
         idx = self.model.index(self.view.currentIndex().row(), col)
-        self.view.edit(idx)
+        self.list_widget().edit(idx)
 
     def column_widths(self) -> list[int]:
         hdr = self.view.header()
@@ -838,6 +1111,8 @@ class FilePanel(QWidget):
         if col != self.model.icon_column:
             self.model.icon_column = col
             self.view.viewport().update()
+            if hasattr(self, "icon_view"):
+                self.icon_view.setModelColumn(col)
         # Der Cursor muss in einer sichtbaren Spalte stehen – sonst folgt die Markierung
         # den Pfeiltasten nicht (Cursor in ausgeblendeter Spalte „Name (mit Endung)“).
         cur = self.view.currentIndex()
@@ -1019,13 +1294,14 @@ class FilePanel(QWidget):
                 hdr.resizeSection(col, width)
             self._sync_preview_sort_indicator()
             self.view.hide()
+            self.icon_view.hide()
             self.preview.show()
             self.preview.setFocus()
         else:
             self.preview.hide()
             self.preview.setModel(None)
-            self.view.show()
-            self.view.setFocus()
+            self.list_widget().show()
+            self.focus_view()
 
     # --- Eigene Ansicht statt der Dateiliste (Meta-Wizard, F-903) --------------------------
     def set_custom_view(self, widget: QWidget | None) -> None:
@@ -1040,12 +1316,13 @@ class FilePanel(QWidget):
         self.path_edit.setReadOnly(widget is not None)
         self.status.setVisible(widget is None)  # Ordnerstatus passt nicht zur Titelliste
         if widget is None:
-            self.view.show()
-            self.view.setFocus()
+            self.list_widget().show()
+            self.focus_view()
             return
         self._custom_view = widget
-        layout.insertWidget(layout.indexOf(self.view) + 1, widget, 1)
+        layout.insertWidget(layout.indexOf(self.icon_view) + 1, widget, 1)
         self.view.hide()
+        self.icon_view.hide()
         widget.show()
         widget.setFocus()
 

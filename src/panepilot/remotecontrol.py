@@ -229,7 +229,7 @@ class RemoteMixin:
         current = self.remote_sessions.get(side)
         if current is not None and current.cfg.id == cfg.id:
             self.set_active_side(side)
-            panel.view.setFocus()
+            panel.focus_view()
             return True
         password = passphrase = ""
         save_password = False
@@ -294,7 +294,7 @@ class RemoteMixin:
             self._refresh_server_views()
             return False
         self.set_active_side(side)
-        panel.view.setFocus()
+        panel.focus_view()
         other = self.sides[self._other_of(side)].panel
         if cfg.local_dir and os.path.isdir(cfg.local_dir) and not other.in_remote and not other.locked:
             other.navigate(cfg.local_dir)
@@ -487,7 +487,7 @@ class RemoteMixin:
         if err is None:
             panel.refresh()
             panel.select_names([name], current=name)
-            panel.view.setFocus()
+            panel.focus_view()
 
     def remote_delete(self, panel, entries) -> None:
         session = self._session_of(panel)

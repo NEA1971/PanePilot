@@ -27,6 +27,12 @@ PanePilot zeigt zwei Dateifenster (Panels) nebeneinander. Eines davon ist **akti
 - **Versteckte Dateien**, **Ein-Fenster-Ansicht**, Knopfleiste, F-Tasten-Leiste und Symbolleiste lassen sich im Menü **Ansicht** ein- und ausschalten.
 - Spalten: Rechtsklick auf die Spaltenköpfe. Reihenfolge und Breite stellt man direkt durch Ziehen ein (siehe [Einstellungen](settings.md)).
 
+## Symbolansicht
+- **Ansicht → Symbolansicht** (Strg+Umschalt+I) zeigt das aktive Fenster mit großen Symbolen statt als Liste; jedes Fenster merkt sich seine Ansicht.
+- Drei Größen über **Ansicht → Symbolgröße** oder **Strg+Mausrad**.
+- **Vorschaubilder:** Bilder, die erste Seite von PDFs, das Cover von Musikdateien und das Poster von Videos (sonst ein Bild aus dem Film). Vorschaubilder, die schon im gemeinsamen Zwischenspeicher `~/.cache/thumbnails` liegen (z. B. von Nautilus), werden sofort genutzt, fehlende im Hintergrund erzeugt und dort abgelegt.
+- Markieren, Tastatur, Kopieren, Ziehen und Kontextmenü funktionieren wie in der Liste. Sortiert wird über **Ansicht → Sortieren nach**.
+
 ## Favoriten
 - **Zu Favoriten hinzufügen** merkt sich den aktuellen Ordner. Favoriten lassen sich in Ordnern gruppieren und erscheinen in der Seitenleiste und im Menü **Favoriten**.
 

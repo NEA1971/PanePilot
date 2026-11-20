@@ -1604,5 +1604,17 @@
   "sync.tip_del_left": "links löschen (Papierkorb)",
   "sync.tip_none": "nichts tun",
   "sync.exclude_folder": "Ordner „{name}“ ausschließen",
-  "sync.exclude_folders": "{n} Ordner ausschließen"
+  "sync.exclude_folders": "{n} Ordner ausschließen",
+  "sync.last_run": "Letzter Lauf: {date}",
+  "sync.last_ok": "Fehlerfrei abgeschlossen",
+  "sync.last_errors": "Mit Fehlern abgeschlossen",
+  "sync.last_cancelled": "Abgebrochen",
+  "action.toggle_icon_view": "Symbolansicht",
+  "action.icons_small": "Kleine Symbole",
+  "action.icons_medium": "Mittlere Symbole",
+  "action.icons_large": "Große Symbole",
+  "menu.icon_size": "Symbolgröße",
+  "menu.sort_by": "Sortieren nach",
+  "menu.sort_name": "Name",
+  "menu.sort_desc": "Absteigend"
 }

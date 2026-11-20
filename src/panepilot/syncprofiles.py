@@ -49,6 +49,54 @@ class After:
         return self.when == WHEN_ALWAYS or not result.errors
 
 
+# Ergebnis des letzten Laufs (v1.19, L-1900)
+RESULT_OK, RESULT_ERRORS, RESULT_CANCELLED = "ok", "errors", "cancelled"
+LAST_ERRORS = 5  # so viele Fehlermeldungen werden gemerkt
+
+
+@dataclass
+class LastRun:
+    at: str = ""  # ISO-Zeit (lokal)
+    result: str = RESULT_OK
+    copied: int = 0
+    overwritten: int = 0
+    deleted: int = 0
+    failed: int = 0
+    errors: list = field(default_factory=list)  # ["relativer Pfad: Meldung", …]
+
+    @property
+    def ok(self) -> bool:
+        return self.result == RESULT_OK
+
+    def to_dict(self) -> dict:
+        return {"at": self.at, "result": self.result, "copied": self.copied, "overwritten": self.overwritten,
+                "deleted": self.deleted, "failed": self.failed, "errors": list(self.errors)}
+
+    @classmethod
+    def from_dict(cls, d) -> "LastRun | None":
+        if not isinstance(d, dict) or not isinstance(d.get("at"), str) or not d["at"]:
+            return None
+        r = cls(d["at"])
+        if d.get("result") in (RESULT_OK, RESULT_ERRORS, RESULT_CANCELLED):
+            r.result = d["result"]
+        for k in ("copied", "overwritten", "deleted", "failed"):
+            v = d.get(k)
+            if isinstance(v, int) and not isinstance(v, bool) and v >= 0:
+                setattr(r, k, v)
+        r.errors = [str(e) for e in (d.get("errors") or []) if isinstance(e, str)][:LAST_ERRORS]
+        return r
+
+    @classmethod
+    def from_result(cls, result: fd.Result, when=None) -> "LastRun":
+        import datetime
+
+        when = when or datetime.datetime.now()
+        kind = RESULT_CANCELLED if result.cancelled else RESULT_ERRORS if result.errors else RESULT_OK
+        errors = [f"{rel}: {msg}" if rel else str(msg) for rel, msg in result.errors[:LAST_ERRORS]]
+        return cls(when.isoformat(timespec="seconds"), kind, result.copied, result.overwritten, result.deleted,
+                   result.failed, errors)
+
+
 @dataclass
 class Profile:
     name: str
@@ -56,17 +104,22 @@ class Profile:
     right: str
     options: fd.Options = field(default_factory=fd.Options)
     after: After = field(default_factory=After)
+    last: LastRun | None = None
 
     def to_dict(self) -> dict:
-        return {"name": self.name, "left": self.left, "right": self.right, "options": self.options.to_dict(),
-                "after": self.after.to_dict()}
+        d = {"name": self.name, "left": self.left, "right": self.right, "options": self.options.to_dict(),
+             "after": self.after.to_dict()}
+        if self.last is not None:
+            d["last"] = self.last.to_dict()
+        return d
 
     @classmethod
     def from_dict(cls, d: dict) -> "Profile | None":
         if not isinstance(d, dict) or not isinstance(d.get("name"), str) or not d["name"].strip():
             return None
         return cls(d["name"].strip(), str(d.get("left") or ""), str(d.get("right") or ""),
-                   fd.Options.from_dict(d.get("options")), After.from_dict(d.get("after")))
+                   fd.Options.from_dict(d.get("options")), After.from_dict(d.get("after")),
+                   LastRun.from_dict(d.get("last")))
 
 
 def _path() -> str:
@@ -96,9 +149,27 @@ def save(profiles: list[Profile]) -> None:
 def put(profile: Profile, old_name: str | None = None) -> list[Profile]:
     """Speichern bzw. ersetzen (gleicher Name, Groß-/Kleinschreibung egal)."""
     names = {profile.name.lower()} | ({old_name.lower()} if old_name else set())
-    profiles = [p for p in load() if p.name.lower() not in names] + [profile]
+    old = load()
+    if profile.last is None:  # beim erneuten Speichern bleibt der letzte Lauf erhalten
+        for key in ((old_name or "").lower(), profile.name.lower()):
+            prev = next((p for p in old if p.name.lower() == key), None)
+            if prev is not None and prev.last is not None:
+                profile.last = prev.last
+                break
+    profiles = [p for p in old if p.name.lower() not in names] + [profile]
     save(profiles)
     return load()
+
+
+def record_run(name: str, result: fd.Result) -> LastRun | None:
+    """L-1900: letzten Lauf am gespeicherten Abgleich merken."""
+    profiles = load()
+    prof = next((p for p in profiles if p.name.lower() == name.lower()), None)
+    if prof is None:
+        return None
+    prof.last = LastRun.from_result(result)
+    save(profiles)
+    return prof.last
 
 
 def remove(name: str) -> list[Profile]:

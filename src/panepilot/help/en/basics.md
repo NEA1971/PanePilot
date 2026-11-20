@@ -27,6 +27,12 @@ PanePilot shows two file panels side by side. One of them is **active**, recogni
 - **Hidden files**, **single-panel view**, button bar, function key bar and toolbar can be switched in the **View** menu.
 - Columns: right-click the column headers. Order and width are set directly by dragging (see [Settings](settings.md)).
 
+## Icon view
+- **View → Icon view** (Ctrl+Shift+I) shows the active panel with large icons instead of a list; each panel remembers its view.
+- Three sizes via **View → Icon size** or **Ctrl+mouse wheel**.
+- **Thumbnails:** images, the first page of PDFs, the cover of music files and the poster of videos (otherwise a frame from the film). Thumbnails already in the shared cache `~/.cache/thumbnails` (e.g. from Nautilus) are used at once; missing ones are created in the background and stored there.
+- Selecting, keyboard, copying, dragging and the context menu work as in the list. Sort via **View → Sort by**.
+
 ## Favourites
 - **Add to favourites** remembers the current folder. Favourites can be grouped and appear in the sidebar and in the **Favourites** menu.
 

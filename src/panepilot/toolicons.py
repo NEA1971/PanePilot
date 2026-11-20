@@ -793,3 +793,59 @@ def icon_donate() -> QIcon:
             steam.cubicTo(QPointF(x - 1.6, 6.5), QPointF(x + 1.6, 5), QPointF(x, 3))
             p.drawPath(steam)
     return _paint_icon(draw)
+
+
+_PAINTED.update({
+    "toggle_stacked": icon_stacked,
+    "duplicate": icon_duplicate,
+    "properties": icon_properties,
+    "backup_now": icon_backup_now,
+    "backup_restore": icon_backup_restore,
+    "server_manager": icon_ftp_box,
+    "help": icon_help,
+    "help_online": icon_help_online,
+    "check_updates": icon_check_updates,
+    "donate": icon_donate,
+})
+
+
+# --- v1.19: Ergebnis des letzten Abgleichs (L-1901) ---------------------------------------------------------
+def icon_status_ok() -> QIcon:
+    """Dicker grüner Haken."""
+    def draw(p: QPainter) -> None:
+        _check(p, 2.5, 5.0, 19.0, GREEN, 4.2)
+    return _paint_icon(draw)
+
+
+def icon_status_error() -> QIcon:
+    """Durchfahrt-verboten-Schild (wie bei gesperrten Ordnern)."""
+    from .resources import resource_path
+
+    return QIcon(str(resource_path("icons", "no-entry.svg")))
+
+
+def last_run_icon(last) -> QIcon:
+    if last is None:
+        return QIcon()
+    return action_icon("_status_ok") if last.ok else action_icon("_status_error")
+
+
+_PAINTED.update({"_status_ok": icon_status_ok, "_status_error": icon_status_error})
+
+
+def icon_icon_view() -> QIcon:
+    """Symbolansicht: vier Kästchen (v1.19, L-1910)."""
+    def draw(p: QPainter) -> None:
+        fg, accent = _colors()
+        p.setPen(_pen(fg, 1.5))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        for x, y in ((2.5, 2.5), (13.5, 2.5), (2.5, 13.5), (13.5, 13.5)):
+            p.drawRoundedRect(QRectF(x, y, 8, 8), 1.6, 1.6)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(accent)
+        for x, y in ((4.5, 4.5), (15.5, 4.5), (4.5, 15.5), (15.5, 15.5)):
+            p.drawRect(QRectF(x, y, 4, 4))
+    return _paint_icon(draw)
+
+
+_PAINTED["toggle_icon_view"] = icon_icon_view

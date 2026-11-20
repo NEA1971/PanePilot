@@ -1603,5 +1603,17 @@
   "sync.tip_del_left": "links löschn (Babierkorb)",
   "sync.tip_none": "nischd machn",
   "sync.exclude_folder": "Ordnor „{name}“ ausschließn",
-  "sync.exclude_folders": "{n} Ordnor ausschließn"
+  "sync.exclude_folders": "{n} Ordnor ausschließn",
+  "sync.last_run": "Letzdor Lauf: {date}",
+  "sync.last_ok": "Ohne Fehlor fertsch",
+  "sync.last_errors": "Mit Fehlorn fertsch",
+  "sync.last_cancelled": "Abgebrochn",
+  "action.toggle_icon_view": "Symbolansichd",
+  "action.icons_small": "Gleene Symbole",
+  "action.icons_medium": "Middlere Symbole",
+  "action.icons_large": "Große Symbole",
+  "menu.icon_size": "Symbolgröße",
+  "menu.sort_by": "Sordiern nach",
+  "menu.sort_name": "Name",
+  "menu.sort_desc": "Abschdeigend"
 }

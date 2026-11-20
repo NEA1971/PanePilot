@@ -30,7 +30,7 @@ from . import archives
 from .dialogs import AboutDialog, CompressDialog, CopyMoveDialog, ExtractToDialog, FavoriteEditDialog, OpenWithDialog, ask_text, confirm, show_error, show_info
 from .favorites import FAV_COLORS, FavNode, FavoritesModel, FavoritesView
 from .foldertree import FolderTreeView
-from .filepanel import FilePanel, FileView
+from .filepanel import FilePanel, FileView, IconView
 from .filemodel import COLUMN_COUNT
 from .fileops import COMPRESS, COPY, DELETE, DUPLICATE, EXTRACT, MOVE, PURGE, RESTORE, TRASH
 from .trash import TRASH_URI, Trash, is_trash_uri
@@ -113,7 +113,7 @@ class KeyFilter(QObject):
         in_edit = isinstance(focus, QLineEdit)
         if in_edit and focus.objectName() != "pathEdit":
             return None  # Umbenennen in der Liste o. Ä.: alle Tasten dem Eingabefeld überlassen
-        in_list = isinstance(focus, FileView)
+        in_list = isinstance(focus, (FileView, IconView))
         in_fav = isinstance(focus, FavoritesView)
         in_tree = isinstance(focus, FolderTreeView)
         if in_fav and focus.state() == focus.State.EditingState:
@@ -305,6 +305,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         panel.focus_entered.connect(lambda n=name: self.set_active_side(n))
+        panel.icon_size_changed.connect(lambda _px: self._update_view_actions())
         panel.path_changed.connect(lambda p, n=name: self._on_panel_path_changed(n, p))
         panel.context_menu_requested.connect(lambda pos, n=name: self._file_context_menu(n, pos))
         panel.drop_requested.connect(self._on_drop)
@@ -372,7 +373,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
                     pass
         s.sidebar.set_mode(state["sidebar"])
         s.splitter.setSizes(state["inner"])
-        s.panel.view.setFocus()
+        s.panel.focus_view()
 
     # Suche
     def _make_search_pane(self, side: str):
@@ -907,7 +908,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         for m in self.fav_sets.loaded_models():
             m.refresh_states()
         for s in self.sides.values():
-            s.panel.view.viewport().update()
+            s.panel.list_widget().viewport().update()
             if s.panel.in_trash:
                 s.panel.refresh()  # Freigabe ein-/ausgehängt: deren Papierkorb kommt hinzu/fällt weg
         self.update_network_trash_state()
@@ -934,6 +935,11 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         hidden.setChecked(bool(self.settings.get("show_hidden")))
         self.qactions["toggle_single"].setCheckable(True)
         self.qactions["toggle_stacked"].setCheckable(True)
+        self.qactions["toggle_icon_view"].setCheckable(True)  # v1.19: zeigt das aktive Fenster
+        self._icon_size_group = QActionGroup(self)
+        for aid in ("icons_small", "icons_medium", "icons_large"):
+            self.qactions[aid].setCheckable(True)
+            self._icon_size_group.addAction(self.qactions[aid])
         self.qactions["filter_toggle"].setCheckable(True)
         self.qactions["rename_undo"].setEnabled(False)
         for aid, key in (("toggle_buttonbar", "show_buttonbar"), ("toggle_fkeybar", "show_fkeybar"),
@@ -1005,6 +1011,13 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         m.addAction(a["toggle_single"])
         m.addAction(a["toggle_stacked"])
         m.addSeparator()
+        m.addAction(a["toggle_icon_view"])  # v1.19 (L-1910 ff.)
+        sub = m.addMenu(t("menu.icon_size"))
+        for aid in ("icons_small", "icons_medium", "icons_large"):
+            sub.addAction(a[aid])
+        self.sort_menu = m.addMenu(t("menu.sort_by"))
+        self.sort_menu.aboutToShow.connect(self._fill_sort_menu)
+        m.addSeparator()
         m.addAction(a["toggle_hidden"])
         m.addAction(a["filter_define"])
         m.addAction(a["filter_toggle"])
@@ -1041,6 +1054,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         self.button_bar.set_direction(side == "left")
         for name, s in self.sides.items():
             s.panel.set_active(name == side)
+        self._update_view_actions()
         self._update_title()
         self._update_nav_actions()
 
@@ -1131,7 +1145,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
     def do_switch_panel(self) -> None:
         side = self.other_side
         self.set_active_side(side)
-        self.sides[side].panel.view.setFocus()
+        self.sides[side].panel.focus_view()
 
     def do_same_path(self) -> None:
         self.other.navigate(self.active.current_path)
@@ -1311,7 +1325,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
             return
         panel.refresh()
         panel.select_names([name], current=name)
-        panel.view.setFocus()
+        panel.focus_view()
         panel.start_rename()
 
     def _selected_files(self) -> list[str]:
@@ -1494,7 +1508,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
             return
         panel.refresh()
         panel.select_names([name], current=name)
-        panel.view.setFocus()
+        panel.focus_view()
 
     def do_rename(self) -> None:
         self.active.start_rename()
@@ -2096,7 +2110,8 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
             menu.addSeparator() if aid is None else menu.addAction(a[aid])
         # Terminal und Verzeichnisliste: angeklickter Ordner, sonst der angezeigte (v1.1)
         panel = self.sides[side].panel
-        hit = panel.view.indexAt(panel.view.viewport().mapFromGlobal(pos))
+        lw = panel.list_widget()
+        hit = lw.indexAt(lw.viewport().mapFromGlobal(pos))
         hit_entry = panel.model.entry(hit.row()) if hit.isValid() else None
         folder = hit_entry.path if hit_entry is not None and hit_entry.is_dir and not hit_entry.is_parent \
             else panel.current_path
@@ -2311,7 +2326,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         if select:
             s.panel.select_names(select, current=select[0])
         self.qactions["rename_undo"].setEnabled(self.last_rename is not None)
-        s.panel.view.setFocus()
+        s.panel.focus_view()
 
     def _do_multi_rename(self) -> None:
         from . import multirename as mr
@@ -2490,7 +2505,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
     def do_open_trash(self) -> None:
         self.update_network_trash_state()
         self.active.navigate(TRASH_URI)
-        self.active.view.setFocus()
+        self.active.focus_view()
 
     def _trash_selection(self):
         panel = self.active
@@ -2551,7 +2566,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         for aid in self.SINGLE_BLOCKED:
             self.qactions[aid].setEnabled(not on)
         self._update_fkey_enabled()
-        self.active.view.setFocus()
+        self.active.focus_view()
 
     # --- Fenster übereinander (v1.10, L-1000 ff.) ------------------------------------------------------
     def _sidebar_menu_title(self, side: str) -> str:
@@ -2579,6 +2594,62 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
                 v = inner.get(n)
                 if isinstance(v, list) and len(v) == 2 and sum(int(x) for x in v) > 0:
                     s.splitter.setSizes([int(x) for x in v])
+
+    # --- Symbolansicht (v1.19, L-1910 ff.) -------------------------------------------------------------------
+    def do_toggle_icon_view(self) -> None:
+        panel = self.active
+        panel.set_icon_mode(not panel.icon_mode)
+        panel.focus_view()
+        self._update_view_actions()
+
+    def _set_icon_size(self, px: int) -> None:
+        panel = self.active
+        panel.set_icon_size(px)
+        if not panel.icon_mode:  # Größe wählen schaltet die Symbolansicht ein
+            panel.set_icon_mode(True)
+            panel.focus_view()
+        self._update_view_actions()
+
+    def do_icons_small(self) -> None:
+        self._set_icon_size(64)
+
+    def do_icons_medium(self) -> None:
+        self._set_icon_size(128)
+
+    def do_icons_large(self) -> None:
+        self._set_icon_size(256)
+
+    def _update_view_actions(self) -> None:
+        qa = getattr(self, "qactions", None)
+        if not qa or "toggle_icon_view" not in qa or not hasattr(self, "sides"):
+            return
+        panel = self.active
+        qa["toggle_icon_view"].setChecked(panel.icon_mode)
+        aid = {64: "icons_small", 128: "icons_medium", 256: "icons_large"}.get(panel.icon_size, "icons_medium")
+        qa[aid].setChecked(True)
+
+    def _fill_sort_menu(self) -> None:
+        """Sortieren nach (für die Symbolansicht ohne Spaltenköpfe, L-1913)."""
+        from .filemodel import COL_CREATED, COL_DATE, COL_NAME, COL_SIZE, COL_TYPE
+
+        menu = self.sort_menu
+        menu.clear()
+        panel = self.active
+        col, order = panel.sort_state()
+        group = QActionGroup(menu)
+        for c, key in ((COL_NAME, "menu.sort_name"), (COL_SIZE, "column.size"), (COL_DATE, "column.date"),
+                       (COL_TYPE, "column.type"), (COL_CREATED, "column.created")):
+            act = menu.addAction(t(key))
+            act.setCheckable(True)
+            act.setChecked(c == col)
+            group.addAction(act)
+            act.triggered.connect(lambda _c=False, c=c, o=order: panel.set_sort_state(c, o))
+        menu.addSeparator()
+        desc = menu.addAction(t("menu.sort_desc"))
+        desc.setCheckable(True)
+        desc.setChecked(order == int(Qt.SortOrder.DescendingOrder.value))
+        desc.triggered.connect(lambda on, c=col: panel.set_sort_state(
+            c, int((Qt.SortOrder.DescendingOrder if on else Qt.SortOrder.AscendingOrder).value)))
 
     def do_toggle_stacked(self) -> None:
         self.set_stacked(not self.stacked)
@@ -2641,6 +2712,11 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
                 s.panel.restore_header_state(header, cols if isinstance(cols, int) else 10)
             elif isinstance(columns, list):
                 s.panel.set_column_widths(columns)
+            size = st.get("icon_size")
+            if isinstance(size, int) and not isinstance(size, bool):
+                s.panel.set_icon_size(size)
+            if st.get("icon_view") is True:
+                s.panel.set_icon_mode(True)
             sort = st.get("sort")
             if isinstance(sort, list) and len(sort) == 2:
                 try:
@@ -2689,7 +2765,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         self.set_active_side(active if active in SIDES else "left")
         if state.get("single") is True:
             self.set_single_mode(True)
-        self.active.view.setFocus()
+        self.active.focus_view()
 
     def save_state(self) -> None:
         sides_state = {}
@@ -2708,6 +2784,8 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
             sides_state[name] = {
                 "path": local_path,
                 "sort": [col, order],
+                "icon_view": s.panel.icon_mode,
+                "icon_size": s.panel.icon_size,
                 "header": s.panel.header_state(),
                 "header_columns": COLUMN_COUNT,
                 "sidebar": s.sidebar.mode,

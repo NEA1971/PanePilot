@@ -1603,5 +1603,17 @@
   "sync.tip_del_left": "supprimer à gauche (corbeille)",
   "sync.tip_none": "ne rien faire",
   "sync.exclude_folder": "Exclure le dossier « {name} »",
-  "sync.exclude_folders": "Exclure {n} dossiers"
+  "sync.exclude_folders": "Exclure {n} dossiers",
+  "sync.last_run": "Dernière exécution : {date}",
+  "sync.last_ok": "Terminé sans erreur",
+  "sync.last_errors": "Terminé avec des erreurs",
+  "sync.last_cancelled": "Annulé",
+  "action.toggle_icon_view": "Vue en icônes",
+  "action.icons_small": "Petites icônes",
+  "action.icons_medium": "Icônes moyennes",
+  "action.icons_large": "Grandes icônes",
+  "menu.icon_size": "Taille des icônes",
+  "menu.sort_by": "Trier par",
+  "menu.sort_name": "Nom",
+  "menu.sort_desc": "Décroissant"
 }

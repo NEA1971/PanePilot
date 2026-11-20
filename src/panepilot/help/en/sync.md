@@ -24,6 +24,8 @@ Two files are **identical** if name, size and modification date match. Differenc
 ## Saved synchronizations
 **Save …** stores the synchronization under a name (e.g. “Photos → NAS”): both folders, all settings and the action when finished. Open it from the selection at the top of the sidebar or via **File → Saved synchronizations** – it is compared at once; it is synchronized after your review with “Synchronize”. Saved synchronizations are part of the settings backup.
 
+Below the selection you see the **last run** of the chosen synchronization: green check = no errors, no-entry sign = errors or cancelled. The tooltip shows date, numbers and, after errors, the first messages. The same appears in **File → Saved synchronizations** next to the name.
+
 ## FreeFileSync
 - **FreeFileSync → Import from FreeFileSync …** imports `.ffs_gui` and `.ffs_batch` files (several at once) as saved synchronizations; the name is the file name. If it exists, PanePilot asks.
 - Imported are the folder pair (one synchronization per pair), direction, mirroring, content comparison, filters and the command after synchronizing. “Update” becomes “left → right” without mirroring, “Mirror” becomes “left → right” with mirroring, real two-way synchronizations become “both directions”.

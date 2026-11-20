@@ -1675,7 +1675,7 @@ class MetaWizardMixin:
         s.splitter.setSizes(state["inner"])
         s.panel.refresh()
         self._update_nav_actions()
-        s.panel.view.setFocus()
+        s.panel.focus_view()
         mp.set_current(mp.AUDIO)  # erst nach dem Speichern der Einstellungen
 
     def _meta_save_layout(self) -> None:

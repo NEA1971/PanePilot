@@ -96,7 +96,7 @@ class SyncMixin:
         s.splitter.setSizes(state["inner"])
         self.do_refresh()
         self._update_nav_actions()
-        s.panel.view.setFocus()
+        s.panel.focus_view()
 
     def do_sync_start(self) -> None:
         if self.sync_mode is not None:
@@ -116,5 +116,14 @@ class SyncMixin:
         if not profiles:
             act = self.sync_menu.addAction(t("menu.sync_profiles_none"))
             act.setEnabled(False)
+        from .syncmode import last_run_date, last_run_tooltip
+        from .toolicons import last_run_icon
+
+        self.sync_menu.setToolTipsVisible(True)
         for p in profiles:
-            self.sync_menu.addAction(p.name).triggered.connect(lambda _c=False, n=p.name: self.do_sync_folders(n))
+            # L-1901: Ergebnis des letzten Laufs hinter dem Namen
+            text = p.name if p.last is None else f"{p.name}\t{last_run_date(p.last)}"
+            act = self.sync_menu.addAction(last_run_icon(p.last), text)
+            if p.last is not None:
+                act.setToolTip(last_run_tooltip(p.last))
+            act.triggered.connect(lambda _c=False, n=p.name: self.do_sync_folders(n))

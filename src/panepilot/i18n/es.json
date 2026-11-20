@@ -1603,5 +1603,17 @@
   "sync.tip_del_left": "borrar a la izquierda (papelera)",
   "sync.tip_none": "no hacer nada",
   "sync.exclude_folder": "Excluir la carpeta «{name}»",
-  "sync.exclude_folders": "Excluir {n} carpetas"
+  "sync.exclude_folders": "Excluir {n} carpetas",
+  "sync.last_run": "Última ejecución: {date}",
+  "sync.last_ok": "Completado sin errores",
+  "sync.last_errors": "Completado con errores",
+  "sync.last_cancelled": "Cancelado",
+  "action.toggle_icon_view": "Vista de iconos",
+  "action.icons_small": "Iconos pequeños",
+  "action.icons_medium": "Iconos medianos",
+  "action.icons_large": "Iconos grandes",
+  "menu.icon_size": "Tamaño de los iconos",
+  "menu.sort_by": "Ordenar por",
+  "menu.sort_name": "Nombre",
+  "menu.sort_desc": "Descendente"
 }

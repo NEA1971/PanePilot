@@ -1603,5 +1603,17 @@
   "sync.tip_del_left": "delete on the left (trash)",
   "sync.tip_none": "do nothing",
   "sync.exclude_folder": "Exclude folder “{name}”",
-  "sync.exclude_folders": "Exclude {n} folders"
+  "sync.exclude_folders": "Exclude {n} folders",
+  "sync.last_run": "Last run: {date}",
+  "sync.last_ok": "Completed without errors",
+  "sync.last_errors": "Completed with errors",
+  "sync.last_cancelled": "Cancelled",
+  "action.toggle_icon_view": "Icon view",
+  "action.icons_small": "Small icons",
+  "action.icons_medium": "Medium icons",
+  "action.icons_large": "Large icons",
+  "menu.icon_size": "Icon size",
+  "menu.sort_by": "Sort by",
+  "menu.sort_name": "Name",
+  "menu.sort_desc": "Descending"
 }

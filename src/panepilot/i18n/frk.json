@@ -1603,5 +1603,17 @@
   "sync.tip_del_left": "links löschn (Babierkorb)",
   "sync.tip_none": "nix doa",
   "sync.exclude_folder": "Ordner „{name}“ ausschließn",
-  "sync.exclude_folders": "{n} Ordner ausschließn"
+  "sync.exclude_folders": "{n} Ordner ausschließn",
+  "sync.last_run": "Letzter Lauf: {date}",
+  "sync.last_ok": "Ohne Fehler fertig worn",
+  "sync.last_errors": "Mit Fehlern fertig worn",
+  "sync.last_cancelled": "Abgebrochn",
+  "action.toggle_icon_view": "Symbolansicht",
+  "action.icons_small": "Kloane Symbole",
+  "action.icons_medium": "Mittlere Symbole",
+  "action.icons_large": "Große Symbole",
+  "menu.icon_size": "Symbolgröß",
+  "menu.sort_by": "Sortiern nach",
+  "menu.sort_name": "Nam",
+  "menu.sort_desc": "Absteigend"
 }
