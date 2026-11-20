@@ -1627,5 +1627,6 @@
   "settings.online_auto_all": "without overview, overwrite everything (including the poster)",
   "online.auto_done": "{taken} movie(s) applied, {missing} not found, {skipped} skipped.",
   "online.auto_unchanged": "{n} movie(s) found but without new values.",
-  "online.auto_hint": "The values are marked green – nothing is written until “Save tags”."
+  "online.auto_hint": "The values are marked green – nothing is written until “Save tags”.",
+  "action.toggle_shared_sidebar": "Shared sidebar"
 }

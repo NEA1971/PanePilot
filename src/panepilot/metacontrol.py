@@ -78,7 +78,7 @@ class MetaWizardMixin:
         for other in list(self.tool_mode):
             self.close_tool(other)
         self.meta_mode = {"side": side, "single": self.single_mode, "sidebar": s.sidebar.mode,
-                          "inner": s.splitter.sizes(), "scan": None, "save": None, "undo": None, "rg": None}
+                          "inner": self._bar_sizes(s.name), "scan": None, "save": None, "undo": None, "rg": None}
         if not self.single_mode:
             self.set_single_mode(True)
         s.sidebar.set_mode(MODE_META)
@@ -89,8 +89,7 @@ class MetaWizardMixin:
             pane._kind_switch_connected = True
         pane.kind_switch.hide()
         self._meta_apply_profile(mp.AUDIO)
-        total = sum(s.splitter.sizes())
-        s.splitter.setSizes([400, max(total - 400, 200)])
+        self._widen_bar(s.name, 400, 200)
         s.panel.set_custom_view(view)
         # Gesperrte Funktionen ausgrauen (wie beim Umbenennen)
         self._meta_disabled = [aid for aid, act in self.qactions.items()
@@ -1684,7 +1683,7 @@ class MetaWizardMixin:
         if not state["single"]:
             self.set_single_mode(False)
         QApplication.processEvents()
-        s.splitter.setSizes(state["inner"])
+        self._restore_bar(s.name, state["inner"])
         s.panel.refresh()
         self._update_nav_actions()
         s.panel.focus_view()

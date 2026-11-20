@@ -1627,5 +1627,6 @@
   "settings.online_auto_all": "sin resumen, sobrescribir todo (también el póster)",
   "online.auto_done": "{taken} película(s) aplicada(s), {missing} no encontrada(s), {skipped} omitida(s).",
   "online.auto_unchanged": "{n} película(s) encontrada(s), pero sin valores nuevos.",
-  "online.auto_hint": "Los valores están marcados en verde; no se guarda nada hasta «Guardar etiquetas»."
+  "online.auto_hint": "Los valores están marcados en verde; no se guarda nada hasta «Guardar etiquetas».",
+  "action.toggle_shared_sidebar": "Barra lateral común"
 }

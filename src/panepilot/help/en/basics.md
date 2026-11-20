@@ -27,6 +27,12 @@ PanePilot shows two file panels side by side. One of them is **active**, recogni
 - **Hidden files**, **single-panel view**, button bar, function key bar and toolbar can be switched in the **View** menu.
 - Columns: right-click the column headers. Order and width are set directly by dragging (see [Settings](settings.md)).
 
+## Shared sidebar
+- **View → Shared sidebar** shows **one sidebar on the far left** over the full height instead of two – side by side as well as one above the other.
+- It always belongs to the **active panel**: click into the other panel and the folder tree shows its folder, favorites open there. View and favorites set stay the same.
+- **Tools** (multi-rename, search, checksums, meta wizard) stay with the panel they were started in until you close them.
+- The View menu then has a single “Sidebar” entry. The width is remembered per layout.
+
 ## Icon view
 - **View → Icon view** (Ctrl+Shift+I) shows the active panel with large icons instead of a list; each panel remembers its view.
 - Three sizes via **View → Icon size** or **Ctrl+mouse wheel**.

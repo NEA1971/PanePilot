@@ -1627,5 +1627,6 @@
   "settings.online_auto_all": "ohne Übersicht, alles überschreibn (aa des Poster)",
   "online.auto_done": "{taken} Film(e) übernomma, {missing} ned gfundn, {skipped} übersprunga.",
   "online.auto_unchanged": "{n} Film(e) gfundn, aber ohne neie Werte.",
-  "online.auto_hint": "Die Werte sin grü vorgmerkt – gspeichert wird erst mit „Tag speichern“."
+  "online.auto_hint": "Die Werte sin grü vorgmerkt – gspeichert wird erst mit „Tag speichern“.",
+  "action.toggle_shared_sidebar": "Gmeinsame Seitnleistn"
 }

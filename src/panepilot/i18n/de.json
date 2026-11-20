@@ -1628,5 +1628,6 @@
   "settings.online_auto_all": "ohne Übersicht, alles überschreiben (auch das Poster)",
   "online.auto_done": "{taken} Film(e) übernommen, {missing} nicht gefunden, {skipped} übersprungen.",
   "online.auto_unchanged": "{n} Film(e) gefunden, aber ohne neue Werte.",
-  "online.auto_hint": "Die Werte sind grün vorgemerkt – gespeichert wird erst mit „Tag speichern“."
+  "online.auto_hint": "Die Werte sind grün vorgemerkt – gespeichert wird erst mit „Tag speichern“.",
+  "action.toggle_shared_sidebar": "Gemeinsame Seitenleiste"
 }

@@ -1627,5 +1627,6 @@
   "settings.online_auto_all": "ohne Übersichd, alles überschreibn (ooch s Posdor)",
   "online.auto_done": "{taken} Film(e) übernomm, {missing} nich gefundn, {skipped} übersprungn.",
   "online.auto_unchanged": "{n} Film(e) gefundn, abor ohne neie Werde.",
-  "online.auto_hint": "De Werde sin grün vorgemerkt – gespeichord wird erst mit „Tag speichern“."
+  "online.auto_hint": "De Werde sin grün vorgemerkt – gespeichord wird erst mit „Tag speichern“.",
+  "action.toggle_shared_sidebar": "Gemeinsame Seidnleisde"
 }

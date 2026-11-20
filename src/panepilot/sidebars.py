@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QStackedWidget, QWidget
 
 MODE_OFF = "off"
@@ -37,6 +38,8 @@ SIDEBARS: tuple[SidebarDef, ...] = (
 class SidebarHost(QStackedWidget):
     """Platz für die Seitenleiste eines Panels; erzeugt Module bei Bedarf."""
 
+    mode_changed = Signal(str)  # v1.21: für die gemeinsame Seitenleiste
+
     def __init__(self, factories: dict[str, Callable[[], QWidget]], parent=None) -> None:
         super().__init__(parent)
         self._factories = factories
@@ -61,11 +64,13 @@ class SidebarHost(QStackedWidget):
         self._mode = mode
         if mode == MODE_OFF:
             self.setVisible(False)
+            self.mode_changed.emit(mode)
             return
         w = self.widget_for(mode)
         if w is not None:
             self.setCurrentWidget(w)
         self.setVisible(True)
+        self.mode_changed.emit(mode)
 
     def current_module(self) -> QWidget | None:
         return self._widgets.get(self._mode) if self._mode != MODE_OFF else None

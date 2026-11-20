@@ -51,14 +51,13 @@ class SyncMixin:
         self.set_active_side("left")
         s = self.sides["left"]
         self.sync_mode = {"side": "left", "single": self.single_mode, "sidebar": s.sidebar.mode,
-                          "inner": s.splitter.sizes(), "path_visible": s.panel.path_edit.isVisible()}
+                          "inner": self._bar_sizes(s.name), "path_visible": s.panel.path_edit.isVisible()}
         if not self.single_mode:
             self.set_single_mode(True)
         s.sidebar.set_mode(MODE_SYNC)
         pane = self.sync_pane()
         pane.set_paths(left, right)
-        total = sum(s.splitter.sizes())
-        s.splitter.setSizes([380, max(total - 380, 300)])
+        self._widen_bar(s.name, 380, 300)
         s.panel.set_custom_view(pane.view)
         s.panel.path_edit.setVisible(False)
         self._sync_disabled = [aid for aid, act in self.qactions.items()
@@ -93,7 +92,7 @@ class SyncMixin:
         from PySide6.QtWidgets import QApplication
 
         QApplication.processEvents()
-        s.splitter.setSizes(state["inner"])
+        self._restore_bar(s.name, state["inner"])
         self.do_refresh()
         self._update_nav_actions()
         s.panel.focus_view()

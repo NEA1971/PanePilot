@@ -1627,5 +1627,6 @@
   "settings.online_auto_all": "sans aperçu, tout remplacer (y compris l'affiche)",
   "online.auto_done": "{taken} film(s) appliqué(s), {missing} introuvable(s), {skipped} ignoré(s).",
   "online.auto_unchanged": "{n} film(s) trouvé(s), mais sans nouvelles valeurs.",
-  "online.auto_hint": "Les valeurs sont marquées en vert – rien n'est écrit avant « Enregistrer les tags »."
+  "online.auto_hint": "Les valeurs sont marquées en vert – rien n'est écrit avant « Enregistrer les tags ».",
+  "action.toggle_shared_sidebar": "Panneau latéral commun"
 }

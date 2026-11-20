@@ -27,6 +27,12 @@ PanePilot zeigt zwei Dateifenster (Panels) nebeneinander. Eines davon ist **akti
 - **Versteckte Dateien**, **Ein-Fenster-Ansicht**, Knopfleiste, F-Tasten-Leiste und Symbolleiste lassen sich im Menü **Ansicht** ein- und ausschalten.
 - Spalten: Rechtsklick auf die Spaltenköpfe. Reihenfolge und Breite stellt man direkt durch Ziehen ein (siehe [Einstellungen](settings.md)).
 
+## Gemeinsame Seitenleiste
+- **Ansicht → Gemeinsame Seitenleiste** zeigt statt zwei Seitenleisten **eine ganz links** über die volle Höhe – nebeneinander wie übereinander.
+- Sie gilt immer für das **aktive Fenster**: Klickst du ins andere Fenster, zeigt der Ordnerbaum dessen Ordner und Favoriten öffnen dort. Ansicht und Favoritensatz bleiben dabei gleich.
+- **Werkzeuge** (Umbenennen, Suche, Prüfsummen, Meta-Wizard) bleiben bei dem Fenster, in dem sie gestartet wurden, bis du sie schließt.
+- Im Menü „Ansicht“ gibt es dann nur einen Eintrag „Seitenleiste“. Die Breite wird je Anordnung gemerkt.
+
 ## Symbolansicht
 - **Ansicht → Symbolansicht** (Strg+Umschalt+I) zeigt das aktive Fenster mit großen Symbolen statt als Liste; jedes Fenster merkt sich seine Ansicht.
 - Drei Größen über **Ansicht → Symbolgröße** oder **Strg+Mausrad**.

@@ -243,6 +243,9 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         self.button_bar.trash_menu.connect(self._trash_button_menu)
         self.single_mode = False
         self.stacked = False  # v1.10: Fenster übereinander (L-1000 ff.)
+        self.shared_sidebar = False  # v1.21: gemeinsame Seitenleiste (L-2100 ff.)
+        self._bar_pin: str | None = None  # Werkzeug hält die gemeinsame Leiste bei diesem Fenster (L-2103)
+        self._bar_shown = "left"
         self._layout_sizes: dict[str, dict] = {}
         for name in SIDES:
             self.sides[name] = self._build_side(name)
@@ -259,7 +262,22 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         vbox = QVBoxLayout(central)
         vbox.setContentsMargins(0, 0, 0, 0)
         vbox.setSpacing(2)
-        vbox.addWidget(self.outer, 1)
+        # v1.21: links die gemeinsame Seitenleiste (nur sichtbar, wenn eingeschaltet), rechts beide Fenster
+        self.shared_box = QWidget()
+        box = QVBoxLayout(self.shared_box)
+        box.setContentsMargins(0, 0, 0, 0)
+        box.setSpacing(0)
+        self.shared_box.setMinimumWidth(120)
+        self.shared_box.hide()
+        self.main_split = QSplitter(Qt.Orientation.Horizontal)
+        self.main_split.setChildrenCollapsible(False)
+        self.main_split.addWidget(self.shared_box)
+        self.main_split.addWidget(self.outer)
+        self.main_split.setStretchFactor(0, 0)
+        self.main_split.setStretchFactor(1, 1)
+        for side in self.sides.values():
+            side.sidebar.mode_changed.connect(lambda mode, n=side.name: self._on_sidebar_mode(n, mode))
+        vbox.addWidget(self.main_split, 1)
         vbox.addWidget(self.fkey_bar)
         self.setCentralWidget(central)
 
@@ -346,11 +364,9 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
             return s.sidebar.widget_for(mode)
         if current:
             self.close_tool(side)
-        self.tool_mode[side] = {"mode": mode, "sidebar": s.sidebar.mode, "inner": s.splitter.sizes()}
+        self.tool_mode[side] = {"mode": mode, "sidebar": s.sidebar.mode, "inner": self._bar_sizes(s.name)}
         s.sidebar.set_mode(mode)
-        total = sum(s.splitter.sizes())
-        if s.splitter.sizes()[0] < 360:
-            s.splitter.setSizes([360, max(total - 360, 200)])
+        self._widen_bar(s.name, 360, 200, only_if_smaller=True)
         return s.sidebar.widget_for(mode)
 
     def close_tool(self, side: str, navigate_back: bool = True) -> None:
@@ -372,7 +388,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
                 except (RuntimeError, TypeError):
                     pass
         s.sidebar.set_mode(state["sidebar"])
-        s.splitter.setSizes(state["inner"])
+        self._restore_bar(s.name, state["inner"])
         s.panel.focus_view()
 
     # Suche
@@ -903,7 +919,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
 
     def side_of_widget(self, widget) -> str | None:
         for name, s in self.sides.items():
-            if widget is s.splitter or s.splitter.isAncestorOf(widget):
+            if widget is s.splitter or s.splitter.isAncestorOf(widget) or s.sidebar.isAncestorOf(widget):
                 return name
         return None
 
@@ -938,6 +954,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         hidden.setChecked(bool(self.settings.get("show_hidden")))
         self.qactions["toggle_single"].setCheckable(True)
         self.qactions["toggle_stacked"].setCheckable(True)
+        self.qactions["toggle_shared_sidebar"].setCheckable(True)
         self.qactions["toggle_icon_view"].setCheckable(True)  # v1.19: zeigt das aktive Fenster
         self._icon_size_group = QActionGroup(self)
         for aid in ("icons_small", "icons_medium", "icons_large"):
@@ -1003,7 +1020,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
                 act = QAction(label, self)
                 act.setCheckable(True)
                 act.setEnabled(sdef.available)
-                act.triggered.connect(lambda _c=False, s=side, mode=sdef.id: self.set_sidebar_mode(s, mode))
+                act.triggered.connect(lambda _c=False, s=side, mode=sdef.id: self._menu_sidebar(s, mode))
                 group.addAction(act)
                 sub.addAction(act)
                 self.sidebar_menus[side][sdef.id] = act
@@ -1013,6 +1030,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         m.addAction(a["toggle_toolbar"])
         m.addAction(a["toggle_single"])
         m.addAction(a["toggle_stacked"])
+        m.addAction(a["toggle_shared_sidebar"])  # v1.21
         m.addSeparator()
         m.addAction(a["toggle_icon_view"])  # v1.19 (L-1910 ff.)
         sub = m.addMenu(t("menu.icon_size"))
@@ -1054,6 +1072,8 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
 
     def set_active_side(self, side: str) -> None:
         self.active_side = side
+        if self.shared_sidebar:
+            self._follow_shared_bar(side)
         self.button_bar.set_direction(side == "left")
         for name, s in self.sides.items():
             s.panel.set_active(name == side)
@@ -1065,7 +1085,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         if new is None:
             return
         for name, s in self.sides.items():
-            if s.splitter.isAncestorOf(new):
+            if s.splitter.isAncestorOf(new) or s.sidebar.isAncestorOf(new):
                 if name != self.active_side:
                     self.set_active_side(name)
                 # Prüfsummen folgen dem Dateifenster, das zuletzt den Fokus hatte –
@@ -1737,7 +1757,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
 
     def do_toggle_sidebar(self) -> None:
         """Alt+F: Seitenleiste des aktiven Panels aus – bzw. mit der zuletzt genutzten Ansicht ein (F-241)."""
-        side = self.active_side
+        side = self._bar_shown if self.shared_sidebar else self.active_side
         if self.sides[side].sidebar.mode == MODE_OFF:
             self.set_sidebar_mode(side, self.last_sidebar_mode.get(side, MODE_FAVORITES))
         else:
@@ -2249,15 +2269,14 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         s = self.sides[side]
         self.rename_mode = {
             "side": side, "single": self.single_mode, "sidebar": s.sidebar.mode,
-            "inner": s.splitter.sizes(),
+            "inner": self._bar_sizes(s.name),
         }
         if not self.single_mode:
             self.set_single_mode(True)
         pane = self._rename_pane()
         pane.set_options(mr.RenameOptions.from_dict(self.settings.get("multirename_last")))
         s.sidebar.set_mode(MODE_RENAME)
-        total = sum(s.splitter.sizes())
-        s.splitter.setSizes([400, max(total - 400, 200)])
+        self._widen_bar(s.name, 400, 200)
         s.panel.set_preview_mode(True, pane.preview_model)
         s.panel.model.modelReset.connect(self._update_rename_preview)
         s.panel.model.layoutChanged.connect(self._update_rename_preview)
@@ -2324,7 +2343,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         if not state["single"]:
             self.set_single_mode(False)
         QApplication.processEvents()
-        s.splitter.setSizes(state["inner"])
+        self._restore_bar(s.name, state["inner"])
         s.panel.refresh()
         if select:
             s.panel.select_names(select, current=select[0])
@@ -2561,9 +2580,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         self.button_bar.setVisible(not on and bool(self.settings.get("show_buttonbar")))
         self.qactions["toggle_single"].setChecked(on)
         # Menü „Ansicht“: in der Ein-Fenster-Ansicht nur eine „Seitenleiste“ (ohne links/rechts)
-        for side, sub in self.sidebar_submenus.items():
-            sub.menuAction().setVisible(not on or side == self.active_side)
-            sub.setTitle(t("menu.sidebar") if on else self._sidebar_menu_title(side))
+        self._update_sidebar_menus()
         self.qactions["toggle_sidebar"].setText(t("action.toggle_sidebar_single") if on else t("action.toggle_sidebar"))
         self.qactions["toggle_buttonbar"].setEnabled(not on)
         for aid in self.SINGLE_BLOCKED:
@@ -2581,7 +2598,12 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         return "stacked" if self.stacked else "side_by_side"
 
     def _current_sizes(self) -> dict:
-        return {"outer": self.outer.sizes(), "inner": {n: s.splitter.sizes() for n, s in self.sides.items()}}
+        out = {"outer": self.outer.sizes(), "inner": {n: s.splitter.sizes() for n, s in self.sides.items()}}
+        if self.shared_sidebar and self.shared_box.isVisible():
+            out["shared"] = self.main_split.sizes()
+        elif "shared" in self._layout_sizes.get(self._layout_key(), {}):
+            out["shared"] = self._layout_sizes[self._layout_key()]["shared"]
+        return out
 
     def _apply_sizes(self, sizes: dict | None) -> None:
         outer = (sizes or {}).get("outer")
@@ -2597,6 +2619,144 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
                 v = inner.get(n)
                 if isinstance(v, list) and len(v) == 2 and sum(int(x) for x in v) > 0:
                     s.splitter.setSizes([int(x) for x in v])
+        shared = (sizes or {}).get("shared")
+        if self.shared_sidebar and isinstance(shared, list) and len(shared) == 2 and sum(int(x) for x in shared) > 0:
+            self.main_split.setSizes([int(x) for x in shared])
+
+    # --- Gemeinsame Seitenleiste (v1.21, L-2100 ff.) ----------------------------------------------------
+    TOOL_MODES = {MODE_RENAME, MODE_SEARCH, MODE_CHECKSUM, MODE_META, MODE_SYNC}
+
+    def do_toggle_shared_sidebar(self) -> None:
+        self.set_shared_sidebar(not self.shared_sidebar)
+
+    def set_shared_sidebar(self, on: bool) -> None:
+        """Eine Seitenleiste ganz links für beide Fenster (Variante B) oder je Fenster eine (Variante A)."""
+        on = bool(on)
+        if on != self.shared_sidebar:
+            key = self._layout_key()
+            if on:
+                shown = self._bar_pin or self.active_side
+                width = self.sides[shown].sidebar.width() if self.sides[shown].sidebar.isVisible() else 0
+                self.shared_sidebar = True
+                lay = self.shared_box.layout()
+                for s in self.sides.values():
+                    lay.addWidget(s.sidebar)  # aus dem Fenster herausnehmen
+                self._bar_shown = shown
+                other = self.sides["right" if shown == "left" else "left"]
+                cur = self.sides[shown].sidebar.mode
+                if cur not in self.TOOL_MODES and other.sidebar.mode not in self.TOOL_MODES:
+                    if self.fav_set[other.name] != self.fav_set[shown]:
+                        self.switch_fav_set(other.name, self.fav_set[shown])
+                    self.set_sidebar_mode(other.name, cur)
+                self._update_shared_bar()
+                stored = self._layout_sizes.get(key, {}).get("shared")
+                if isinstance(stored, list) and len(stored) == 2 and sum(stored) > 0:
+                    self.main_split.setSizes([int(x) for x in stored])
+                else:
+                    total = self.main_split.width() or 1280
+                    w = max(width, 200)
+                    self.main_split.setSizes([w, max(total - w, 400)])
+            else:
+                if self.shared_box.isVisible():
+                    self._layout_sizes.setdefault(key, {})["shared"] = self.main_split.sizes()
+                width = self.main_split.sizes()[0] if self.shared_box.isVisible() else 200
+                self.shared_sidebar = False
+                for s in self.sides.values():
+                    s.splitter.insertWidget(0, s.sidebar)
+                    s.splitter.setStretchFactor(0, 0)
+                    s.splitter.setStretchFactor(1, 1)
+                    s.sidebar.setVisible(s.sidebar.mode != MODE_OFF)
+                    total = sum(s.splitter.sizes()) or 640
+                    s.splitter.setSizes([width, max(total - width, 200)])
+                self.shared_box.hide()
+        self.qactions["toggle_shared_sidebar"].setChecked(on)
+        self._update_sidebar_menus()
+
+    def _update_sidebar_menus(self) -> None:
+        """Menü „Ansicht“: bei gemeinsamer Leiste (oder einem Fenster) nur ein Eintrag „Seitenleiste“ (L-2105)."""
+        subs = getattr(self, "sidebar_submenus", {})
+        one = self.single_mode or self.shared_sidebar
+        main = "left" if self.shared_sidebar else self.active_side
+        for side, sub in subs.items():
+            sub.menuAction().setVisible(not one or side == main)
+            sub.setTitle(t("menu.sidebar") if one else self._sidebar_menu_title(side))
+        if self.shared_sidebar and subs:
+            mode = self.sides[self._bar_shown].sidebar.mode
+            act = self.sidebar_menus["left"].get(mode)
+            if act is not None:
+                act.setChecked(True)
+            else:
+                for a in self.sidebar_menus["left"].values():
+                    if a.isChecked():
+                        a.actionGroup().setExclusive(False)
+                        a.setChecked(False)
+                        a.actionGroup().setExclusive(True)
+
+    def _menu_sidebar(self, side: str, mode: str) -> None:
+        if self.shared_sidebar:
+            side = self._bar_shown
+        elif self.single_mode:
+            side = self.active_side
+        self.set_sidebar_mode(side, mode)
+
+    def _on_sidebar_mode(self, side: str, mode: str) -> None:
+        if mode in self.TOOL_MODES:
+            self._bar_pin = side
+        elif self._bar_pin == side:
+            other = "right" if side == "left" else "left"
+            self._bar_pin = other if self.sides[other].sidebar.mode in self.TOOL_MODES else None
+        if self.shared_sidebar:
+            self._update_shared_bar()
+
+    def _follow_shared_bar(self, side: str) -> None:
+        """L-2102: ohne laufendes Werkzeug folgt die Leiste dem aktiven Fenster – mit gleicher Ansicht."""
+        if self._bar_pin is not None or side == self._bar_shown:
+            return
+        before = self._bar_shown
+        prev = self.sides[before].sidebar.mode
+        self._bar_shown = side
+        if prev not in self.TOOL_MODES:
+            if self.fav_set[side] != self.fav_set[before]:  # gleicher Favoritensatz (L-2102)
+                self.switch_fav_set(side, self.fav_set[before])
+            if self.sides[side].sidebar.mode != prev:
+                self.set_sidebar_mode(side, prev)
+            tree = self.tree_view(side)
+            if tree is not None:
+                tree.select_path(self.sides[side].panel.current_path)
+        self._update_shared_bar()
+
+    def _update_shared_bar(self) -> None:
+        if not self.shared_sidebar:
+            return
+        shown = self._bar_pin or self._bar_shown
+        self._bar_shown = shown
+        for name, s in self.sides.items():
+            if name == shown:
+                s.sidebar.setVisible(s.sidebar.mode != MODE_OFF)
+            else:
+                s.sidebar.hide()
+        self.shared_box.setVisible(self.sides[shown].sidebar.mode != MODE_OFF)
+        self._update_sidebar_menus()
+
+    def _bar_sizes(self, side: str) -> list[int]:
+        if self.shared_sidebar:
+            return self.main_split.sizes()
+        return self.sides[side].splitter.sizes()
+
+    def _widen_bar(self, side: str, width: int, rest: int, only_if_smaller: bool = False) -> None:
+        split = self.main_split if self.shared_sidebar else self.sides[side].splitter
+        if self.shared_sidebar:
+            self._update_shared_bar()
+        sizes = split.sizes()
+        if only_if_smaller and sizes[0] >= width:
+            return
+        total = sum(sizes)
+        split.setSizes([width, max(total - width, rest)])
+
+    def _restore_bar(self, side: str, sizes: list) -> None:
+        split = self.main_split if self.shared_sidebar else self.sides[side].splitter
+        if isinstance(sizes, list) and len(sizes) == 2 and sum(sizes) > 0:
+            split.setSizes([int(x) for x in sizes])
 
     # --- Symbolansicht (v1.19, L-1910 ff.) -------------------------------------------------------------------
     def do_toggle_icon_view(self) -> None:
@@ -2665,11 +2825,11 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
             self.outer.setOrientation(Qt.Orientation.Vertical if on else Qt.Orientation.Horizontal)
             self.button_bar.set_stacked(on)
             self.button_bar.set_direction(self.active_side == "left")
+            self.outer.refresh()
+            self.main_split.refresh()  # sonst bleibt die alte Höchstbreite der äußeren Leiste hängen
             self._apply_sizes(self._layout_sizes.get(self._layout_key()))
         self.qactions["toggle_stacked"].setChecked(on)
-        for side, sub in self.sidebar_submenus.items():
-            if not self.single_mode:
-                sub.setTitle(self._sidebar_menu_title(side))
+        self._update_sidebar_menus()
 
     def _on_operation_finished(self, kind: str, target: str, created: list[str]) -> None:
         for s in self.sides.values():
@@ -2760,12 +2920,19 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
             self.stacked = True
             self.outer.setOrientation(Qt.Orientation.Vertical)
             self.button_bar.set_stacked(True)
+            self.outer.refresh()
+            self.main_split.refresh()
             self._apply_sizes({"outer": outer} if isinstance(outer, list) and len(outer) == 3 else None)
             self.qactions["toggle_stacked"].setChecked(True)
             for side, sub in self.sidebar_submenus.items():
                 sub.setTitle(self._sidebar_menu_title(side))
         active = state.get("active", "left")
         self.set_active_side(active if active in SIDES else "left")
+        if state.get("shared_sidebar") is True:  # v1.21
+            shared = state.get("shared")
+            if isinstance(shared, list) and len(shared) == 2:
+                self._layout_sizes.setdefault(self._layout_key(), {})["shared"] = [int(x) for x in shared]
+            self.set_shared_sidebar(True)
         if state.get("single") is True:
             self.set_single_mode(True)
         self.active.focus_view()
@@ -2795,7 +2962,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
                 "last_sidebar": self.last_sidebar_mode.get(name, MODE_FAVORITES),
                 "fav_set": self.fav_set[name],
                 "column_profile": s.panel.column_profile,
-                "inner": s.splitter.sizes(),
+                "inner": self._bar_sizes(s.name),
                 "expanded": view.expanded_ids() if isinstance(view, FavoritesView) else [],
                 "history": history[-20:],
                 "history_pos": max(-1, pos - max(0, len(history) - 20)),
@@ -2807,6 +2974,8 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
             "active": self.active_side,
             "single": self.single_mode,
             "stacked": self.stacked,
+            "shared_sidebar": self.shared_sidebar,
+            "shared": self.main_split.sizes() if self.shared_sidebar and self.shared_box.isVisible() else None,
             "layouts": {k: v for k, v in self._layout_sizes.items() if k != self._layout_key()},
             "sides": sides_state,
         }

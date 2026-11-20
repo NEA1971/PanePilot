@@ -108,6 +108,7 @@ ACTION_DEFS: tuple[ActionDef, ...] = (
     # Ansicht
     ActionDef("toggle_single", "action.toggle_single", (), "window"),
     ActionDef("toggle_stacked", "action.toggle_stacked", ("Ctrl+Shift+H",), "window"),  # v1.10 (L-1000)
+    ActionDef("toggle_shared_sidebar", "action.toggle_shared_sidebar", (), "window"),  # v1.21 (L-2100)
     ActionDef("toggle_icon_view", "action.toggle_icon_view", ("Ctrl+Shift+I",), "window"),  # v1.19 (L-1910)
     ActionDef("icons_small", "action.icons_small", (), "window"),  # v1.19 (L-1911)
     ActionDef("icons_medium", "action.icons_medium", (), "window"),
