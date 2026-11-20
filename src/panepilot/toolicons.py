@@ -545,7 +545,8 @@ def icon_stacked() -> QIcon:
         p.setBrush(Qt.BrushStyle.NoBrush)
         p.drawRoundedRect(QRectF(2.5, 3, 19, 18), 2, 2)
         p.drawLine(QPointF(2.5, 6.5), QPointF(21.5, 6.5))
-        p.drawLine(QPointF(2.5, 13.8), QPointF(21.5, 13.8))
+        p.drawLine(QPointF(7.5, 6.5), QPointF(7.5, 21))  # Seitenleisten
+        p.drawLine(QPointF(7.5, 13.8), QPointF(21.5, 13.8))
     return _paint_icon(draw)
 
 
@@ -650,20 +651,20 @@ def _backup(to_disk: bool) -> QIcon:
     fg, accent = _colors()
 
     def draw(p: QPainter) -> None:
-        _small_gear(p, 8.0, 15.6, 6.4, fg)
-        _disk(p, 14.6, 1.6, 8.2, accent)
-        p.setPen(_pen(accent, 2.0))
+        _small_gear(p, 7.4, 16.4, 5.9, fg)
+        _disk(p, 14.8, 1.2, 8.0, accent)
+        p.setPen(_pen(accent, 2.6))
         p.setBrush(Qt.BrushStyle.NoBrush)
-        if to_disk:  # Zahnrad → Diskette
-            path = QPainterPath(QPointF(15.6, 17.0))
-            path.quadTo(QPointF(18.7, 17.0), QPointF(18.7, 13.2))
+        if to_disk:  # Zahnrad → Diskette: Bogen nach rechts oben
+            path = QPainterPath(QPointF(13.8, 19.2))
+            path.cubicTo(QPointF(17.8, 19.2), QPointF(18.8, 17.0), QPointF(18.8, 13.6))
             p.drawPath(path)
-            _head(p, QPointF(18.7, 10.4), -90, accent, 4.4)
-        else:  # Diskette → Zahnrad
-            path = QPainterPath(QPointF(18.7, 11.0))
-            path.quadTo(QPointF(18.7, 17.0), QPointF(17.0, 17.0))
+            _head(p, QPointF(18.8, 9.6), -90, accent, 5.2)
+        else:  # Diskette → Zahnrad: Bogen nach links unten
+            path = QPainterPath(QPointF(18.8, 10.4))
+            path.cubicTo(QPointF(18.8, 16.6), QPointF(18.0, 19.2), QPointF(17.4, 19.2))
             p.drawPath(path)
-            _head(p, QPointF(14.6, 17.0), 180, accent, 4.4)
+            _head(p, QPointF(13.4, 19.2), 180, accent, 5.2)
     return _paint_icon(draw)
 
 
@@ -742,24 +743,23 @@ def icon_help_online() -> QIcon:
 
 
 def icon_check_updates() -> QIcon:
-    """Nach Updates suchen: drei Pfeile, die einen Kreis bilden."""
+    """Nach Updates suchen: drei dicke Pfeile, die einen Kreis bilden."""
     _fg, accent = _colors()
 
     def draw(p: QPainter) -> None:
-        c, r = QPointF(12, 12), 8.0
-        p.setPen(_pen(accent, 2.2))
+        c, r = QPointF(12, 12), 7.8
+        p.setPen(QPen(accent, 3.0, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap))
         p.setBrush(Qt.BrushStyle.NoBrush)
         rect = QRectF(c.x() - r, c.y() - r, 2 * r, 2 * r)
         for k in range(3):
-            start = 90 + k * 120 + 12  # Qt: Grad gegen den Uhrzeigersinn, 0 = rechts
-            span = -88
+            start = 90 + k * 120 - 8  # Qt: Grad gegen den Uhrzeigersinn, 0 = rechts
+            span = -78  # im Uhrzeigersinn
             p.drawArc(rect, int(start * 16), int(span * 16))
             end = math.radians(start + span)
-            tip = QPointF(c.x() + r * math.cos(end), c.y() - r * math.sin(end))
-            # Richtung am Bogenende (im Uhrzeigersinn) in Bildschirmkoordinaten
+            base = QPointF(c.x() + r * math.cos(end), c.y() - r * math.sin(end))
             direction = math.degrees(math.atan2(math.cos(end), math.sin(end)))
-            _head(p, QPointF(tip.x() + 2.4 * math.cos(math.radians(direction)),
-                             tip.y() + 2.4 * math.sin(math.radians(direction))), direction, accent, 5.0)
+            d = math.radians(direction)
+            _head(p, QPointF(base.x() + 4.4 * math.cos(d), base.y() + 4.4 * math.sin(d)), direction, accent, 5.0)
     return _paint_icon(draw)
 
 
