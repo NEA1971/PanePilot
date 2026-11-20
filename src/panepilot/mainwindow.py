@@ -424,7 +424,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         self._search_thread = thread
         self._search_side = side
         self._search_count = 0
-        thread.found.connect(lambda paths, p=panel: self._search_found(p, paths))
+        thread.found.connect(lambda paths, p=panel, th=thread: self._search_found(p, paths, th.hits))
         thread.progress.connect(lambda folder, n, pn=pane, b=base: pn.summary.setText(
             t("search.running", folder=os.path.relpath(folder, b) if folder != b else ".", n=self._search_count)))
         thread.finished_search.connect(lambda complete, skipped, p=panel, pn=pane: self._search_done(p, pn, complete, skipped))
@@ -432,9 +432,12 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         pane.summary.setToolTip("")
         thread.start()
 
-    def _search_found(self, panel, paths: list[str]) -> None:
+    def _search_found(self, panel, paths: list[str], hits: dict | None = None) -> None:
         from .filemodel import entry_from_path
 
+        for p in paths:  # Fundstelle als Infotext (L-2002)
+            if hits and p in hits:
+                panel.model.hit_texts[p] = hits[p]
         entries = [e for e in (entry_from_path(p, self.icons) for p in paths) if e is not None]
         self._search_count += len(entries)
         panel.add_search_results(entries)

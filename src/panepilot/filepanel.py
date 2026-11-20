@@ -1382,6 +1382,7 @@ class FilePanel(QWidget):
             self._applying_profile = False
         if self._watcher.directories():
             self._watcher.removePaths(self._watcher.directories())
+        self.model.hit_texts = {}
         self.model.load_results(base, [])
         self.path_edit.setText(t("search.path_label", path=base))
         self._update_filter_style()

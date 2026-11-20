@@ -1492,10 +1492,18 @@ class MetaWizardMixin:
             if error:
                 show_error(self, title, error_text(error))
                 return
-        review = ReviewDialog(self, jobs, service.source, service)
-        if review.exec() != QDialog.DialogCode.Accepted:
-            return
-        changes = review.changes()
+        mode = self.settings.get("online_review") or "review"
+        report = ""
+        if mode in ("auto_empty", "auto_all"):  # v1.20 (L-2020): ohne Übersicht
+            from .moviedialogs import auto_changes, auto_report
+
+            changes = auto_changes(jobs, mode == "auto_all")
+            report = auto_report(jobs, changes)
+        else:
+            review = ReviewDialog(self, jobs, service.source, service)
+            if review.exec() != QDialog.DialogCode.Accepted:
+                return
+            changes = review.changes()
         for it, values, poster in changes:
             it.mark = ""
             for k, value in values.items():
@@ -1506,6 +1514,10 @@ class MetaWizardMixin:
                 it.set_pictures([tg.Picture(poster, cover_mime(poster), tg.FRONT_COVER, "")] + others)
         self._meta_pane().summary.setText(t("online.done", n=len(changes)))
         self._meta_refresh()
+        if report:
+            from .dialogs import show_info
+
+            show_info(self, title, report)
 
     def meta_playlist(self) -> None:
         from .dialogs import confirm

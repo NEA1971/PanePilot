@@ -212,6 +212,7 @@ class FileListModel(QAbstractTableModel):
         self._sort_order = Qt.SortOrder.AscendingOrder
         self.trash_mode = False
         self.search_base: str | None = None  # Suchergebnisse (F-817): Startordner der Suche
+        self.hit_texts: dict[str, str] = {}  # Fundstellen der Inhaltssuche je Pfad (v1.20, L-2002)
         self.icon_column = COL_NAME  # Spalte, in der das Symbol steht (erste sichtbare Namensspalte)
         self.remote_mode = False  # Server-Ordner (v1.3)
         self.remote_rename = None  # Funktion (Entry, neuer Name) → Fehlertext oder None
@@ -518,6 +519,8 @@ class FileListModel(QAbstractTableModel):
                 return perm_number(e.mode)
             if self.trash_mode and col in NAME_COLUMNS:
                 return t("tooltip.trash_origin", path=e.original_path)
+            if self.search_base is not None and e.path in self.hit_texts:
+                return self.hit_texts[e.path]
             if col in NAME_COLUMNS and e.is_link:
                 try:
                     return t("tooltip.link_target", target=os.readlink(e.path))

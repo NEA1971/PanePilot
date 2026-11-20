@@ -519,6 +519,43 @@ class ReviewDialog(QDialog):
         return [tuple(v) for v in out.values()]
 
 
+def auto_changes(jobs: list[Job], overwrite: bool) -> list[tuple[object, dict, bytes | None]]:
+    """v1.20 (L-2020): ohne Übersicht – nur leere Felder oder alles (samt Poster), wie „changes()“."""
+    out = []
+    for job in jobs:
+        if job.movie is None or (job.item.readonly("title") and job.item.readonly("year")):
+            continue
+        values, poster = {}, None
+        for key, old, _new, value in proposals(job):
+            if old and not overwrite:
+                continue
+            if key == COVER:
+                poster = value
+            else:
+                values[key] = value
+        if values or poster:
+            out.append((job.item, values, poster))
+    return out
+
+
+def auto_report(jobs: list[Job], changes: list) -> str:
+    """L-2022: kurze Meldung mit Zahlen und den Gründen für nicht übernommene Filme."""
+    taken = {id(it) for it, _v, _p in changes}
+    skipped = [j for j in jobs if j.movie is None and j.reason == t("online.skipped")]
+    missing = [j for j in jobs if j.movie is None and j not in skipped]
+    unchanged = [j for j in jobs if j.movie is not None and id(j.item) not in taken]
+    lines = [t("online.auto_done", taken=len(taken), missing=len(missing), skipped=len(skipped))]
+    if unchanged:
+        lines.append(t("online.auto_unchanged", n=len(unchanged)))
+    if missing or skipped:
+        lines.append("")
+        for j in missing + skipped:
+            lines.append(f"• {j.item.display_name}: {j.reason or t('online.not_found')}")
+    lines.append("")
+    lines.append(t("online.auto_hint"))
+    return "\n".join(lines)
+
+
 class ManualSearchDialog(QDialog):
     """Titel und Jahr bzw. Kennung eingeben (L-1431)."""
 

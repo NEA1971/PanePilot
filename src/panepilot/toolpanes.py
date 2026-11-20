@@ -166,6 +166,9 @@ class SearchPane(ToolPane):
         r.addStretch(1)
         ft.addLayout(r)
         ft.addWidget(self.text_case)
+        self.documents = QCheckBox(t("search.documents"), self)  # v1.20 (L-2001)
+        self.documents.setChecked(True)
+        ft.addWidget(self.documents)
         hint = QLabel(t("search.text_hint"), self)
         hint.setWordWrap(True)
         hint.setEnabled(False)
@@ -233,7 +236,8 @@ class SearchPane(ToolPane):
             name_case=self.name_case.isChecked(), text=self.text.text(),
             text_mode=srch.TEXT_REGEX if self.text_regex.isChecked() else srch.TEXT_PLAIN,
             text_case=self.text_case.isChecked(), depth=self.depth.currentData(),
-            hidden=self.hidden.isChecked(), dirs=self.dirs.isChecked(), network=self.network.isChecked())
+            hidden=self.hidden.isChecked(), dirs=self.dirs.isChecked(), network=self.network.isChecked(),
+            documents=self.documents.isChecked())
 
     def set_options(self, o: srch.SearchOptions) -> None:
         self.name.setText(o.name)
@@ -246,6 +250,7 @@ class SearchPane(ToolPane):
         self.hidden.setChecked(o.hidden)
         self.dirs.setChecked(o.dirs)
         self.network.setChecked(o.network)
+        self.documents.setChecked(o.documents)
         self._validate()
 
     def _validate(self, *_args) -> None:

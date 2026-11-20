@@ -519,6 +519,21 @@ class SettingsDialog(QDialog):
         row.addWidget(self.btn_tmdb_check)
         lay.addLayout(row)
         lay.addWidget(self._hint(t("settings.tmdb_hint"), w))
+        # v1.20 (L-2020): mit oder ohne Übersicht übernehmen
+        from PySide6.QtWidgets import QButtonGroup, QRadioButton
+
+        lay.addWidget(QLabel(t("settings.online_review_label"), w))
+        self.online_review: dict[str, QRadioButton] = {}
+        group = QButtonGroup(w)
+        current = self.window.settings.get("online_review") or "review"
+        for mode in ("review", "auto_empty", "auto_all"):
+            b = QRadioButton(t(f"settings.online_{mode}"), w)
+            group.addButton(b)
+            b.setChecked(mode == current)
+            lay.addWidget(b)
+            self.online_review[mode] = b
+        if not any(b.isChecked() for b in self.online_review.values()):
+            self.online_review["review"].setChecked(True)
         lang = QLabel("ℹ " + t("settings.online_language", lang=md.language()), w)  # L-930: Info zur Sprache
         lang.setWordWrap(True)
         lay.addWidget(lang)
@@ -1048,6 +1063,7 @@ class SettingsDialog(QDialog):
 
         if self.tmdb_key.text().strip() != md.load_key():
             md.store_key(self.tmdb_key.text())
+        s.set("online_review", next(m for m, b in self.online_review.items() if b.isChecked()))
         from . import opensubs as os_  # v1.14
 
         if self.os_key.text().strip() != os_.load_secret(os_.KEY_KIND):

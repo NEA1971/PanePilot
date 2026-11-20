@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QRadioButton,
+    QSlider,
     QSpinBox,
     QToolButton,
     QTreeWidget,
@@ -41,8 +42,9 @@ from PySide6.QtWidgets import (
 from .filters import FilterSpec
 from .i18n import t
 
-MODE_CONTENT, MODE_NAME, MODE_NAMESIZE, MODE_ID = "content", "name", "namesize", "id"
-MODES = (MODE_CONTENT, MODE_NAME, MODE_NAMESIZE, MODE_ID)
+MODE_CONTENT, MODE_NAME, MODE_NAMESIZE, MODE_ID, MODE_SIMILAR = "content", "name", "namesize", "id", "similar"
+MODES = (MODE_CONTENT, MODE_NAME, MODE_NAMESIZE, MODE_ID, MODE_SIMILAR)
+SIMILAR_MIN, SIMILAR_MAX, SIMILAR_DEFAULT = 70, 100, 85  # Regler in Prozent (v1.20, L-2010)
 # Kennung im Dateinamen wie bei Jellyfin/Plex/Kodi, z. B. „Alien (1979) [imdbid-tt0078748].mkv“ (v1.6.2)
 _ID_RX = re.compile(r"[\[{]\s*(imdbid|tmdbid|tvdbid|imdb|tmdb|tvdb)\s*[-=]\s*([A-Za-z0-9]+)\s*[\]}]", re.IGNORECASE)
 DEPTH_ALL = 0  # wie bei der Verzeichnisliste: 0 = unbegrenzt, 1 = nur dieser Ordner, n = n Ebenen
@@ -58,6 +60,7 @@ class DupOptions:
     other: bool = False  # Ordner des anderen Fensters einbeziehen (L-622)
     pattern: str = ""  # z. B. „*.mp4;*.mkv“ (L-623)
     min_size_mb: int = 0
+    similarity: int = SIMILAR_DEFAULT  # nur bei e) Ähnlicher Name
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -85,6 +88,7 @@ class DupOptions:
             opts.mode = MODE_NAME
         opts.depth = max(0, min(opts.depth, 10))
         opts.min_size_mb = max(0, opts.min_size_mb)
+        opts.similarity = max(SIMILAR_MIN, min(opts.similarity, SIMILAR_MAX))
         return opts
 
 
@@ -179,6 +183,103 @@ def file_id(name: str) -> str | None:
     return None
 
 
+_SEPARATORS = re.compile(r"[\s._\-()\[\]{},;+&'\"!]+")
+_NUMBERS = re.compile(r"\d+")
+
+
+def similar_key(name: str) -> str:
+    """L-2011: Name ohne Endung, Kennung, Groß-/Kleinschreibung und Satzzeichen."""
+    base = _ID_RX.sub(" ", stem(name)).casefold()
+    return _SEPARATORS.sub(" ", base).strip()
+
+
+def _numbers(key: str) -> tuple:
+    return tuple(int(n) for n in _NUMBERS.findall(key))
+
+
+def similar_groups(files: list[FileInfo], percent: int, stop=lambda: False,
+                   progress=lambda done, total: None) -> list[Group]:
+    """L-2010/L-2012: Gruppen ähnlicher Namen; ähnlich zu ähnlich gehört in dieselbe Gruppe.
+
+    Zahlen im Namen müssen übereinstimmen – sonst wären „IMG_0001“ und „IMG_0002“ oder „Folge 1“ und
+    „Folge 2“ ähnlich."""
+    from difflib import SequenceMatcher
+
+    limit = max(SIMILAR_MIN, min(percent, SIMILAR_MAX)) / 100.0
+    keys: dict[str, list[FileInfo]] = {}
+    for f in files:
+        k = similar_key(f.name)
+        if k:
+            keys.setdefault(k, []).append(f)
+    uniq = sorted(keys, key=lambda k: (len(k), k))  # feste Reihenfolge (ratio ist nicht symmetrisch)
+    parent = list(range(len(uniq)))
+
+    def find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    if limit < 1.0:
+        _compare_all(uniq, limit, find, parent, stop, progress)
+        if stop():
+            return []
+    clusters: dict[int, list[FileInfo]] = {}
+    for i, k in enumerate(uniq):
+        clusters.setdefault(find(i), []).extend(keys[k])
+    groups = []
+    for members in clusters.values():
+        if len(members) > 1:
+            members.sort(key=lambda f: f.path.casefold())
+            groups.append(Group(_ID_RX.sub("", stem(members[0].name)).strip() or members[0].name, members))
+    return _sorted(groups)
+
+
+def _compare_all(uniq: list[str], limit: float, find, parent: list[int], stop, progress) -> None:
+    """Paarweiser Vergleich, aber nur innerhalb gleicher Zahlen und passender Länge; Bigramme als Vorfilter."""
+    import math
+    from difflib import SequenceMatcher
+
+    by_numbers: dict[tuple, list[int]] = {}
+    for i, k in enumerate(uniq):  # uniq ist nach Länge sortiert, die Listen also auch
+        by_numbers.setdefault(_numbers(k), []).append(i)
+    total = len(uniq)
+    done = 0
+    grams = [{k[n:n + 2] for n in range(len(k) - 1)} for k in uniq]
+    sm = SequenceMatcher(None, autojunk=False)
+    for ids in by_numbers.values():
+        for pos, i in enumerate(ids):
+            if stop():
+                return
+            done += 1
+            if done % 50 == 0:
+                progress(done, total)
+            a = uniq[i]
+            la = len(a)
+            ga = grams[i]
+            dup_a = (la - 1) - len(ga)  # doppelte Bigramme in a
+            max_len = la * (2 - limit) / limit  # längere Namen können nicht mehr ähnlich genug sein
+            seq2_set = False
+            for j in ids[pos + 1:]:
+                b = uniq[j]
+                lb = len(b)
+                if lb > max_len:
+                    break
+                # gemeinsame Zeichen M ≥ limit·(la+lb)/2; Bigramme in gemeinsamen Stücken: ≥ 2M − la − 1
+                need = 2 * math.ceil(limit * (la + lb) / 2) - la - 1 - dup_a
+                if need > 0 and len(ga & grams[j]) < need:
+                    continue
+                if find(i) == find(j):
+                    continue
+                if not seq2_set:
+                    sm.set_seq2(a)
+                    seq2_set = True
+                sm.set_seq1(b)
+                if sm.quick_ratio() >= limit and sm.ratio() >= limit:
+                    parent[find(j)] = find(i)
+    progress(total, total)
+
+
 def _groups_by(files: list[FileInfo], key) -> list[Group]:
     buckets: dict = {}
     for f in files:
@@ -213,7 +314,10 @@ def _hash(path: str, limit: int | None, stop, on_bytes) -> str | None:
 
 
 def find_groups(files: list[FileInfo], mode: str, stop=lambda: False, on_bytes=lambda n: None,
-                set_total=lambda n: None) -> list[Group]:
+                set_total=lambda n: None, similarity: int = SIMILAR_DEFAULT,
+                on_compare=lambda done, total: None) -> list[Group]:
+    if mode == MODE_SIMILAR:
+        return similar_groups(files, similarity, stop, on_compare)
     if mode == MODE_NAME:
         names = {}
         for f in files:  # Anzeige mit der Schreibweise der ersten Datei
@@ -272,6 +376,7 @@ class DupThread(QThread):
     counted = Signal(int)  # gefundene Dateien
     bytes_progress = Signal(object, object)  # gelesen, gesamt (große Zahlen als Python-int)
     done = Signal(list, bool, int)  # Gruppen, vollständig (nicht abgebrochen), Anzahl geprüfter Dateien
+    compare_progress = Signal(int, int)  # Namen verglichen, gesamt (e, L-2013)
 
     def __init__(self, opts: DupOptions, folders: list[str], hidden: bool, parent=None) -> None:
         super().__init__(parent)
@@ -301,7 +406,8 @@ class DupThread(QThread):
         stop = lambda: self._stop  # noqa: E731
         files = collect(self.folders, self.opts.depth, self.hidden, self.opts.pattern,
                         self.opts.min_size_mb * 1000 * 1000, stop, self.counted.emit)
-        groups = [] if self._stop else find_groups(files, self.opts.mode, stop, self._on_bytes, self._set_total)
+        groups = [] if self._stop else find_groups(files, self.opts.mode, stop, self._on_bytes, self._set_total,
+                                                   self.opts.similarity, self.compare_progress.emit)
         self.done.emit(groups, not self._stop, len(files))
 
 
@@ -375,6 +481,22 @@ class DuplicateWindow(QWidget):
             modes.addWidget(b)
             self.mode_buttons[m] = b
         self.mode_buttons[opts.mode].setChecked(True)
+        # Regler für e) Ähnlicher Name (v1.20, L-2010)
+        self.similar = QSlider(Qt.Orientation.Horizontal, self)
+        self.similar.setRange(SIMILAR_MIN, SIMILAR_MAX)
+        self.similar.setSingleStep(1)
+        self.similar.setPageStep(5)
+        self.similar.setValue(opts.similarity)
+        self.similar_label = QLabel(self)
+        self.similar.valueChanged.connect(self._similar_changed)
+        srow = QHBoxLayout()
+        srow.setContentsMargins(24, 0, 0, 0)
+        srow.addWidget(QLabel(t("dup.similarity"), self))
+        srow.addWidget(self.similar, 1)
+        srow.addWidget(self.similar_label)
+        modes.addLayout(srow)
+        self.mode_buttons[MODE_SIMILAR].toggled.connect(lambda _on: self._similar_changed())
+        self._similar_changed()
         hint = QLabel(t("dup.speed_hint"), self)  # L-611
         hint.setWordWrap(True)
         hint.setObjectName("hintLabel")
@@ -468,7 +590,13 @@ class DuplicateWindow(QWidget):
         mode = next((m for m, b in self.mode_buttons.items() if b.isChecked()), MODE_NAME)
         return DupOptions(folder=self.folder_edit.text().strip(), mode=mode, depth=int(self.depth.currentData()),
                           other=self.other_check.isChecked(), pattern=self.pattern.text().strip(),
-                          min_size_mb=self.min_size.value())
+                          min_size_mb=self.min_size.value(), similarity=self.similar.value())
+
+    def _similar_changed(self, *_args) -> None:
+        self.similar_label.setText(f"{self.similar.value()} %")
+        on = self.mode_buttons[MODE_SIMILAR].isChecked() and self.mode_buttons[MODE_SIMILAR].isEnabled()
+        self.similar.setEnabled(on)
+        self.similar_label.setEnabled(on)
 
     def _browse(self) -> None:
         path = QFileDialog.getExistingDirectory(self, t("dup.browse"), self.folder_edit.text())
@@ -479,6 +607,7 @@ class DuplicateWindow(QWidget):
         for w in (self.folder_edit, self.other_check, self.depth, self.pattern, self.min_size,
                   *self.mode_buttons.values()):
             w.setEnabled(on if w is not self.other_check else on and bool(self.other_folder))
+        self._similar_changed()
 
     # Suche
     def start_or_stop(self) -> None:
@@ -516,6 +645,7 @@ class DuplicateWindow(QWidget):
         th = DupThread(opts, folders, bool(self.window.settings.get("show_hidden")), self)
         th.counted.connect(lambda n: self.status.setText(t("dup.counting", n=n)))
         th.bytes_progress.connect(self._bytes)
+        th.compare_progress.connect(self._compared)
         th.done.connect(self._done)
         self.thread = th
         th.start()
@@ -527,6 +657,12 @@ class DuplicateWindow(QWidget):
             self.bar.setRange(0, 1000)
             self.bar.setValue(int(1000 * min(done, total) / total))
             self.status.setText(t("dup.reading", done=format_size(done), total=format_size(total)))
+
+    def _compared(self, done: int, total: int) -> None:
+        if total:
+            self.bar.setRange(0, 1000)
+            self.bar.setValue(int(1000 * min(done, total) / total))
+            self.status.setText(t("dup.comparing", done=done, total=total))
 
     def _done(self, groups: list, complete: bool, checked: int = 0) -> None:
         th, self.thread = self.thread, None

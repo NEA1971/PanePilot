@@ -30,6 +30,7 @@ class SearchOptions:
     hidden: bool = False
     dirs: bool = True  # Ordner als Treffer (nur Namenssuche)
     network: bool = False  # in eingehängte Netzfreigaben hinabsteigen (F-880)
+    documents: bool = True  # auch PDF und Office-Dokumente durchsuchen (v1.20, L-2001)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -90,22 +91,44 @@ def looks_binary(chunk: bytes) -> bool:
 
 def file_contains(path: str, rx: re.Pattern, stop=lambda: False) -> bool:
     """Textdatei durchsuchen; Binärdateien (Nullbytes) gelten als „kein Treffer“."""
+    return text_hit(path, rx, stop) is not None
+
+
+def text_hit(path: str, rx: re.Pattern, stop=lambda: False) -> str | None:
+    """Fundstelle in einer Textdatei (Ausschnitt) oder None."""
+    from .doctext import snippet
+
     with open(path, "rb") as fh:
         head = fh.read(8192)
         if looks_binary(head):
-            return False
+            return None
         data = head + fh.read()
     if stop():
-        return False
+        return None
     try:
         text = data.decode("utf-8")
     except UnicodeDecodeError:
         text = data.decode("latin-1")
-    return rx.search(text) is not None
+    m = rx.search(text)
+    return snippet(text, m) if m is not None else None
+
+
+def find_hit(path: str, rx: re.Pattern, documents: bool, stop=lambda: False) -> str | None:
+    """L-2000/L-2002: Fundstelle als Infotext (bei PDFs mit Seite) oder None."""
+    from . import doctext
+    from .i18n import t
+
+    if documents and doctext.is_document(path):
+        hit = doctext.find(path, rx, stop)
+        if hit is None:
+            return None
+        label, text = hit
+        return t("search.hit_page", page=label, text=text) if label else text
+    return text_hit(path, rx, stop)
 
 
 class SearchThread(QThread):
-    found = Signal(list)  # Liste von Pfaden (gebündelt)
+    found = Signal(list)  # Liste von Pfaden (gebündelt); Fundstellen stehen vorher in self.hits
     progress = Signal(str, int)  # aktueller Ordner, Zahl der geprüften Einträge
     finished_search = Signal(bool, list)  # vollständig (nicht abgebrochen), übersprungene große Dateien
 
@@ -116,6 +139,7 @@ class SearchThread(QThread):
         # Ordner, in die die Suche nicht hinabsteigt (Netzfreigaben); der Startordner selbst zählt nicht
         self.exclude = {os.path.normpath(p) for p in (exclude or set())}
         self._stop = False
+        self.hits: dict[str, str] = {}  # Pfad → Fundstelle (L-2002)
 
     def stop(self) -> None:
         self._stop = True
@@ -167,7 +191,9 @@ class SearchThread(QThread):
                             if st.st_size > MAX_TEXT_SIZE:
                                 skipped.append(de.path)
                                 continue
-                            if file_contains(de.path, rx, lambda: self._stop):
+                            hit = find_hit(de.path, rx, opts.documents, lambda: self._stop)
+                            if hit is not None:
+                                self.hits[de.path] = hit
                                 batch.append(de.path)
                         except OSError:
                             continue
