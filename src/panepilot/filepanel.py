@@ -358,6 +358,7 @@ class IconView(_FileListMixin, QListView):
         super().__init__(parent)
         self.icon_px = 128
         self.thumbs = None  # ThumbnailLoader, beim ersten Zeichnen
+        self.parent_bar = None  # Zeile „..“ über den Symbolen (v1.19.1)
         self.setViewMode(QListView.ViewMode.IconMode)
         self.setMovement(QListView.Movement.Static)
         self.setResizeMode(QListView.ResizeMode.Adjust)
@@ -417,6 +418,17 @@ class IconView(_FileListMixin, QListView):
             timer.timeout.connect(self.viewport().update)
         return timer
 
+    def keyPressEvent(self, event) -> None:
+        # Pfeil nach oben in der ersten Reihe: in die Zeile „..“ darüber (v1.19.1)
+        if (event.key() == Qt.Key.Key_Up and not event.modifiers() & Qt.KeyboardModifier.ShiftModifier
+                and self.parent_bar is not None and self.parent_bar.isVisible()):
+            cur = self.currentIndex()
+            nxt = self.moveCursor(QAbstractItemView.CursorAction.MoveUp, event.modifiers())
+            if not cur.isValid() or not nxt.isValid() or nxt.row() == cur.row():
+                self.parent_bar.take_cursor()
+                return
+        super().keyPressEvent(event)
+
     def wheelEvent(self, event) -> None:
         if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
             delta = event.angleDelta().y()
@@ -425,6 +437,67 @@ class IconView(_FileListMixin, QListView):
             event.accept()
             return
         super().wheelEvent(event)
+
+
+class ParentBar(_FileListMixin, QListView):
+    """Die Zeile „..“ bleibt in der Symbolansicht klein oben wie in der Liste (v1.19.1)."""
+
+    drop_requested = Signal(list, str, object)
+    remote_drop_requested = Signal(object, str, object)
+    focus_entered = Signal()
+
+    def __init__(self, icons_view: IconView, parent=None) -> None:
+        super().__init__(parent)
+        self.icons_view = icons_view
+        self.setViewMode(QListView.ViewMode.ListMode)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+        self.setDragDropMode(QAbstractItemView.DragDropMode.DropOnly)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+
+    def startDrag(self, supported_actions) -> None:  # „..“ lässt sich nicht ziehen
+        return
+
+    def update_rows(self) -> bool:
+        """Nur die Zeile „..“ zeigen; liefert, ob es sie gibt."""
+        model = self.model()
+        n = model.rowCount() if model is not None else 0
+        has_parent = n > 0 and model.entry(0) is not None and model.entry(0).is_parent
+        for row in range(n):
+            self.setRowHidden(row, not (row == 0 and has_parent))
+        if has_parent:
+            h = self.sizeHintForRow(0)
+            self.setFixedHeight(max(h, self.fontMetrics().height() + 4) + 2)
+        return has_parent
+
+    def take_cursor(self) -> None:
+        model = self.model()
+        self.setFocus()
+        self.selectionModel().setCurrentIndex(
+            model.index(0, self.modelColumn()),
+            QItemSelectionModel.SelectionFlag.ClearAndSelect | QItemSelectionModel.SelectionFlag.Rows)
+
+    def keyPressEvent(self, event) -> None:
+        if event.key() in (Qt.Key.Key_Down, Qt.Key.Key_Right, Qt.Key.Key_PageDown, Qt.Key.Key_End):
+            view = self.icons_view
+            model = view.model()
+            row = next((r for r in range(model.rowCount()) if not view.isRowHidden(r)), -1)
+            if row >= 0:
+                view.setFocus()
+                view.selectionModel().setCurrentIndex(
+                    model.index(row, view.modelColumn()),
+                    QItemSelectionModel.SelectionFlag.ClearAndSelect | QItemSelectionModel.SelectionFlag.Rows)
+                view.scrollTo(view.currentIndex())
+            return
+        if event.key() in (Qt.Key.Key_Up, Qt.Key.Key_Left, Qt.Key.Key_PageUp, Qt.Key.Key_Home):
+            return
+        super().keyPressEvent(event)
 
 
 class FilePanel(QWidget):
@@ -531,7 +604,36 @@ class FilePanel(QWidget):
         self.icon_view.drop_requested.connect(self.drop_requested)
         self.icon_view.remote_drop_requested.connect(self.remote_drop_requested)
         self.icon_view.zoom_requested.connect(self.zoom_icons)
-        self.icon_view.hide()
+        self.icon_view.setFrameShape(QFrame.Shape.NoFrame)
+        self.parent_bar = ParentBar(self.icon_view)
+        self.parent_bar.setModel(self.model)
+        own = self.parent_bar.selectionModel()
+        self.parent_bar.setSelectionModel(self.view.selectionModel())
+        own.deleteLater()
+        self.parent_bar.setModelColumn(self.model.icon_column)
+        self.parent_bar.focus_entered.connect(self.focus_entered)
+        self.parent_bar.doubleClicked.connect(self._on_double_click)
+        self.parent_bar.customContextMenuRequested.connect(
+            lambda pos: self.context_menu_requested.emit(self.parent_bar.viewport().mapToGlobal(pos))
+        )
+        self.parent_bar.drop_requested.connect(self.drop_requested)
+        self.parent_bar.remote_drop_requested.connect(self.remote_drop_requested)
+        self.icon_view.parent_bar = self.parent_bar
+        # Rahmen um beide wie bei der Liste
+        self.icon_box = QFrame(self)
+        self.icon_box.setFrameShape(QFrame.Shape.StyledPanel)
+        box = QVBoxLayout(self.icon_box)
+        box.setContentsMargins(1, 1, 1, 1)
+        box.setSpacing(0)
+        box.addWidget(self.parent_bar)
+        box.addWidget(self.icon_view, 1)
+        self.icon_box.setAutoFillBackground(True)
+        self.icon_box.setBackgroundRole(self.icon_view.viewport().backgroundRole())
+        self.icon_box.hide()
+        for sig in (self.model.modelReset, self.model.layoutChanged, self.model.rowsInserted,
+                    self.model.rowsRemoved):
+            sig.connect(self._update_parent_row)
+        self.view.selectionModel().currentChanged.connect(self._sync_icon_focus)
 
         self.status = QLabel(self)
         self.status.setObjectName("panelStatus")
@@ -542,7 +644,7 @@ class FilePanel(QWidget):
         layout.setSpacing(2)
         layout.addWidget(self.header)
         layout.addWidget(self.view, 1)
-        layout.addWidget(self.icon_view, 1)
+        layout.addWidget(self.icon_box, 1)
         # Vorschau für „Mehrfach umbenennen“ (F-702) – ersetzt die Liste, solange der Modus läuft
         self.preview = QTreeView(self)
         self.preview.setObjectName("renamePreview")
@@ -709,26 +811,54 @@ class FilePanel(QWidget):
     def set_remote_color(self, color: str) -> None:
         self.view.setStyleSheet(f"QTreeView {{ background-color: {color}; }}" if color else "")
         self.icon_view.setStyleSheet(f"QListView {{ background-color: {color}; }}" if color else "")
+        self.parent_bar.setStyleSheet(f"QListView {{ background-color: {color}; }}" if color else "")
+
+    def _update_parent_row(self, *_args) -> None:
+        """Symbolansicht: „..“ nicht als großes Symbol, sondern als Zeile darüber (v1.19.1)."""
+        has_parent = self.parent_bar.update_rows()
+        self.parent_bar.setVisible(has_parent)
+        self.icon_view.setRowHidden(0, has_parent)
+        for row in range(1, self.model.rowCount()):
+            if self.icon_view.isRowHidden(row):
+                self.icon_view.setRowHidden(row, False)
 
     # --- Liste oder Symbolansicht (v1.19) -------------------------------------------------------------------
     def list_widget(self) -> QAbstractItemView:
         """Die gerade gezeigte Dateiansicht (Liste oder Symbolansicht)."""
         return self.icon_view if self.icon_mode else self.view
 
+    def _show_list_widget(self) -> None:
+        (self.icon_box if self.icon_mode else self.view).show()
+
     def focus_view(self) -> None:
+        if self.icon_mode and self.parent_bar.isVisible() and self.view.currentIndex().row() == 0:
+            self.parent_bar.setFocus()  # Cursor steht auf „..“
+            return
         self.list_widget().setFocus()
+
+    def _sync_icon_focus(self, current, _previous=None) -> None:
+        """Der Cursor wechselt zwischen „..“ und den Symbolen – der Fokus folgt ihm (v1.19.1)."""
+        if not self.icon_mode or not self.parent_bar.isVisible() or not current.isValid():
+            return
+        on_parent = current.row() == 0
+        if on_parent and self.icon_view.hasFocus():
+            self.parent_bar.setFocus()
+        elif not on_parent and self.parent_bar.hasFocus():
+            self.icon_view.setFocus()
 
     def set_icon_mode(self, on: bool) -> None:
         """L-1910: zwischen Liste und Symbolansicht umschalten."""
         on = bool(on)
         if on == self.icon_mode:
             return
-        had_focus = self.list_widget().hasFocus()
+        had_focus = self.list_widget().hasFocus() or self.parent_bar.hasFocus()
         busy = self.preview.isVisible() or getattr(self, "_custom_view", None) is not None
         self.icon_mode = on
         if not busy:
             self.view.setVisible(not on)
-            self.icon_view.setVisible(on)
+            self.icon_box.setVisible(on)
+        if on:
+            self._update_parent_row()
         cur = self.view.currentIndex()
         if cur.isValid():
             self.list_widget().scrollTo(cur)
@@ -1113,6 +1243,7 @@ class FilePanel(QWidget):
             self.view.viewport().update()
             if hasattr(self, "icon_view"):
                 self.icon_view.setModelColumn(col)
+                self.parent_bar.setModelColumn(col)
         # Der Cursor muss in einer sichtbaren Spalte stehen – sonst folgt die Markierung
         # den Pfeiltasten nicht (Cursor in ausgeblendeter Spalte „Name (mit Endung)“).
         cur = self.view.currentIndex()
@@ -1294,13 +1425,13 @@ class FilePanel(QWidget):
                 hdr.resizeSection(col, width)
             self._sync_preview_sort_indicator()
             self.view.hide()
-            self.icon_view.hide()
+            self.icon_box.hide()
             self.preview.show()
             self.preview.setFocus()
         else:
             self.preview.hide()
             self.preview.setModel(None)
-            self.list_widget().show()
+            self._show_list_widget()
             self.focus_view()
 
     # --- Eigene Ansicht statt der Dateiliste (Meta-Wizard, F-903) --------------------------
@@ -1316,13 +1447,13 @@ class FilePanel(QWidget):
         self.path_edit.setReadOnly(widget is not None)
         self.status.setVisible(widget is None)  # Ordnerstatus passt nicht zur Titelliste
         if widget is None:
-            self.list_widget().show()
+            self._show_list_widget()
             self.focus_view()
             return
         self._custom_view = widget
-        layout.insertWidget(layout.indexOf(self.icon_view) + 1, widget, 1)
+        layout.insertWidget(layout.indexOf(self.icon_box) + 1, widget, 1)
         self.view.hide()
-        self.icon_view.hide()
+        self.icon_box.hide()
         widget.show()
         widget.setFocus()
 

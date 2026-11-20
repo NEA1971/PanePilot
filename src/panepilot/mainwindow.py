@@ -30,7 +30,7 @@ from . import archives
 from .dialogs import AboutDialog, CompressDialog, CopyMoveDialog, ExtractToDialog, FavoriteEditDialog, OpenWithDialog, ask_text, confirm, show_error, show_info
 from .favorites import FAV_COLORS, FavNode, FavoritesModel, FavoritesView
 from .foldertree import FolderTreeView
-from .filepanel import FilePanel, FileView, IconView
+from .filepanel import FilePanel, FileView, IconView, ParentBar
 from .filemodel import COLUMN_COUNT
 from .fileops import COMPRESS, COPY, DELETE, DUPLICATE, EXTRACT, MOVE, PURGE, RESTORE, TRASH
 from .trash import TRASH_URI, Trash, is_trash_uri
@@ -113,7 +113,7 @@ class KeyFilter(QObject):
         in_edit = isinstance(focus, QLineEdit)
         if in_edit and focus.objectName() != "pathEdit":
             return None  # Umbenennen in der Liste o. Ä.: alle Tasten dem Eingabefeld überlassen
-        in_list = isinstance(focus, (FileView, IconView))
+        in_list = isinstance(focus, (FileView, IconView, ParentBar))
         in_fav = isinstance(focus, FavoritesView)
         in_tree = isinstance(focus, FolderTreeView)
         if in_fav and focus.state() == focus.State.EditingState:

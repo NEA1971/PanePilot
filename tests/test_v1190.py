@@ -122,7 +122,7 @@ def test_icon_view_toggle_and_selection(window, qtbot, tmp_path, monkeypatch):  
     QApplication.processEvents()
     assert panel.icon_mode and panel.icon_view.isVisible() and not panel.view.isVisible()
     assert window.qactions["toggle_icon_view"].isChecked()
-    assert QApplication.focusWidget() is panel.icon_view
+    assert QApplication.focusWidget() in (panel.icon_view, panel.parent_bar)  # Cursor auf „..“: Zeile darüber
     # gleiche Markierung wie die Liste
     assert panel.icon_view.selectionModel() is panel.view.selectionModel()
     panel.select_names(["eins.txt"], current="eins.txt")
