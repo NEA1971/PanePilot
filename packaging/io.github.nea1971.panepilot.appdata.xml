@@ -52,6 +52,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.21.0" date="2026-11-20">
+      <description>
+        <p>Optional shared sidebar for both panels that follows the active panel.</p>
+      </description>
+    </release>
     <release version="1.20.0" date="2026-11-20">
       <description>
         <p>Search inside PDF and Office documents, duplicates with similar names, online movie data without overview.</p>
