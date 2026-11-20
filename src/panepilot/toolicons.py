@@ -660,11 +660,11 @@ def _backup(to_disk: bool) -> QIcon:
             path.cubicTo(QPointF(17.8, 19.2), QPointF(18.8, 17.0), QPointF(18.8, 13.6))
             p.drawPath(path)
             _head(p, QPointF(18.8, 9.6), -90, accent, 5.2)
-        else:  # Diskette → Zahnrad: Bogen nach links unten
-            path = QPainterPath(QPointF(18.8, 10.4))
-            path.cubicTo(QPointF(18.8, 16.6), QPointF(18.0, 19.2), QPointF(17.4, 19.2))
+        else:  # Diskette → Zahnrad: derselbe Bogen, Pfeil zum Zahnrad
+            path = QPainterPath(QPointF(18.8, 10.6))
+            path.cubicTo(QPointF(18.8, 16.4), QPointF(17.8, 19.2), QPointF(15.0, 19.2))
             p.drawPath(path)
-            _head(p, QPointF(13.4, 19.2), 180, accent, 5.2)
+            _head(p, QPointF(11.8, 19.2), 180, accent, 5.2)
     return _paint_icon(draw)
 
 
@@ -743,23 +743,28 @@ def icon_help_online() -> QIcon:
 
 
 def icon_check_updates() -> QIcon:
-    """Nach Updates suchen: drei dicke Pfeile, die einen Kreis bilden."""
+    """Nach Updates suchen: drei gleich dicke Pfeile im Kreis (ein Pfeil, dreimal gedreht)."""
     _fg, accent = _colors()
 
     def draw(p: QPainter) -> None:
-        c, r = QPointF(12, 12), 7.8
-        p.setPen(QPen(accent, 3.0, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap))
-        p.setBrush(Qt.BrushStyle.NoBrush)
-        rect = QRectF(c.x() - r, c.y() - r, 2 * r, 2 * r)
-        for k in range(3):
-            start = 90 + k * 120 - 8  # Qt: Grad gegen den Uhrzeigersinn, 0 = rechts
-            span = -78  # im Uhrzeigersinn
-            p.drawArc(rect, int(start * 16), int(span * 16))
-            end = math.radians(start + span)
-            base = QPointF(c.x() + r * math.cos(end), c.y() - r * math.sin(end))
-            direction = math.degrees(math.atan2(math.cos(end), math.sin(end)))
-            d = math.radians(direction)
-            _head(p, QPointF(base.x() + 4.4 * math.cos(d), base.y() + 4.4 * math.sin(d)), direction, accent, 5.0)
+        r = 7.8
+        rect = QRectF(-r, -r, 2 * r, 2 * r)
+        start, span = 82.0, -78.0  # Grad, Qt zählt gegen den Uhrzeigersinn; span < 0 = im Uhrzeigersinn
+        end = math.radians(start + span)
+        base = QPointF(r * math.cos(end), -r * math.sin(end))
+        direction = math.degrees(math.atan2(math.cos(end), math.sin(end)))
+        d = math.radians(direction)
+        tip = QPointF(base.x() + 4.4 * math.cos(d), base.y() + 4.4 * math.sin(d))
+        arc = QPainterPath()
+        arc.arcMoveTo(rect, start)
+        arc.arcTo(rect, start, span)
+        p.translate(12, 12)
+        for _k in range(3):
+            p.setPen(QPen(accent, 3.0, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.drawPath(arc)
+            _head(p, tip, direction, accent, 5.0)
+            p.rotate(120)
     return _paint_icon(draw)
 
 
