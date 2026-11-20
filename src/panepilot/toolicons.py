@@ -7,8 +7,11 @@ PanePilot ein eigenes, einfaches Symbol.
 
 from __future__ import annotations
 
+import math
+
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPainterPath, QPen
+from PySide6.QtWidgets import QApplication
 
 from .bars import _arrow, _colors, _mirror, _page, _paint_icon, icon_copy, icon_move, icon_same_path, icon_swap, trash_icons
 
@@ -461,14 +464,14 @@ def icon_meta_wizard() -> QIcon:
     """Meta-Wizard (v1.6.3): Kästchen mit „</>“ – steht für Metadaten aller Art, nicht nur Musik."""
     fg, accent = _colors()
 
-    def draw(p: QPainter) -> None:
-        p.setPen(_pen(fg, 1.6))
+    def draw(p: QPainter) -> None:  # v1.19: so groß wie das Terminal-Symbol
+        p.setPen(_pen(fg, 1.7))
         p.setBrush(QColor(255, 255, 255, 0))
-        p.drawRoundedRect(QRectF(2.5, 3.5, 19, 17), 2.5, 2.5)
-        p.setPen(_pen(accent, 1.9))
-        p.drawPolyline([QPointF(9, 8.5), QPointF(5.8, 12), QPointF(9, 15.5)])  # <
-        p.drawPolyline([QPointF(15, 8.5), QPointF(18.2, 12), QPointF(15, 15.5)])  # >
-        p.drawLine(QPointF(13.3, 7.5), QPointF(10.7, 16.5))  # /
+        p.drawRoundedRect(QRectF(1.2, 2.2, 21.6, 19.6), 2.8, 2.8)
+        p.setPen(_pen(accent, 2.1))
+        p.drawPolyline([QPointF(8.6, 7.8), QPointF(4.8, 12), QPointF(8.6, 16.2)])  # <
+        p.drawPolyline([QPointF(15.4, 7.8), QPointF(19.2, 12), QPointF(15.4, 16.2)])  # >
+        p.drawLine(QPointF(13.6, 6.6), QPointF(10.4, 17.4))  # /
     return _paint_icon(draw)
 
 
@@ -510,3 +513,278 @@ _FALLBACK = {
     "search": icon_search,
     "settings_dialog": icon_gear,
 }
+
+
+# --- v1.19: weitere eigene Symbole (Wunsch von NEA1971, 20.11.2026) ----------------------------------------
+def _box(p: QPainter, fg: QColor, rect: QRectF = QRectF(1.2, 2.2, 21.6, 19.6)) -> None:
+    p.setPen(_pen(fg, 1.6))
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    p.drawRoundedRect(rect, 2.5, 2.5)
+
+
+def _head(p: QPainter, tip: QPointF, angle_deg: float, color: QColor, size: float = 4.2) -> None:
+    """Gefüllte Pfeilspitze an tip, Richtung angle_deg (0 = nach rechts, 90 = nach unten)."""
+    a = math.radians(angle_deg)
+    back = QPointF(tip.x() - size * math.cos(a), tip.y() - size * math.sin(a))
+    nx, ny = -math.sin(a) * size * 0.62, math.cos(a) * size * 0.62
+    head = QPainterPath(tip)
+    head.lineTo(QPointF(back.x() + nx, back.y() + ny))
+    head.lineTo(QPointF(back.x() - nx, back.y() - ny))
+    head.closeSubpath()
+    p.setPen(_pen(color, 0.8))
+    p.setBrush(color)
+    p.drawPath(head)
+
+
+def icon_stacked() -> QIcon:
+    """Fenster übereinander: zwei Fenster untereinander, die Knopfleiste nur als einfache Linie."""
+    fg, _accent = _colors()
+
+    def draw(p: QPainter) -> None:
+        p.setPen(_pen(fg, 1.4))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRoundedRect(QRectF(2.5, 3, 19, 18), 2, 2)
+        p.drawLine(QPointF(2.5, 6.5), QPointF(21.5, 6.5))
+        p.drawLine(QPointF(2.5, 13.8), QPointF(21.5, 13.8))
+    return _paint_icon(draw)
+
+
+def icon_duplicate() -> QIcon:
+    """Duplizieren: zwei Kästchen, Pfeil vom hinteren auf das vordere."""
+    fg, accent = _colors()
+
+    def draw(p: QPainter) -> None:
+        p.setPen(_pen(fg, 1.5))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRoundedRect(QRectF(2.5, 2.5, 11.5, 11.5), 2, 2)
+        bg = QApplication.palette().color(QApplication.palette().ColorRole.Base)
+        p.setBrush(bg)
+        p.drawRoundedRect(QRectF(10, 10, 11.5, 11.5), 2, 2)
+        p.setPen(_pen(accent, 2.0))
+        p.drawLine(QPointF(6, 6), QPointF(14.2, 14.2))
+        _head(p, QPointF(16.6, 16.6), 45, accent, 4.6)
+    return _paint_icon(draw)
+
+
+def _check(p: QPainter, x: float, y: float, s: float, color: QColor, width: float = 2.4) -> None:
+    p.setPen(_pen(color, width))
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    p.drawPolyline([QPointF(x, y + s * 0.5), QPointF(x + s * 0.38, y + s * 0.88), QPointF(x + s, y)])
+
+
+GREEN = QColor("#2e9d4b")
+
+
+def icon_properties() -> QIcon:
+    """Eigenschaften: Briefbogen mit grünem Haken."""
+    fg, _accent = _colors()
+
+    def draw(p: QPainter) -> None:
+        p.setPen(_pen(fg, 1.4))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        path = QPainterPath(QPointF(4, 2.5))
+        path.lineTo(QPointF(13.5, 2.5))
+        path.lineTo(QPointF(18, 7))
+        path.lineTo(QPointF(18, 21.5))
+        path.lineTo(QPointF(4, 21.5))
+        path.closeSubpath()
+        p.drawPath(path)
+        p.drawPolyline([QPointF(13.5, 2.5), QPointF(13.5, 7), QPointF(18, 7)])
+        for y in (10, 13, 16):
+            p.drawLine(QPointF(6.5, y), QPointF(12, y))
+        _check(p, 12.2, 13.5, 9.5, GREEN, 2.6)
+    return _paint_icon(draw)
+
+
+def icon_properties_envelope() -> QIcon:
+    """Variante: Briefumschlag mit grünem Haken."""
+    fg, _accent = _colors()
+
+    def draw(p: QPainter) -> None:
+        p.setPen(_pen(fg, 1.4))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRoundedRect(QRectF(2.5, 5, 18, 12.5), 1.5, 1.5)
+        p.drawPolyline([QPointF(2.8, 5.5), QPointF(11.5, 12), QPointF(20.2, 5.5)])
+        _check(p, 12.5, 13.5, 9, GREEN, 2.6)
+    return _paint_icon(draw)
+
+
+def _small_gear(p: QPainter, cx: float, cy: float, r_out: float, fg: QColor) -> None:
+    path = QPainterPath()
+    teeth, r_in = 8, r_out * 0.76
+    pts = []
+    for i in range(teeth * 4):
+        a = math.pi * 2 * i / (teeth * 4)
+        r = r_out if i % 4 in (1, 2) else r_in
+        pts.append(QPointF(cx + r * math.cos(a), cy + r * math.sin(a)))
+    path.moveTo(pts[0])
+    for pt in pts[1:]:
+        path.lineTo(pt)
+    path.closeSubpath()
+    path.addEllipse(QPointF(cx, cy), r_out * 0.32, r_out * 0.32)
+    path.setFillRule(Qt.FillRule.OddEvenFill)
+    p.setPen(_pen(fg, 0.9))
+    p.setBrush(fg)
+    p.drawPath(path)
+
+
+def _disk(p: QPainter, x: float, y: float, s: float, color: QColor) -> None:
+    """Diskette (s × s)."""
+    path = QPainterPath(QPointF(x, y))
+    path.lineTo(QPointF(x + s * 0.78, y))
+    path.lineTo(QPointF(x + s, y + s * 0.22))
+    path.lineTo(QPointF(x + s, y + s))
+    path.lineTo(QPointF(x, y + s))
+    path.closeSubpath()
+    p.setPen(_pen(color, 1.2))
+    p.setBrush(color)
+    p.drawPath(path)
+    bg = QApplication.palette().color(QApplication.palette().ColorRole.Base)
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(bg)
+    p.drawRect(QRectF(x + s * 0.22, y + s * 0.08, s * 0.46, s * 0.28))  # Schieber
+    p.drawRoundedRect(QRectF(x + s * 0.18, y + s * 0.52, s * 0.64, s * 0.38), 0.6, 0.6)  # Etikett
+
+
+def _backup(to_disk: bool) -> QIcon:
+    fg, accent = _colors()
+
+    def draw(p: QPainter) -> None:
+        _small_gear(p, 8.0, 15.6, 6.4, fg)
+        _disk(p, 14.6, 1.6, 8.2, accent)
+        p.setPen(_pen(accent, 2.0))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        if to_disk:  # Zahnrad → Diskette
+            path = QPainterPath(QPointF(15.6, 17.0))
+            path.quadTo(QPointF(18.7, 17.0), QPointF(18.7, 13.2))
+            p.drawPath(path)
+            _head(p, QPointF(18.7, 10.4), -90, accent, 4.4)
+        else:  # Diskette → Zahnrad
+            path = QPainterPath(QPointF(18.7, 11.0))
+            path.quadTo(QPointF(18.7, 17.0), QPointF(17.0, 17.0))
+            p.drawPath(path)
+            _head(p, QPointF(14.6, 17.0), 180, accent, 4.4)
+    return _paint_icon(draw)
+
+
+def icon_backup_now() -> QIcon:
+    """Einstellungen sichern: Zahnrad, Diskette rechts oben, Pfeil vom Zahnrad zur Diskette."""
+    return _backup(True)
+
+
+def icon_backup_restore() -> QIcon:
+    """Einstellungen wiederherstellen: wie sichern, Pfeil in die andere Richtung."""
+    return _backup(False)
+
+
+def _text_icon(text: str, boxed: bool, size: float) -> QIcon:
+    fg, accent = _colors()
+
+    def draw(p: QPainter) -> None:
+        if boxed:
+            _box(p, fg)
+        font = QFont()
+        font.setBold(True)
+        font.setPixelSize(int(size))
+        p.setFont(font)
+        p.setPen(accent)
+        p.drawText(QRectF(0, 3.5, 24, 17), Qt.AlignmentFlag.AlignCenter, text)
+    return _paint_icon(draw)
+
+
+def icon_ftp_angle() -> QIcon:
+    """FTP-Servermanager, Variante A: „<FTP>“."""
+    return _text_icon("<FTP>", False, 7.2)
+
+
+def icon_ftp_box() -> QIcon:
+    """FTP-Servermanager, Variante B: „FTP“ im Kästchen wie beim Meta-Wizard."""
+    return _text_icon("FTP", True, 7.6)
+
+
+def _first_aid(p: QPainter, rect: QRectF, fg: QColor, color: QColor) -> None:
+    _box(p, fg, rect)
+    cx, cy = rect.center().x(), rect.center().y()
+    arm, w = min(rect.width(), rect.height()) * 0.30, min(rect.width(), rect.height()) * 0.19
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(color)
+    p.drawRect(QRectF(cx - w / 2, cy - arm, w, arm * 2))
+    p.drawRect(QRectF(cx - arm, cy - w / 2, arm * 2, w))
+
+
+def icon_help() -> QIcon:
+    """Hilfe: Erste-Hilfe-Kreuz im Kästchen."""
+    fg, _accent = _colors()
+
+    def draw(p: QPainter) -> None:
+        _first_aid(p, QRectF(1.2, 2.2, 21.6, 19.6), fg, GREEN)
+    return _paint_icon(draw)
+
+
+def icon_help_online() -> QIcon:
+    """Online-Hilfe: wie Hilfe, dazu ein kleiner Globus rechts oben."""
+    fg, accent = _colors()
+
+    def draw(p: QPainter) -> None:
+        _first_aid(p, QRectF(2, 6, 16, 15.5), fg, GREEN)
+        bg = QApplication.palette().color(QApplication.palette().ColorRole.Base)
+        c, r = QPointF(17.6, 6.4), 5.2
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(bg)
+        p.drawEllipse(c, r + 1.2, r + 1.2)
+        p.setPen(_pen(accent, 1.2))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(c, r, r)
+        p.drawEllipse(c, r * 0.42, r)
+        p.drawLine(QPointF(c.x() - r, c.y()), QPointF(c.x() + r, c.y()))
+        p.drawLine(QPointF(c.x(), c.y() - r), QPointF(c.x(), c.y() + r))
+    return _paint_icon(draw)
+
+
+def icon_check_updates() -> QIcon:
+    """Nach Updates suchen: drei Pfeile, die einen Kreis bilden."""
+    _fg, accent = _colors()
+
+    def draw(p: QPainter) -> None:
+        c, r = QPointF(12, 12), 8.0
+        p.setPen(_pen(accent, 2.2))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        rect = QRectF(c.x() - r, c.y() - r, 2 * r, 2 * r)
+        for k in range(3):
+            start = 90 + k * 120 + 12  # Qt: Grad gegen den Uhrzeigersinn, 0 = rechts
+            span = -88
+            p.drawArc(rect, int(start * 16), int(span * 16))
+            end = math.radians(start + span)
+            tip = QPointF(c.x() + r * math.cos(end), c.y() - r * math.sin(end))
+            # Richtung am Bogenende (im Uhrzeigersinn) in Bildschirmkoordinaten
+            direction = math.degrees(math.atan2(math.cos(end), math.sin(end)))
+            _head(p, QPointF(tip.x() + 2.4 * math.cos(math.radians(direction)),
+                             tip.y() + 2.4 * math.sin(math.radians(direction))), direction, accent, 5.0)
+    return _paint_icon(draw)
+
+
+def icon_donate() -> QIcon:
+    """PanePilot unterstützen: Kaffeetasse."""
+    fg, accent = _colors()
+
+    def draw(p: QPainter) -> None:
+        p.setPen(_pen(fg, 1.6))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        cup = QPainterPath(QPointF(3.5, 10))
+        cup.lineTo(QPointF(16.5, 10))
+        cup.lineTo(QPointF(15.5, 18))
+        cup.quadTo(QPointF(15.2, 20.5), QPointF(12.5, 20.5))
+        cup.lineTo(QPointF(7.5, 20.5))
+        cup.quadTo(QPointF(4.8, 20.5), QPointF(4.5, 18))
+        cup.closeSubpath()
+        p.drawPath(cup)
+        handle = QPainterPath(QPointF(16.2, 12))
+        handle.cubicTo(QPointF(21.5, 11.5), QPointF(21.5, 17.5), QPointF(15.6, 16.8))
+        p.drawPath(handle)
+        p.drawLine(QPointF(2.5, 22), QPointF(18.5, 22))
+        p.setPen(_pen(accent, 1.5))
+        for x in (7.2, 10.2, 13.2):
+            steam = QPainterPath(QPointF(x, 8))
+            steam.cubicTo(QPointF(x - 1.6, 6.5), QPointF(x + 1.6, 5), QPointF(x, 3))
+            p.drawPath(steam)
+    return _paint_icon(draw)
