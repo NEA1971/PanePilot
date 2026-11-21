@@ -558,7 +558,7 @@ def icon_duplicate() -> QIcon:
         p.setPen(_pen(fg, 1.5))
         p.setBrush(Qt.BrushStyle.NoBrush)
         p.drawRoundedRect(QRectF(2.5, 2.5, 11.5, 11.5), 2, 2)
-        bg = QApplication.palette().color(QApplication.palette().ColorRole.Base)
+        bg = QApplication.palette().color(QApplication.palette().ColorRole.Window)
         p.setBrush(bg)
         p.drawRoundedRect(QRectF(10, 10, 11.5, 11.5), 2, 2)
         p.setPen(_pen(accent, 2.0))
@@ -640,7 +640,7 @@ def _disk(p: QPainter, x: float, y: float, s: float, color: QColor) -> None:
     p.setPen(_pen(color, 1.2))
     p.setBrush(color)
     p.drawPath(path)
-    bg = QApplication.palette().color(QApplication.palette().ColorRole.Base)
+    bg = QApplication.palette().color(QApplication.palette().ColorRole.Window)
     p.setPen(Qt.PenStyle.NoPen)
     p.setBrush(bg)
     p.drawRect(QRectF(x + s * 0.22, y + s * 0.08, s * 0.46, s * 0.28))  # Schieber
@@ -728,7 +728,7 @@ def icon_help_online() -> QIcon:
 
     def draw(p: QPainter) -> None:
         _first_aid(p, QRectF(2, 6, 16, 15.5), fg, GREEN)
-        bg = QApplication.palette().color(QApplication.palette().ColorRole.Base)
+        bg = QApplication.palette().color(QApplication.palette().ColorRole.Window)
         c, r = QPointF(17.6, 6.4), 5.2
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(bg)
@@ -959,3 +959,37 @@ def icon_chevron_down() -> QIcon:
         p.setBrush(Qt.BrushStyle.NoBrush)
         p.drawPolyline([QPointF(7, 10), QPointF(12, 15), QPointF(17, 10)])
     return _paint_icon(draw)
+
+
+# --- v2.2 -------------------------------------------------------------------------------------------------
+def icon_archive() -> QIcon:
+    """Knopf „Archiv“ (L-3200): Karteikasten mit drei Karten, nur Umriss (Entwurf a vom 21.11.2026)."""
+    def draw(p: QPainter) -> None:
+        fg, accent = _colors()
+        bg = QApplication.palette().color(QApplication.palette().ColorRole.Window)
+        for x0, x1, y, tab in ((7.5, 18.5, 2.0, 12.5), (6.0, 19.5, 4.5, 13.5), (4.5, 20.5, 7.0, 14.5)):
+            card = QPainterPath(QPointF(x0, 16))
+            card.lineTo(QPointF(x0, y + 2))
+            card.lineTo(QPointF(tab, y + 2))
+            card.lineTo(QPointF(tab + 1.6, y))
+            card.lineTo(QPointF(x1, y))
+            card.lineTo(QPointF(x1, 16))
+            p.setPen(_pen(fg, 1.3))
+            p.setBrush(bg)
+            p.drawPath(card)
+        front = QPainterPath(QPointF(2, 12.5))
+        for x, y in ((8, 12.5), (9, 14.5), (15, 14.5), (16, 12.5), (22, 12.5), (22, 21.5), (2, 21.5)):
+            front.lineTo(QPointF(x, y))
+        front.closeSubpath()
+        p.setPen(_pen(fg, 1.4))
+        p.setBrush(bg)
+        p.drawPath(front)
+        p.drawLine(QPointF(2, 12.5), QPointF(4.5, 8.5))
+        p.drawLine(QPointF(22, 12.5), QPointF(20.5, 8.5))
+        p.setPen(_pen(accent, 1.8))
+        p.drawLine(QPointF(9.5, 17.8), QPointF(14.5, 17.8))
+    return _paint_icon(draw)
+
+
+_PAINTED["archive"] = icon_archive
+_PAINTED["archive_open"] = icon_archive

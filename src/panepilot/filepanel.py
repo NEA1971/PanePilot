@@ -150,7 +150,14 @@ class _FileListMixin:
         event.setDropAction(action)
         return True
 
+    def _into_archive(self) -> bool:
+        model = self.model() if callable(getattr(self, "model", None)) else None
+        return bool(getattr(model, "archive_mode", False))
+
     def dragEnterEvent(self, event) -> None:
+        if self._into_archive():  # v2.2: Archiv ist nur lesbar (L-3209)
+            event.ignore()
+            return
         if self._remote_payload(event) is not None:
             if event.source() is not self:
                 action = self._choose_action(event)
@@ -169,6 +176,9 @@ class _FileListMixin:
         event.ignore()
 
     def dragMoveEvent(self, event) -> None:
+        if self._into_archive():  # v2.2: Archiv ist nur lesbar (L-3209)
+            event.ignore()
+            return
         if self._remote_payload(event) is not None:
             if self._remote_drag(event):
                 event.accept()
@@ -189,6 +199,9 @@ class _FileListMixin:
         event.accept()
 
     def dropEvent(self, event) -> None:
+        if self._into_archive():  # v2.2: Archiv ist nur lesbar (L-3209)
+            event.ignore()
+            return
         payload = self._remote_payload(event)
         if payload is not None:
             if not self._remote_drag(event):
@@ -521,6 +534,7 @@ class FilePanel(QWidget):
     remote_drop_requested = Signal(object, str, object)
     open_file_requested = Signal(str)
     remote_open_requested = Signal(object)  # Entry auf dem Server (v1.3)
+    archive_open_requested = Signal(object)  # Datei in einem Archiv öffnen (v2.2)
     remote_closed = Signal(object)  # Sitzung wurde getrennt
     message = Signal(str, str)  # Titel, Text
     columns_changed = Signal()  # Spalten verschoben/Breite/ein-/ausgeblendet/Ausrichtung
@@ -543,6 +557,9 @@ class FilePanel(QWidget):
         self._columns_set = False
         self.filter_spec = None  # zuletzt definierter Filter (FilterSpec)
         self.remote = None  # Server-Sitzung (v1.3), siehe remotecontrol.RemoteSession
+        self.archive = None  # geöffnetes Archiv (v2.2), siehe archivefs.ArchiveIndex
+        self.archive_loader = None  # vom Hauptfenster: Pfad → ArchiveIndex | None (mit Passwort/Fortschritt)
+        self.open_archives_inside = True  # L-3206: Doppelklick öffnet Archive in PanePilot
         self._filter_on = False
 
         self.header = QFrame(self)
@@ -780,6 +797,61 @@ class FilePanel(QWidget):
             self._history = self._history[-HISTORY_LIMIT:]
             self._history_pos = len(self._history) - 1
 
+    # --- Archive (v2.2, L-3205 ff.) ------------------------------------------------------------
+    @property
+    def in_archive(self) -> bool:
+        return self.model.archive_mode
+
+    def _load_index(self, archive: str):
+        from . import archivefs
+
+        idx = archivefs.cached(archive)
+        if idx is not None:
+            return idx
+        if self.archive_loader is not None:
+            return self.archive_loader(archive)
+        try:
+            idx = archivefs.read_index(archive)
+        except Exception as exc:  # noqa: BLE001
+            self.message.emit(t("archive.title"), str(exc))
+            return None
+        archivefs.remember(idx)
+        return idx
+
+    def _navigate_archive(self, archive: str, inner: str, select_name: str | None, add_history: bool) -> bool:
+        from . import archivefs
+
+        idx = self._load_index(archive)
+        if idx is None:
+            return False
+        items = idx.listdir(inner)
+        while items is None and inner:  # Ordner gibt es (nicht mehr): nächsthöheren nehmen
+            inner = inner.rpartition("/")[0]
+            items = idx.listdir(inner)
+        if items is None:
+            return False
+        self.archive = idx
+        self.model.load_archive(archive, inner, items)
+        if self._watcher.directories():
+            self._watcher.removePaths(self._watcher.directories())
+        path = archivefs.join(archive, inner)
+        self._add_history(path, add_history)
+        self.path_edit.setText(path)
+        self._update_filter_style()
+        self._free_text = ""
+        self._select_after_load(select_name)
+        self._update_status()
+        self.path_changed.emit(path)
+        return True
+
+    def archive_inner(self, path: str | None = None) -> str:
+        """Innerer Pfad eines Eintrags bzw. des aktuellen Ordners im geöffneten Archiv."""
+        path = self.current_path if path is None else path
+        if self.archive is None:
+            return ""
+        a = self.archive.archive
+        return path[len(a) + 1:] if path.startswith(a + "/") else ""
+
     # --- Server (v1.3) ----------------------------------------------------------------------
     @property
     def in_remote(self) -> bool:
@@ -888,6 +960,12 @@ class FilePanel(QWidget):
             if getattr(self, "_restoring_tabs", False) and self.mounts is not None and \
                     self.mounts.needs_mount(path) is not None:
                 path = os.path.expanduser("~")  # beim Start keine Freigabe von selbst einhängen (F-500)
+            if getattr(self, "_restoring_tabs", False) and not os.path.isdir(path):
+                from . import archivefs
+
+                inside = archivefs.split_path(path)
+                if inside is not None:  # v2.2: beim Start nicht ins Archiv (evtl. Passwort), nur daneben
+                    select_name, path = os.path.basename(inside[0]), os.path.dirname(inside[0])
             if not self.navigate(path, select_name=select_name, add_history=False):
                 self.navigate(nearest_existing_dir(path) if not is_remote_uri(path) else os.path.expanduser("~"),
                               add_history=False)
@@ -1173,6 +1251,13 @@ class FilePanel(QWidget):
         if self.mounts is not None and self.mounts.needs_mount(path) is not None:
             self.with_mount(path, lambda: self.navigate(path, select_name, add_history))
             return True
+        if not os.path.isdir(path):
+            from . import archivefs
+
+            inside = archivefs.split_path(path)
+            if inside is not None:
+                return self._navigate_archive(inside[0], inside[1], select_name, add_history)
+        self.archive = None
         try:
             self.model.load(path)
         except OSError as exc:
@@ -1263,6 +1348,19 @@ class FilePanel(QWidget):
             self.select_names(selected, current=cur_name)
             self.list_widget().verticalScrollBar().setValue(scroll)
             self._update_status()
+            return
+        if self.in_archive:
+            from . import archivefs
+
+            inside = archivefs.split_path(self.current_path)
+            if inside is None:
+                self.navigate(nearest_existing_dir(os.path.dirname(self.current_path)))
+                return
+            if not self._navigate_archive(inside[0], inside[1], cur_name, add_history=False):
+                self.navigate(os.path.dirname(inside[0]))
+                return
+            self.select_names(selected, current=cur_name)
+            self.list_widget().verticalScrollBar().setValue(scroll)
             return
         if self.in_remote:
             if self.remote is None:
@@ -1369,10 +1467,20 @@ class FilePanel(QWidget):
             self.go_up()
         elif entry.is_dir:
             self.navigate(entry.path)
+        elif self.in_archive:
+            self.archive_open_requested.emit(entry)
         elif entry.remote:
             self.remote_open_requested.emit(entry)
+        elif self.open_archives_inside and self.can_open_archive(entry):
+            self.navigate(entry.path)  # L-3206: Archiv wie einen Ordner öffnen
         else:
             self.open_file_requested.emit(entry.path)
+
+    def can_open_archive(self, entry) -> bool:
+        from . import archivefs
+
+        return (entry is not None and not entry.is_dir and not entry.remote and not self.in_trash
+                and archivefs.is_archive_file(entry.name) and archivefs.can_browse(entry.name))
 
     def open_current(self) -> None:
         entry = self.current_entry()
@@ -1414,6 +1522,14 @@ class FilePanel(QWidget):
             self.focus_view()
             return
         target = os.path.abspath(os.path.expanduser(text))
+        from . import archivefs
+
+        if not os.path.exists(target) and archivefs.split_path(target) is not None:
+            if not self.navigate(target):
+                self.path_edit.setText(self.current_path)
+                return
+            self.focus_view()
+            return
         if os.path.isfile(target):
             self.navigate(os.path.dirname(target), select_name=os.path.basename(target))
         elif os.path.isdir(target):

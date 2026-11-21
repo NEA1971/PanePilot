@@ -5,12 +5,12 @@ from __future__ import annotations
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from .dialogs import ConflictDialog, ErrorListDialog, ProgressDialog
-from .fileops import COMPRESS, COPY, DELETE, DUPLICATE, EXTRACT, MOVE, PURGE, RESTORE, TRASH, ConflictDecision, OperationResult, OperationThread
+from .fileops import COMPRESS, COPY, DELETE, DUPLICATE, EXTRACT, MOVE, PURGE, RESTORE, TRASH, UNPACK, ConflictDecision, OperationResult, OperationThread
 from .i18n import t
 
 TITLES = {COPY: "title.copy", MOVE: "title.move", TRASH: "title.trash", DELETE: "title.delete",
           RESTORE: "title.restore", PURGE: "title.delete", COMPRESS: "title.compress", EXTRACT: "title.extract",
-          DUPLICATE: "title.duplicate"}
+          DUPLICATE: "title.duplicate", UNPACK: "title.extract"}
 
 
 class OperationController(QObject):

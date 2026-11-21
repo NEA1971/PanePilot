@@ -38,6 +38,7 @@ from .i18n import t
 from .icons import IconProvider, app_icon
 from .operations import OperationController
 from .mounts import MountManager
+from .archivecontrol import ARCHIVE_BLOCKED, ArchiveMixin
 from .metacontrol import META_ALLOWED, MODE_META, MetaWizardMixin
 from .synccontrol import MODE_SYNC, SYNC_ALLOWED, SYNC_FKEYS, SyncMixin
 from .remotecontrol import MODE_SERVERS, REMOTE_BLOCKED, RemoteMixin
@@ -198,7 +199,7 @@ class KeyFilter(QObject):
         return False
 
 
-class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
+class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.settings = Settings()
@@ -328,8 +329,12 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         panel.path_changed.connect(lambda p, n=name: self._on_panel_path_changed(n, p))
         panel.context_menu_requested.connect(lambda pos, n=name: self._file_context_menu(n, pos))
         panel.drop_requested.connect(self._on_drop)
-        panel.remote_drop_requested.connect(self.remote_drop_from_server)
+        panel.remote_drop_requested.connect(
+            lambda pl, tg, ac: self.archive_drop(pl, tg, ac) if pl.get("archive") else self.remote_drop_from_server(pl, tg, ac))
         panel.remote_open_requested.connect(lambda e, p=panel: self.remote_open(p, e))
+        panel.archive_open_requested.connect(lambda e, p=panel: self.archive_open(p, e))  # v2.2
+        panel.archive_loader = self.load_archive_index
+        panel.open_archives_inside = self.settings.get("archive_open") != "app"
         panel.remote_closed.connect(lambda sess, n=name: self._on_remote_closed(n, sess))
         panel.open_file_requested.connect(self._open_file)
         panel.message.connect(lambda title, text: show_error(self, title, text))
@@ -985,8 +990,8 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
     RECENT_LIMIT = 20
 
     def _remember_recent(self, path: str) -> None:
-        if not path or is_remote_uri(path) or is_trash_uri(path) or not os.path.isabs(path):
-            return
+        if not path or is_remote_uri(path) or is_trash_uri(path) or not os.path.isabs(path) or not os.path.isdir(path):
+            return  # v2.2: Ordner in Archiven nicht
         recent = [p for p in self.recent_dirs if p != path]
         self.recent_dirs = [path] + recent[: self.RECENT_LIMIT - 1]
 
@@ -1262,6 +1267,9 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
             return
         if self.active.in_trash and action_id in self.TRASH_BLOCKED:
             return
+        if self.active.in_archive and action_id in ARCHIVE_BLOCKED:  # v2.2 (L-3209)
+            show_info(self, t("archive.title"), t("archive.read_only"))
+            return
         if self.active.in_remote and action_id in REMOTE_BLOCKED:
             show_info(self, t("srv.title"), t("srv.not_on_server"))
             return
@@ -1296,6 +1304,8 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         self._update_nav_actions()
 
     def _copy_or_move(self, move: bool, ask: bool = True) -> None:
+        if self.archive_transfer(move, ask):  # mit Archiv-Fenster (v2.2)
+            return
         if self.remote_transfer(move, ask):  # mit Server-Fenster (v1.3)
             return
         entries = self.active.target_entries()
@@ -1737,6 +1747,9 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
             return
         if aid == "clip_copy":  # v1.23 (L-2310)
             self._fill_clip_menu(menu, with_copy=True)
+            return
+        if aid == "archive":  # v2.2 (L-3200)
+            self._fill_archive_menu(menu)
             return
         for index, path in panel.history_entries(forward=aid == "forward")[:20]:
             label = t("trash.title") if is_trash_uri(path) else path
@@ -2225,6 +2238,10 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         if self.sides[side].panel.in_remote:
             self.remote_file_menu(side, pos)
             return
+        if self.sides[side].panel.in_archive:
+            self._archive_context_menu(menu)
+            self._exec_menu(menu, pos)
+            return
         if self.sides[side].panel.in_trash:
             # Kontextmenü im Papierkorb (F-408)
             if self.active.target_entries():
@@ -2243,9 +2260,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         self._open_with_menu(menu)
         menu.addAction(a["add_favorite"])
         menu.addSeparator()
-        if self.active.target_entries():
-            menu.addAction(a["compress"])
-        self._extract_menu_entries(menu)
+        self._fill_archive_menu(menu.addMenu(a["archive"].icon(), t("menu.archive")))  # v2.2 (L-3203)
         for aid in (None, "clip_cut", "clip_copy", "clip_paste", "_clip_menu", None,
                     "rename", "duplicate", "multi_rename", "meta_wizard", "delete", "delete_permanent", None,
                     "new_folder", "new_textfile"):
@@ -2283,30 +2298,25 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         self._exec_menu(menu, pos)
 
     # --- Archive (F-530 ff.) -------------------------------------------------------------
+    def _archive_context_menu(self, menu: QMenu) -> None:
+        """Rechtsklick im Archiv (v2.2): nur lesende Funktionen."""
+        a = self.qactions
+        entries = [e for e in self.active.target_entries() if not e.is_parent]
+        menu.addAction(a["open"])
+        if any(e.is_dir for e in entries):
+            menu.addAction(a["open_in_tab"])
+        if entries:
+            menu.addSeparator()
+            menu.addAction(a["copy"])
+        menu.addSeparator()
+        self._fill_archive_menu(menu.addMenu(a["archive"].icon(), t("menu.archive")))
+        self._fill_clip_menu(menu.addMenu(t("menu.clip_text")))
+        menu.addSeparator()
+        menu.addAction(a["refresh"])
+
     def _selected_archives(self) -> list[str]:
         return [e.path for e in self.active.target_entries()
                 if not e.is_dir and archives.archive_format(e.name) is not None]
-
-    def _extract_menu_entries(self, menu: QMenu) -> None:
-        paths = self._selected_archives()
-        if not paths:
-            return
-        usable = [p for p in paths if archives.can_extract(archives.archive_format(os.path.basename(p)))]
-        hint = ""
-        if not usable:
-            hint = archives.missing_hint(archives.archive_format(os.path.basename(paths[0])) or "", False)
-            menu.setToolTipsVisible(True)
-        if len(paths) == 1:
-            sub_text = t("action.extract_subfolder_one", name=archives.archive_stem(os.path.basename(paths[0])))
-        else:
-            sub_text = t("action.extract_subfolder_many")
-        for aid, text in (("extract_here", t("action.extract_here")), ("extract_subfolder", sub_text),
-                          ("extract_to", t("action.extract_to"))):
-            act = menu.addAction(text)
-            act.setEnabled(bool(usable))
-            if hint:
-                act.setToolTip(hint)
-            act.triggered.connect(lambda _c=False, x=aid: self.trigger(x))
 
     def do_compress(self) -> None:
         panel = self.active
@@ -2355,6 +2365,19 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
                              for a in self._selected_archives()])
 
     def do_extract_to(self) -> None:
+        if self.active.in_archive:  # v2.2: markierte Dateien aus dem geöffneten Archiv
+            entries = [e for e in self.active.target_entries() if not e.is_parent]
+            if not entries:
+                return
+            other = self.other
+            default = other.current_path if not self.single_mode and os.path.isdir(other.current_path) \
+                else os.path.dirname(self.active.archive.archive)
+            what = t("dialog.one_item", name=entries[0].name) if len(entries) == 1 \
+                else t("dialog.n_items", n=len(entries))
+            dlg = ExtractToDialog(self, what, default)
+            if dlg.exec() == dlg.DialogCode.Accepted:
+                self.archive_unpack(self.active, [e.path for e in entries], dlg.target())
+            return
         paths = self._selected_archives()
         if not paths:
             return

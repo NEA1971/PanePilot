@@ -27,6 +27,7 @@ COPY, MOVE, TRASH, DELETE = "copy", "move", "trash", "delete"
 DUPLICATE = "duplicate"  # v1.10: Kopie im selben Ordner mit „-Kopie“ (L-1010 ff.)
 RESTORE, PURGE = "restore", "purge"  # Papierkorb: wiederherstellen / endgültig löschen
 COMPRESS, EXTRACT = "compress", "extract"  # Archive (F-530 ff., F-540 ff.)
+UNPACK = "unpack"  # v2.2: Dateien/Ordner aus einem geöffneten Archiv entpacken (L-3208)
 
 
 @dataclass
@@ -179,6 +180,8 @@ class OperationEngine:
             return self._run_compress()
         if self.kind == EXTRACT:
             return self._run_extract()
+        if self.kind == UNPACK:
+            return self._run_unpack()
         if self.kind == PURGE:
             self._total = len(self.sources)
             for src in self.sources:
@@ -333,6 +336,49 @@ class OperationEngine:
                         self.result.created.remove(os.path.basename(dest))
                 except OSError:
                     pass
+        return self.result
+
+    def _run_unpack(self) -> OperationResult:
+        """options: {"index": ArchiveIndex, "items": [innere Pfade], "base": Ordner im Archiv}.
+
+        Wie beim Entpacken: erst in einen Hilfsordner im Ziel, dann mit Konfliktdialog einsortieren.
+        """
+        import posixpath
+        import tempfile
+
+        from .archivefs import extract_items
+        from .archives import ArchiveError, Cancelled
+
+        idx, items, base = self.options["index"], self.options["items"], self.options.get("base", "")
+        dest = self.target_dir
+        size = idx.size_of(items)
+        self._total = 2 * max(size, 1)
+        try:
+            tmp = tempfile.mkdtemp(prefix=".panepilot-entpacken-", dir=dest)
+        except OSError as exc:
+            self._error(dest, _reason(exc))
+            return self.result
+        try:
+            extract_items(idx, items, base, tmp, self._archive_ctx())
+            self._done = max(size, 1)
+            for inner in items:
+                if self._cancelled():
+                    break
+                name = posixpath.basename(inner.strip("/"))
+                src = os.path.join(tmp, name)
+                if not os.path.lexists(src):
+                    continue
+                final = self._transfer(src, os.path.join(dest, name), move=True, top_level=True)
+                if final:
+                    self.result.created.append(os.path.basename(final))
+        except Cancelled:
+            self.result.cancelled = True
+        except ArchiveError as exc:
+            self._error(idx.archive, str(exc))
+        except OSError as exc:
+            self._error(idx.archive, _reason(exc))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
         return self.result
 
     def _resolve_conflict(self, src: str, dst: str) -> ConflictDecision:

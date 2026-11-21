@@ -217,6 +217,7 @@ class FileListModel(QAbstractTableModel):
         self.remote_mode = False  # Server-Ordner (v1.3)
         self.remote_rename = None  # Funktion (Entry, neuer Name) → Fehlertext oder None
         self.remote_side = ""  # zum Ziehen zwischen den Fenstern
+        self.archive_mode = False  # Inhalt eines Archivs (v2.2, L-3205)
 
     # --- Laden ---------------------------------------------------------------
     @property
@@ -239,6 +240,7 @@ class FileListModel(QAbstractTableModel):
         self.beginResetModel()
         self.search_base = None
         self.remote_mode = False
+        self.archive_mode = False
         self.trash_mode = True
         self._dir = uri
         self._entries = entries
@@ -254,6 +256,7 @@ class FileListModel(QAbstractTableModel):
         self.beginResetModel()
         self.trash_mode = False
         self.remote_mode = False
+        self.archive_mode = False
         self.search_base = base
         self._dir = base
         self._entries = list(entries)
@@ -314,6 +317,7 @@ class FileListModel(QAbstractTableModel):
         self.beginResetModel()
         self.search_base = None
         self.trash_mode = False
+        self.archive_mode = False
         self.remote_mode = True
         self._dir = base + path
         self._entries = entries
@@ -324,8 +328,42 @@ class FileListModel(QAbstractTableModel):
         self.endResetModel()
         self.headerDataChanged.emit(Qt.Orientation.Horizontal, 0, COLUMN_COUNT - 1)
 
+    def load_archive(self, archive: str, inner: str, items) -> None:
+        """Ordner in einem Archiv (v2.2); Pfade wie „/a/Fotos.zip/Urlaub/bild.jpg“, nur lesbar."""
+        import posixpath
+
+        from .archivefs import join
+
+        inner = inner.strip("/")
+        entries = []
+        for it in items:
+            hidden = it.name.startswith(".")
+            if hidden and not self._show_hidden:
+                continue
+            e = Entry(name=it.name, path=join(archive, posixpath.join(inner, it.name)), is_dir=it.is_dir,
+                      size=it.size, mtime=it.mtime, is_link=it.is_link, hidden=hidden, btime=-1.0, remote=True)
+            e.type_text = t("type.folder") if it.is_dir else self._icons.type_text(it.name)
+            entries.append(e)
+        self.total_count = len(entries)
+        if self.accept is not None:
+            entries = [e for e in entries if self.accept(e.name, e.is_dir)]
+        self.beginResetModel()
+        self.search_base = None
+        self.trash_mode = False
+        self.remote_mode = False
+        self.archive_mode = True
+        self._dir = join(archive, inner)
+        self._entries = entries
+        self._sort_entries()
+        if self._show_parent:
+            parent = join(archive, posixpath.dirname(inner)) if inner else os.path.dirname(archive)
+            self._entries.insert(0, Entry(name="..", path=parent, is_dir=True, is_parent=True, remote=True))
+        self.endResetModel()
+        self.headerDataChanged.emit(Qt.Orientation.Horizontal, 0, COLUMN_COUNT - 1)
+
     def load(self, path: str) -> None:
         self.remote_mode = False
+        self.archive_mode = False
         self.search_base = None
         entries = scan_directory(path, self._show_hidden, self._icons)
         self.total_count = len(entries)
@@ -537,16 +575,16 @@ class FileListModel(QAbstractTableModel):
         flags = Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
         if not e.is_parent:
             flags |= Qt.ItemFlag.ItemIsDragEnabled
-            if index.column() in NAME_COLUMNS and not self.trash_mode:
+            if index.column() in NAME_COLUMNS and not self.trash_mode and not self.archive_mode:
                 flags |= Qt.ItemFlag.ItemIsEditable
-        if e.is_dir and not self.trash_mode:
+        if e.is_dir and not self.trash_mode and not self.archive_mode:
             flags |= Qt.ItemFlag.ItemIsDropEnabled
         return flags
 
     def setData(self, index: QModelIndex, value, role=Qt.ItemDataRole.EditRole) -> bool:
         if role != Qt.ItemDataRole.EditRole or not index.isValid() or index.column() not in NAME_COLUMNS:
             return False
-        if self.trash_mode:
+        if self.trash_mode or self.archive_mode:
             return False
         e = self._entries[index.row()]
         new_name = str(value).strip()
@@ -604,6 +642,15 @@ class FileListModel(QAbstractTableModel):
 
     def mimeData(self, indexes) -> QMimeData:
         rows = sorted({i.row() for i in indexes})
+        if self.archive_mode:  # v2.2: Ziehen aus dem Archiv = entpacken
+            import json
+
+            md = QMimeData()
+            picked = [self._entries[r] for r in rows if not self._entries[r].is_parent]
+            md.setData(REMOTE_MIME, json.dumps({"side": self.remote_side, "archive": True,
+                                                "paths": [e.path for e in picked],
+                                                "dirs": [e.is_dir for e in picked]}).encode())
+            return md
         if self.remote_mode:
             import json
 

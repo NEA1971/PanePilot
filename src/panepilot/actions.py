@@ -71,6 +71,8 @@ ACTION_DEFS: tuple[ActionDef, ...] = (
     ActionDef("extract_here", "action.extract_here", (), "window"),
     ActionDef("extract_subfolder", "action.extract_subfolder", (), "window"),
     ActionDef("extract_to", "action.extract_to", (), "window"),
+    ActionDef("archive", "action.archive", (), "window"),  # v2.2: Knopf mit Pfeil-Menü (L-3200)
+    ActionDef("archive_open", "action.archive_open", (), "window"),
     ActionDef("delete", "action.delete", ("Del",), "list"),
     ActionDef("delete_permanent", "action.delete_permanent", ("Shift+Del",), "list"),
     ActionDef("open", "action.open", ("Return", "Enter"), "list"),

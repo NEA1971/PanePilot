@@ -202,6 +202,7 @@ class SettingsDialog(QDialog):
         page.add_section(t("settings.sec_size"), self._size_section())
         page.add_section(t("settings.sec_columns"), self._columns_tab())
         page.add_section(t("settings.sec_tabs"), self._tabs_section())  # v2.1
+        page.add_section(t("settings.sec_archives"), self._archives_section())  # v2.2
         # Reiter „Meta-Wizard“: ReplayGain
         page = self._page("meta", t("settings.tab_meta"))
         page.add_section(t("settings.sec_replaygain"), self._replaygain_section())
@@ -262,6 +263,26 @@ class SettingsDialog(QDialog):
         self.tabs_always.setChecked(bool(self.window.settings.get("tabs_always")))
         lay.addWidget(self.tabs_always)
         lay.addWidget(self._hint(t("settings.tabs_hint"), w))
+        return w
+
+    # --- Archive (v2.2, L-3206) ------------------------------------------------------------------------
+    def _archives_section(self) -> QWidget:
+        from PySide6.QtWidgets import QButtonGroup, QRadioButton
+
+        w = QWidget(self)
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.addWidget(QLabel(t("settings.archive_open"), w))
+        self.archive_open: dict[str, QRadioButton] = {}
+        group = QButtonGroup(w)
+        current = "app" if self.window.settings.get("archive_open") == "app" else "panepilot"
+        for key in ("panepilot", "app"):
+            b = QRadioButton(t(f"settings.archive_open_{key}"), w)
+            b.setChecked(key == current)
+            group.addButton(b)
+            lay.addWidget(b)
+            self.archive_open[key] = b
+        lay.addWidget(self._hint(t("settings.archive_hint"), w))
         return w
 
     # --- Updates (v1.2) -----------------------------------------------------------------
@@ -1132,6 +1153,10 @@ class SettingsDialog(QDialog):
         s.set("replaygain_target", round(self.rg_target.value(), 1))
         s.set("update_check", self.update_check.isChecked())
         s.set("tabs_always", self.tabs_always.isChecked())
+        archive_open = "app" if self.archive_open["app"].isChecked() else "panepilot"
+        s.set("archive_open", archive_open)
+        for side in self.window.sides.values():
+            side.panel.open_archives_inside = archive_open != "app"
         for side in self.window.sides.values():
             side.panel.set_tabs_always(self.tabs_always.isChecked())
         from . import moviedb as md
