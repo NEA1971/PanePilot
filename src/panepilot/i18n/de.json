@@ -1177,7 +1177,7 @@
   "dup.mode_content": "a) Gleicher Inhalt (byte-genau, mit Prüfsumme)",
   "dup.mode_name": "b) Gleicher Name ohne Endung (z. B. Film.mkv und Film.mp4)",
   "dup.mode_namesize": "c) Gleicher Name und gleiche Größe (schnell, ohne Prüfsumme)",
-  "dup.speed_hint": "b) bis e) sind schnell, weil nur Namen und Größen verglichen werden (e bei sehr vielen Dateien etwas langsamer). a) ist am genauesten, muss aber gleich große Dateien vollständig lesen – bei großen Dateien oder über das Netzwerk (NAS) kann das lange dauern. Bei e) zählen Endung, Groß-/Kleinschreibung, Satzzeichen und Kennungen wie [imdbid-…] nicht; Zahlen im Namen müssen übereinstimmen.",
+  "dup.speed_hint": "b) bis e) sind schnell, weil nur Namen und Größen verglichen werden (e bei sehr vielen Dateien etwas langsamer). a) ist am genauesten, muss aber gleich große Dateien vollständig lesen – bei großen Dateien oder über das Netzwerk (NAS) kann das lange dauern. Bei e) zählen Endung, Groß-/Kleinschreibung, Satzzeichen und Kennungen wie [imdbid-…] nicht; Zahlen im Namen müssen übereinstimmen. f) vergleicht Bilder bzw. Videos nach dem Bildinhalt (nicht gedreht oder gespiegelt); Videos brauchen 1–3 Sekunden je Datei, beim nächsten Mal geht es dank gemerkter Fingerabdrücke schnell.",
   "dup.depth_one": "1 (nur dieser Ordner)",
   "dup.pattern": "Nur Dateien:",
   "dup.min_size": "Mindestgröße:",
@@ -1629,5 +1629,9 @@
   "online.auto_done": "{taken} Film(e) übernommen, {missing} nicht gefunden, {skipped} übersprungen.",
   "online.auto_unchanged": "{n} Film(e) gefunden, aber ohne neue Werte.",
   "online.auto_hint": "Die Werte sind grün vorgemerkt – gespeichert wird erst mit „Tag speichern“.",
-  "action.toggle_shared_sidebar": "Gemeinsame Seitenleiste"
+  "action.toggle_shared_sidebar": "Gemeinsame Seitenleiste",
+  "dup.mode_visual": "f) Ähnliches Bild/Video (Bildinhalt)",
+  "dup.col_resolution": "Auflösung",
+  "dup.pick_resolution": "Höchste Auflösung behalten",
+  "dup.fingerprints": "Fingerabdrücke werden erstellt: {done} von {total}"
 }

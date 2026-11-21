@@ -1176,7 +1176,7 @@
   "dup.mode_content": "a) Same content (byte-identical, with checksum)",
   "dup.mode_name": "b) Same name without extension (e.g. Film.mkv and Film.mp4)",
   "dup.mode_namesize": "c) Same name and same size (fast, no checksum)",
-  "dup.speed_hint": "b) to e) are fast because only names and sizes are compared (e is somewhat slower with very many files). a) is the most accurate but has to read files of the same size completely – with large files or over the network (NAS) this can take a long time. For e), extension, case, punctuation and IDs like [imdbid-…] do not count; numbers in the name must match.",
+  "dup.speed_hint": "b) to e) are fast because only names and sizes are compared (e is somewhat slower with very many files). a) is the most accurate but has to read files of the same size completely – with large files or over the network (NAS) this can take a long time. For e), extension, case, punctuation and IDs like [imdbid-…] do not count; numbers in the name must match. f) compares images or videos by picture content (not rotated or mirrored); videos take 1–3 seconds per file, the next run is fast thanks to remembered fingerprints.",
   "dup.depth_one": "1 (this folder only)",
   "dup.pattern": "Only files:",
   "dup.min_size": "Minimum size:",
@@ -1628,5 +1628,9 @@
   "online.auto_done": "{taken} movie(s) applied, {missing} not found, {skipped} skipped.",
   "online.auto_unchanged": "{n} movie(s) found but without new values.",
   "online.auto_hint": "The values are marked green – nothing is written until “Save tags”.",
-  "action.toggle_shared_sidebar": "Shared sidebar"
+  "action.toggle_shared_sidebar": "Shared sidebar",
+  "dup.mode_visual": "f) Similar image/video (picture content)",
+  "dup.col_resolution": "Resolution",
+  "dup.pick_resolution": "Keep highest resolution",
+  "dup.fingerprints": "Creating fingerprints: {done} of {total}"
 }

@@ -14,7 +14,7 @@ import stat
 import time
 from dataclasses import asdict, dataclass, field, fields
 
-from PySide6.QtCore import QThread, Qt, Signal
+from PySide6.QtCore import QSize, QThread, QTimer, Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QButtonGroup,
@@ -43,7 +43,9 @@ from .filters import FilterSpec
 from .i18n import t
 
 MODE_CONTENT, MODE_NAME, MODE_NAMESIZE, MODE_ID, MODE_SIMILAR = "content", "name", "namesize", "id", "similar"
-MODES = (MODE_CONTENT, MODE_NAME, MODE_NAMESIZE, MODE_ID, MODE_SIMILAR)
+MODE_VISUAL = "visual"  # f) ähnliches Bild/Video (v1.22, L-2200)
+MODES = (MODE_CONTENT, MODE_NAME, MODE_NAMESIZE, MODE_ID, MODE_SIMILAR, MODE_VISUAL)
+VISUAL_DEFAULT = 90
 SIMILAR_MIN, SIMILAR_MAX, SIMILAR_DEFAULT = 70, 100, 85  # Regler in Prozent (v1.20, L-2010)
 # Kennung im Dateinamen wie bei Jellyfin/Plex/Kodi, z. B. „Alien (1979) [imdbid-tt0078748].mkv“ (v1.6.2)
 _ID_RX = re.compile(r"[\[{]\s*(imdbid|tmdbid|tvdbid|imdb|tmdb|tvdb)\s*[-=]\s*([A-Za-z0-9]+)\s*[\]}]", re.IGNORECASE)
@@ -61,6 +63,7 @@ class DupOptions:
     pattern: str = ""  # z. B. „*.mp4;*.mkv“ (L-623)
     min_size_mb: int = 0
     similarity: int = SIMILAR_DEFAULT  # nur bei e) Ähnlicher Name
+    visual: int = VISUAL_DEFAULT  # nur bei f) Ähnliches Bild/Video
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -89,6 +92,7 @@ class DupOptions:
         opts.depth = max(0, min(opts.depth, 10))
         opts.min_size_mb = max(0, opts.min_size_mb)
         opts.similarity = max(SIMILAR_MIN, min(opts.similarity, SIMILAR_MAX))
+        opts.visual = max(SIMILAR_MIN, min(opts.visual, SIMILAR_MAX))
         return opts
 
 
@@ -97,6 +101,9 @@ class FileInfo:
     path: str
     size: int
     mtime: float
+    width: int = 0  # f) Auflösung und Laufzeit (L-2206)
+    height: int = 0
+    duration: float = 0.0
 
     @property
     def name(self) -> str:
@@ -313,9 +320,87 @@ def _hash(path: str, limit: int | None, stop, on_bytes) -> str | None:
     return None if stop() else h.hexdigest()
 
 
+def visual_groups(files: list[FileInfo], percent: int, stop=lambda: False, on_prints=lambda done, total: None,
+                  on_compare=lambda done, total: None, cache=None) -> list[Group]:
+    """L-2200 ff.: Gruppen ähnlicher Bilder bzw. Videos nach Fingerabdruck."""
+    from . import fingerprint as fp
+
+    limit = max(SIMILAR_MIN, min(percent, SIMILAR_MAX)) / 100.0
+    wanted = [f for f in files if fp.kind_of(f.path) is not None]
+    own = cache is None
+    cache = fp.Cache() if own else cache
+    prints: list[tuple[FileInfo, fp.Print]] = []
+    try:
+        for n, f in enumerate(wanted):
+            if stop():
+                return []
+            on_prints(n, len(wanted))
+            pr = cache.get(f.path, f.size, f.mtime)
+            if pr is None:
+                pr = fp.make_print(f.path, stop)
+                if pr is None:
+                    continue
+                cache.put(f.path, f.size, f.mtime, pr)
+            f.width, f.height, f.duration = pr.width, pr.height, pr.duration
+            prints.append((f, pr))
+        on_prints(len(wanted), len(wanted))
+    finally:
+        if own:
+            cache.close()
+    parent = list(range(len(prints)))
+
+    def find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    images = [i for i, (_f, p) in enumerate(prints) if p.kind == fp.KIND_IMAGE]
+    videos = sorted((i for i, (_f, p) in enumerate(prints) if p.kind == fp.KIND_VIDEO),
+                    key=lambda i: prints[i][1].duration)
+    max_bits = int((1.0 - limit) * fp.BITS + 1e-9)  # erlaubte abweichende Bits
+    hashes = [prints[i][1].hashes[0] for i in images]
+    total = len(images) + len(videos)
+    for a in range(len(images)):
+        if stop():
+            return []
+        if a % 200 == 0:
+            on_compare(a, total)
+        ha = hashes[a]
+        for b in range(a + 1, len(images)):
+            if (ha ^ hashes[b]).bit_count() <= max_bits:
+                ra, rb = find(images[a]), find(images[b])
+                if ra != rb:
+                    parent[rb] = ra
+    for a, i in enumerate(videos):  # nach Laufzeit sortiert: nur Nachbarn mit ähnlicher Laufzeit
+        if stop():
+            return []
+        pa = prints[i][1]
+        for j in videos[a + 1:]:
+            pb = prints[j][1]
+            if pb.duration - pa.duration > pb.duration * fp.DURATION_TOLERANCE:
+                break
+            if fp.print_similarity(pa, pb) >= limit - 1e-9:
+                ri, rj = find(i), find(j)
+                if ri != rj:
+                    parent[rj] = ri
+    on_compare(total, total)
+    clusters: dict[int, list[FileInfo]] = {}
+    for i, (f, _p) in enumerate(prints):
+        clusters.setdefault(find(i), []).append(f)
+    groups = []
+    for members in clusters.values():
+        if len(members) > 1:
+            members.sort(key=lambda f: (-(f.width * f.height), f.path.casefold()))
+            groups.append(Group(stem(members[0].name), members))
+    return _sorted(groups)
+
+
 def find_groups(files: list[FileInfo], mode: str, stop=lambda: False, on_bytes=lambda n: None,
                 set_total=lambda n: None, similarity: int = SIMILAR_DEFAULT,
-                on_compare=lambda done, total: None) -> list[Group]:
+                on_compare=lambda done, total: None, on_prints=lambda done, total: None) -> list[Group]:
+    if mode == MODE_VISUAL:
+        return visual_groups(files, similarity, stop, on_prints, on_compare)
     if mode == MODE_SIMILAR:
         return similar_groups(files, similarity, stop, on_compare)
     if mode == MODE_NAME:
@@ -377,6 +462,7 @@ class DupThread(QThread):
     bytes_progress = Signal(object, object)  # gelesen, gesamt (große Zahlen als Python-int)
     done = Signal(list, bool, int)  # Gruppen, vollständig (nicht abgebrochen), Anzahl geprüfter Dateien
     compare_progress = Signal(int, int)  # Namen verglichen, gesamt (e, L-2013)
+    print_progress = Signal(int, int)  # Fingerabdrücke, gesamt (f, L-2205)
 
     def __init__(self, opts: DupOptions, folders: list[str], hidden: bool, parent=None) -> None:
         super().__init__(parent)
@@ -390,6 +476,12 @@ class DupThread(QThread):
 
     def stop(self) -> None:
         self._stop = True
+
+    def _prints(self, done: int, total: int) -> None:
+        now = time.monotonic()
+        if done >= total or now - self._last > 0.2:
+            self._last = now
+            self.print_progress.emit(done, total)
 
     def _on_bytes(self, n: int) -> None:
         self._read += n
@@ -406,8 +498,9 @@ class DupThread(QThread):
         stop = lambda: self._stop  # noqa: E731
         files = collect(self.folders, self.opts.depth, self.hidden, self.opts.pattern,
                         self.opts.min_size_mb * 1000 * 1000, stop, self.counted.emit)
+        percent = self.opts.visual if self.opts.mode == MODE_VISUAL else self.opts.similarity
         groups = [] if self._stop else find_groups(files, self.opts.mode, stop, self._on_bytes, self._set_total,
-                                                   self.opts.similarity, self.compare_progress.emit)
+                                                   percent, self.compare_progress.emit, self._prints)
         self.done.emit(groups, not self._stop, len(files))
 
 
@@ -421,9 +514,23 @@ def groups_text(groups: list[Group], opts: DupOptions, folders: list[str], check
         lines.append(f"[{n}] {g.key}")
         for f in g.files:
             when = time.strftime("%Y-%m-%d %H:%M", time.localtime(f.mtime))
-            lines.append(f"    {f.path}    {format_size(f.size)}    {when}")
+            res = f"    {resolution_text(f)}" if f.width else ""
+            lines.append(f"    {f.path}    {format_size(f.size)}    {when}{res}")
         lines.append("")
     return "\n".join(lines)
+
+
+def resolution_text(f: FileInfo) -> str:
+    """L-2206: „1920 × 1080“, bei Videos mit Laufzeit."""
+    if not f.width:
+        return ""
+    text = f"{f.width} × {f.height}"
+    if f.duration:
+        sec = int(round(f.duration))
+        h, rest = divmod(sec, 3600)
+        m, sec = divmod(rest, 60)
+        text += f"  ({h}:{m:02d}:{sec:02d})" if h else f"  ({m}:{sec:02d})"
+    return text
 
 
 def summary_text(groups: list[Group], checked: int | None = None) -> str:
@@ -442,6 +549,7 @@ def summary_text(groups: list[Group], checked: int | None = None) -> str:
 
 # --- Fenster ---------------------------------------------------------------------------------------------
 PICK_NEWEST, PICK_OLDEST, PICK_LARGEST, PICK_NONE = "newest", "oldest", "largest", "none"
+PICK_RESOLUTION = "resolution"  # v1.22 (L-2207)
 
 
 class DuplicateWindow(QWidget):
@@ -496,6 +604,22 @@ class DuplicateWindow(QWidget):
         srow.addWidget(self.similar_label)
         modes.addLayout(srow)
         self.mode_buttons[MODE_SIMILAR].toggled.connect(lambda _on: self._similar_changed())
+        # f) wurde hinter e) eingefügt: Regler von e) gehört vor f)
+        modes.removeWidget(self.mode_buttons[MODE_VISUAL])
+        modes.addWidget(self.mode_buttons[MODE_VISUAL])
+        self.visual = QSlider(Qt.Orientation.Horizontal, self)  # v1.22 (L-2200)
+        self.visual.setRange(SIMILAR_MIN, SIMILAR_MAX)
+        self.visual.setPageStep(5)
+        self.visual.setValue(opts.visual)
+        self.visual_label = QLabel(self)
+        self.visual.valueChanged.connect(self._similar_changed)
+        vrow = QHBoxLayout()
+        vrow.setContentsMargins(24, 0, 0, 0)
+        vrow.addWidget(QLabel(t("dup.similarity"), self))
+        vrow.addWidget(self.visual, 1)
+        vrow.addWidget(self.visual_label)
+        modes.addLayout(vrow)
+        self.mode_buttons[MODE_VISUAL].toggled.connect(lambda _on: self._similar_changed())
         self._similar_changed()
         hint = QLabel(t("dup.speed_hint"), self)  # L-611
         hint.setWordWrap(True)
@@ -531,8 +655,10 @@ class DuplicateWindow(QWidget):
         self.summary = QLabel(self)
         self.summary.setWordWrap(True)
         self.tree = QTreeWidget(self)
-        self.tree.setColumnCount(4)
-        self.tree.setHeaderLabels([t("dup.col_name"), t("dup.col_folder"), t("dup.col_size"), t("dup.col_date")])
+        self.tree.setColumnCount(5)
+        self.tree.setHeaderLabels([t("dup.col_name"), t("dup.col_folder"), t("dup.col_size"), t("dup.col_date"),
+                                   t("dup.col_resolution")])
+        self.tree.setColumnHidden(4, True)
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.tree.setRootIsDecorated(True)
         self.tree.setUniformRowHeights(True)
@@ -548,8 +674,11 @@ class DuplicateWindow(QWidget):
         self.btn_pick.setText(t("dup.pick"))
         self.btn_pick.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         pick = QMenu(self.btn_pick)
-        for key in (PICK_NEWEST, PICK_OLDEST, PICK_LARGEST, PICK_NONE):
-            pick.addAction(t(f"dup.pick_{key}")).triggered.connect(lambda _c=False, k=key: self.pick(k))
+        self.pick_actions = {}
+        for key in (PICK_NEWEST, PICK_OLDEST, PICK_LARGEST, PICK_RESOLUTION, PICK_NONE):
+            act = pick.addAction(t(f"dup.pick_{key}"))
+            act.triggered.connect(lambda _c=False, k=key: self.pick(k))
+            self.pick_actions[key] = act
         self.btn_pick.setMenu(pick)
         self.btn_trash = QPushButton(t("dup.trash"), self)
         self.btn_trash.clicked.connect(self.move_to_trash)
@@ -590,13 +719,19 @@ class DuplicateWindow(QWidget):
         mode = next((m for m, b in self.mode_buttons.items() if b.isChecked()), MODE_NAME)
         return DupOptions(folder=self.folder_edit.text().strip(), mode=mode, depth=int(self.depth.currentData()),
                           other=self.other_check.isChecked(), pattern=self.pattern.text().strip(),
-                          min_size_mb=self.min_size.value(), similarity=self.similar.value())
+                          min_size_mb=self.min_size.value(), similarity=self.similar.value(),
+                          visual=self.visual.value())
 
     def _similar_changed(self, *_args) -> None:
         self.similar_label.setText(f"{self.similar.value()} %")
         on = self.mode_buttons[MODE_SIMILAR].isChecked() and self.mode_buttons[MODE_SIMILAR].isEnabled()
         self.similar.setEnabled(on)
         self.similar_label.setEnabled(on)
+        if hasattr(self, "visual"):
+            self.visual_label.setText(f"{self.visual.value()} %")
+            on = self.mode_buttons[MODE_VISUAL].isChecked() and self.mode_buttons[MODE_VISUAL].isEnabled()
+            self.visual.setEnabled(on)
+            self.visual_label.setEnabled(on)
 
     def _browse(self) -> None:
         path = QFileDialog.getExistingDirectory(self, t("dup.browse"), self.folder_edit.text())
@@ -646,6 +781,7 @@ class DuplicateWindow(QWidget):
         th.counted.connect(lambda n: self.status.setText(t("dup.counting", n=n)))
         th.bytes_progress.connect(self._bytes)
         th.compare_progress.connect(self._compared)
+        th.print_progress.connect(self._printed)
         th.done.connect(self._done)
         self.thread = th
         th.start()
@@ -657,6 +793,12 @@ class DuplicateWindow(QWidget):
             self.bar.setRange(0, 1000)
             self.bar.setValue(int(1000 * min(done, total) / total))
             self.status.setText(t("dup.reading", done=format_size(done), total=format_size(total)))
+
+    def _printed(self, done: int, total: int) -> None:
+        if total:
+            self.bar.setRange(0, 1000)
+            self.bar.setValue(int(1000 * min(done, total) / total))
+            self.status.setText(t("dup.fingerprints", done=done, total=total))
 
     def _compared(self, done: int, total: int) -> None:
         if total:
@@ -684,6 +826,11 @@ class DuplicateWindow(QWidget):
     def _fill(self) -> None:
         from .util import format_size
 
+        visual = self.last_opts is not None and self.last_opts.mode == MODE_VISUAL
+        self.tree.setColumnHidden(4, not visual)
+        self.tree.setIconSize(QSize(48, 48) if visual else QSize(16, 16))
+        self.tree.setUniformRowHeights(not visual)  # Gruppenzeilen sind niedriger als Zeilen mit Vorschaubild
+        self.pick_actions[PICK_RESOLUTION].setVisible(visual)
         self.tree.blockSignals(True)
         self.tree.clear()
         for g in self.groups:
@@ -695,7 +842,10 @@ class DuplicateWindow(QWidget):
             top.setFlags(Qt.ItemFlag.ItemIsEnabled)
             for f in g.files:
                 when = time.strftime("%Y-%m-%d %H:%M", time.localtime(f.mtime))
-                child = QTreeWidgetItem([f.name, os.path.dirname(f.path), format_size(f.size), when])
+                child = QTreeWidgetItem([f.name, os.path.dirname(f.path), format_size(f.size), when,
+                                         resolution_text(f)])
+                if visual:
+                    self._set_thumb(child, f)
                 child.setData(0, Qt.ItemDataRole.UserRole, f)
                 child.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable |
                                Qt.ItemFlag.ItemIsUserCheckable)
@@ -708,6 +858,40 @@ class DuplicateWindow(QWidget):
         self.tree.blockSignals(False)
         self.summary.setText(summary_text(self.groups, self.checked_count))  # L-641
         self._update_buttons()
+
+    def _set_thumb(self, item: QTreeWidgetItem, f: FileInfo) -> bool:
+        """L-2206: kleines Vorschaubild; fehlt es, kommt es aus dem Hintergrund nach."""
+        from PySide6.QtGui import QIcon
+
+        from . import thumbnails
+
+        loader = thumbnails.loader()
+        if not getattr(self, "_thumbs_connected", False):
+            loader.ready.connect(lambda _p: self._thumb_timer().start())
+            self._thumbs_connected = True
+        pix = loader.get(f.path, f.mtime, 128)
+        if pix is None or pix.isNull():
+            return False
+        item.setIcon(0, QIcon(pix))
+        return True
+
+    def _thumb_timer(self) -> QTimer:
+        timer = getattr(self, "_tt", None)
+        if timer is None:
+            timer = self._tt = QTimer(self)
+            timer.setSingleShot(True)
+            timer.setInterval(100)
+            timer.timeout.connect(self._refresh_thumbs)
+        return timer
+
+    def _refresh_thumbs(self) -> None:
+        if self.last_opts is None or self.last_opts.mode != MODE_VISUAL:
+            return
+        self.tree.blockSignals(True)
+        for _top, c in self.file_items():
+            if c.icon(0).isNull():
+                self._set_thumb(c, c.data(0, Qt.ItemDataRole.UserRole))
+        self.tree.blockSignals(False)
 
     # Auswahl
     def file_items(self):
@@ -734,6 +918,8 @@ class DuplicateWindow(QWidget):
                 keep = min(range(len(infos)), key=lambda k: infos[k].mtime)
             elif how == PICK_LARGEST:
                 keep = max(range(len(infos)), key=lambda k: infos[k].size)
+            elif how == PICK_RESOLUTION:  # L-2207
+                keep = max(range(len(infos)), key=lambda k: (infos[k].width * infos[k].height, infos[k].size))
             for k, c in enumerate(children):
                 on = how != PICK_NONE and k != keep
                 c.setCheckState(0, Qt.CheckState.Checked if on else Qt.CheckState.Unchecked)

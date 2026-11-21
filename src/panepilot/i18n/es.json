@@ -1176,7 +1176,7 @@
   "dup.mode_content": "a) Mismo contenido (idéntico byte a byte, con suma de comprobación)",
   "dup.mode_name": "b) Mismo nombre sin extensión (p. ej. Película.mkv y Película.mp4)",
   "dup.mode_namesize": "c) Mismo nombre y mismo tamaño (rápido, sin suma de comprobación)",
-  "dup.speed_hint": "b) a e) son rápidos porque solo se comparan nombres y tamaños (e es algo más lento con muchísimos archivos). a) es el más preciso, pero debe leer por completo los archivos del mismo tamaño; con archivos grandes o a través de la red (NAS) puede tardar mucho. En e) no cuentan la extensión, mayúsculas, signos de puntuación ni identificadores como [imdbid-…]; los números del nombre deben coincidir.",
+  "dup.speed_hint": "b) a e) son rápidos porque solo se comparan nombres y tamaños (e es algo más lento con muchísimos archivos). a) es el más preciso, pero debe leer por completo los archivos del mismo tamaño; con archivos grandes o a través de la red (NAS) puede tardar mucho. En e) no cuentan la extensión, mayúsculas, signos de puntuación ni identificadores como [imdbid-…]; los números del nombre deben coincidir. f) compara imágenes o vídeos por su contenido (no girados ni reflejados); los vídeos tardan 1–3 segundos por archivo, la próxima vez es rápido gracias a las huellas guardadas.",
   "dup.depth_one": "1 (solo esta carpeta)",
   "dup.pattern": "Solo archivos:",
   "dup.min_size": "Tamaño mínimo:",
@@ -1628,5 +1628,9 @@
   "online.auto_done": "{taken} película(s) aplicada(s), {missing} no encontrada(s), {skipped} omitida(s).",
   "online.auto_unchanged": "{n} película(s) encontrada(s), pero sin valores nuevos.",
   "online.auto_hint": "Los valores están marcados en verde; no se guarda nada hasta «Guardar etiquetas».",
-  "action.toggle_shared_sidebar": "Barra lateral común"
+  "action.toggle_shared_sidebar": "Barra lateral común",
+  "dup.mode_visual": "f) Imagen/vídeo parecido (contenido)",
+  "dup.col_resolution": "Resolución",
+  "dup.pick_resolution": "Conservar la mayor resolución",
+  "dup.fingerprints": "Creando huellas: {done} de {total}"
 }

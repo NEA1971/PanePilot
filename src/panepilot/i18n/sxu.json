@@ -1176,7 +1176,7 @@
   "dup.mode_content": "a) Gleechor Inhalt (uffs Byte genau, mit Brüfsumme)",
   "dup.mode_name": "b) Gleechor Name ohne Endung (z. B. Film.mkv un Film.mp4)",
   "dup.mode_namesize": "c) Gleechor Name un gleeche Greeße (fix, ohne Brüfsumme)",
-  "dup.speed_hint": "b) bis e) sin fix, weil bloß Namen un Greeßen vorglichn wern (e bei sehr vieln Dadein bissl langsamor). a) is am genausten, muss abor gleech große Dadein ganz lesn – bei großen Dadein odor übors Netzwerk (NAS) gann das lange dauorn. Bei e) zähln Endung, Groß-/Gleenschreibung, Satzzeichn un Kennungn wie [imdbid-…] nich; Zahln im Namen müssn gleech sein.",
+  "dup.speed_hint": "b) bis e) sin fix, weil bloß Namen un Greeßen vorglichn wern (e bei sehr vieln Dadein bissl langsamor). a) is am genausten, muss abor gleech große Dadein ganz lesn – bei großen Dadein odor übors Netzwerk (NAS) gann das lange dauorn. Bei e) zähln Endung, Groß-/Gleenschreibung, Satzzeichn un Kennungn wie [imdbid-…] nich; Zahln im Namen müssn gleech sein. f) vorgleicht Bildor bzw. Videos nach dem Bildinhald (nich gedreht odor geschbiegelt); Videos braung 1–3 Segundn je Dadei, beim nächsdn Mal gehds fix.",
   "dup.depth_one": "1 (bloß där Ordnor)",
   "dup.pattern": "Bloß Dadein:",
   "dup.min_size": "Mindestgreeße:",
@@ -1628,5 +1628,9 @@
   "online.auto_done": "{taken} Film(e) übernomm, {missing} nich gefundn, {skipped} übersprungn.",
   "online.auto_unchanged": "{n} Film(e) gefundn, abor ohne neie Werde.",
   "online.auto_hint": "De Werde sin grün vorgemerkt – gespeichord wird erst mit „Tag speichern“.",
-  "action.toggle_shared_sidebar": "Gemeinsame Seidnleisde"
+  "action.toggle_shared_sidebar": "Gemeinsame Seidnleisde",
+  "dup.mode_visual": "f) Ähnliches Bild/Video (Bildinhald)",
+  "dup.col_resolution": "Auflösung",
+  "dup.pick_resolution": "Heechsde Auflösung behaldn",
+  "dup.fingerprints": "Fingorabdrücke wern gemacht: {done} von {total}"
 }

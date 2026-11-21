@@ -1176,7 +1176,7 @@
   "dup.mode_content": "a) Gleicher Inhalt (aufs Byte gnau, mid Brüfsumm)",
   "dup.mode_name": "b) Gleicher Name ohne Endung (z. B. Film.mkv und Film.mp4)",
   "dup.mode_namesize": "c) Gleicher Name und gleiche Größ (schnell, ohne Brüfsumm)",
-  "dup.speed_hint": "b) bis e) sin schnell, weil bloß Namen und Größn verglichn wern (e bei arch vielen Dadein a weng langsamer). a) is am gnauestn, muss aber gleich große Dadein ganz lesn – bei großn Dadein odder übers Netzwerk (NAS) ko des lang dauern. Bei e) zähln Endung, Groß-/Kleinschreibung, Satzzeichen und Kennunga wie [imdbid-…] ned; Zahln im Namen müssn gleich sei.",
+  "dup.speed_hint": "b) bis e) sin schnell, weil bloß Namen und Größn verglichn wern (e bei arch vielen Dadein a weng langsamer). a) is am gnauestn, muss aber gleich große Dadein ganz lesn – bei großn Dadein odder übers Netzwerk (NAS) ko des lang dauern. Bei e) zähln Endung, Groß-/Kleinschreibung, Satzzeichen und Kennunga wie [imdbid-…] ned; Zahln im Namen müssn gleich sei. f) vergleicht Bilder bzw. Videos nach'm Bildinhalt (ned gedreht odder gspiegelt); Videos brauchn 1–3 Sekundn je Dadei, beim nächstn Mal gehts schnell.",
   "dup.depth_one": "1 (bloß der Ordner)",
   "dup.pattern": "Bloß Dadein:",
   "dup.min_size": "Mindesdgröß:",
@@ -1628,5 +1628,9 @@
   "online.auto_done": "{taken} Film(e) übernomma, {missing} ned gfundn, {skipped} übersprunga.",
   "online.auto_unchanged": "{n} Film(e) gfundn, aber ohne neie Werte.",
   "online.auto_hint": "Die Werte sin grü vorgmerkt – gspeichert wird erst mit „Tag speichern“.",
-  "action.toggle_shared_sidebar": "Gmeinsame Seitnleistn"
+  "action.toggle_shared_sidebar": "Gmeinsame Seitnleistn",
+  "dup.mode_visual": "f) Ähnlichs Bild/Video (Bildinhalt)",
+  "dup.col_resolution": "Auflösung",
+  "dup.pick_resolution": "Höchste Auflösung bhaltn",
+  "dup.fingerprints": "Fingerabdrück wern gmacht: {done} vo {total}"
 }

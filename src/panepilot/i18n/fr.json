@@ -1176,7 +1176,7 @@
   "dup.mode_content": "a) Même contenu (identique octet par octet, avec somme de contrôle)",
   "dup.mode_name": "b) Même nom sans extension (p. ex. Film.mkv et Film.mp4)",
   "dup.mode_namesize": "c) Même nom et même taille (rapide, sans somme de contrôle)",
-  "dup.speed_hint": "b) à e) sont rapides, car seuls les noms et les tailles sont comparés (e est un peu plus lent avec de très nombreux fichiers). a) est le plus précis, mais doit lire entièrement les fichiers de même taille – avec de gros fichiers ou via le réseau (NAS), cela peut prendre longtemps. Pour e), l'extension, la casse, la ponctuation et les identifiants comme [imdbid-…] ne comptent pas ; les nombres du nom doivent correspondre.",
+  "dup.speed_hint": "b) à e) sont rapides, car seuls les noms et les tailles sont comparés (e est un peu plus lent avec de très nombreux fichiers). a) est le plus précis, mais doit lire entièrement les fichiers de même taille – avec de gros fichiers ou via le réseau (NAS), cela peut prendre longtemps. Pour e), l'extension, la casse, la ponctuation et les identifiants comme [imdbid-…] ne comptent pas ; les nombres du nom doivent correspondre. f) compare les images ou vidéos selon leur contenu (pas tournées ni en miroir) ; les vidéos prennent 1 à 3 secondes par fichier, la fois suivante est rapide grâce aux empreintes mémorisées.",
   "dup.depth_one": "1 (ce dossier seulement)",
   "dup.pattern": "Fichiers seulement :",
   "dup.min_size": "Taille minimale :",
@@ -1628,5 +1628,9 @@
   "online.auto_done": "{taken} film(s) appliqué(s), {missing} introuvable(s), {skipped} ignoré(s).",
   "online.auto_unchanged": "{n} film(s) trouvé(s), mais sans nouvelles valeurs.",
   "online.auto_hint": "Les valeurs sont marquées en vert – rien n'est écrit avant « Enregistrer les tags ».",
-  "action.toggle_shared_sidebar": "Panneau latéral commun"
+  "action.toggle_shared_sidebar": "Panneau latéral commun",
+  "dup.mode_visual": "f) Image/vidéo similaire (contenu)",
+  "dup.col_resolution": "Résolution",
+  "dup.pick_resolution": "Garder la plus haute résolution",
+  "dup.fingerprints": "Création des empreintes : {done} sur {total}"
 }
