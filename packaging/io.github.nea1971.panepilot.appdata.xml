@@ -52,6 +52,9 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="2.1.1" date="2026-11-21">
+      <description><p>"Open in new tab" in the context menu of folders.</p></description>
+    </release>
     <release version="2.1.0" date="2026-11-21">
       <description>
         <p>Tabs in both panels and a list of recently visited folders.</p>

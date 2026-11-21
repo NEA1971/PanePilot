@@ -1674,5 +1674,6 @@
   "recent.empty": "(noch keine)",
   "settings.sec_tabs": "Reiter",
   "settings.tabs_always": "Reiterleiste immer anzeigen (auch bei nur einem Reiter)",
-  "settings.tabs_hint": "Neuer Reiter mit Strg+T, mittlerer Maustaste auf einen Ordner oder Doppelklick auf die freie Reiterleiste; Strg+W schließt, Strg+Tab wechselt. Gesperrte Reiter bleiben stehen – ein anderer Ordner öffnet sich dann in einem neuen Reiter."
+  "settings.tabs_hint": "Neuer Reiter mit Strg+T, mittlerer Maustaste auf einen Ordner oder Doppelklick auf die freie Reiterleiste; Strg+W schließt, Strg+Tab wechselt. Gesperrte Reiter bleiben stehen – ein anderer Ordner öffnet sich dann in einem neuen Reiter.",
+  "action.open_in_tab": "In neuem Reiter öffnen"
 }

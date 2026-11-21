@@ -1673,5 +1673,6 @@
   "recent.empty": "(ninguna todavía)",
   "settings.sec_tabs": "Pestañas",
   "settings.tabs_always": "Mostrar siempre la barra de pestañas (también con una sola)",
-  "settings.tabs_hint": "Nueva pestaña con Ctrl+T, clic central en una carpeta o doble clic en la barra vacía; Ctrl+W cierra, Ctrl+Tab cambia. Las pestañas bloqueadas no se mueven: otra carpeta se abre entonces en una pestaña nueva."
+  "settings.tabs_hint": "Nueva pestaña con Ctrl+T, clic central en una carpeta o doble clic en la barra vacía; Ctrl+W cierra, Ctrl+Tab cambia. Las pestañas bloqueadas no se mueven: otra carpeta se abre entonces en una pestaña nueva.",
+  "action.open_in_tab": "Abrir en una pestaña nueva"
 }

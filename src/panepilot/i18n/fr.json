@@ -1673,5 +1673,6 @@
   "recent.empty": "(aucun pour l'instant)",
   "settings.sec_tabs": "Onglets",
   "settings.tabs_always": "Toujours afficher la barre d'onglets (même avec un seul onglet)",
-  "settings.tabs_hint": "Nouvel onglet avec Ctrl+T, clic du milieu sur un dossier ou double-clic sur la barre vide ; Ctrl+W ferme, Ctrl+Tab change. Les onglets verrouillés restent en place – un autre dossier s'ouvre alors dans un nouvel onglet."
+  "settings.tabs_hint": "Nouvel onglet avec Ctrl+T, clic du milieu sur un dossier ou double-clic sur la barre vide ; Ctrl+W ferme, Ctrl+Tab change. Les onglets verrouillés restent en place – un autre dossier s'ouvre alors dans un nouvel onglet.",
+  "action.open_in_tab": "Ouvrir dans un nouvel onglet"
 }

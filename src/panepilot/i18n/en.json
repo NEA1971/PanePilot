@@ -1673,5 +1673,6 @@
   "recent.empty": "(none yet)",
   "settings.sec_tabs": "Tabs",
   "settings.tabs_always": "Always show the tab bar (also with a single tab)",
-  "settings.tabs_hint": "New tab with Ctrl+T, middle-clicking a folder or double-clicking the empty tab bar; Ctrl+W closes, Ctrl+Tab switches. Locked tabs stay put – another folder then opens in a new tab."
+  "settings.tabs_hint": "New tab with Ctrl+T, middle-clicking a folder or double-clicking the empty tab bar; Ctrl+W closes, Ctrl+Tab switches. Locked tabs stay put – another folder then opens in a new tab.",
+  "action.open_in_tab": "Open in new tab"
 }

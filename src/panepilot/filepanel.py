@@ -908,7 +908,8 @@ class FilePanel(QWidget):
             self._update_tab_title(self.current_path)
             self._update_tab_bar()
 
-    def new_tab(self, path: str | None = None, activate: bool = True, select_name: str | None = None) -> int:
+    def new_tab(self, path: str | None = None, activate: bool = True, select_name: str | None = None,
+                at: int | None = None) -> int:
         """Strg+T: neuer Reiter neben dem aktuellen, mit dem aktuellen bzw. dem angegebenen Ordner (L-3104)."""
         if self._tabs_blocked():
             return -1
@@ -919,7 +920,7 @@ class FilePanel(QWidget):
         from .paneltabs import tab_title
 
         self.tab_bar.blockSignals(True)
-        i = self.tab_bar.insertTab(self.tab_bar.currentIndex() + 1, tab_title(st.path))
+        i = self.tab_bar.insertTab(self.tab_bar.currentIndex() + 1 if at is None else at, tab_title(st.path))
         self.tab_bar.setTabData(i, st)
         self.tab_bar.setTabToolTip(i, st.path)
         self.tab_bar.blockSignals(False)

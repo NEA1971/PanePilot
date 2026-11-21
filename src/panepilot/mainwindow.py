@@ -916,6 +916,23 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         self.active.new_tab()
         self.active.focus_view()
 
+    def do_open_in_tab(self) -> None:
+        """Markierte Ordner je in einem neuen Reiter öffnen (v2.1.1); der erste wird gezeigt."""
+        panel = self.active
+        dirs = [e.path for e in panel.target_entries() if e.is_dir and not e.is_parent]
+        if not dirs or panel.in_remote or panel.in_trash:
+            return
+        first = None
+        at = panel.tab_bar.currentIndex() + 1 if panel.tab_bar.count() else 1
+        for path in dirs:
+            i = panel.new_tab(path, activate=False, at=at)
+            if i < 0:
+                return
+            first = i if first is None else first
+            at = i + 1
+        panel.tab_bar.setCurrentIndex(first)
+        panel.focus_view()
+
     def do_tab_close(self) -> None:
         self.active.close_tab()
         self.active.focus_view()
@@ -2221,6 +2238,8 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
             menu.exec(pos)
             return
         menu.addAction(a["open"])
+        if any(e.is_dir and not e.is_parent for e in self.active.target_entries()):
+            menu.addAction(a["open_in_tab"])  # v2.1.1
         self._open_with_menu(menu)
         menu.addAction(a["add_favorite"])
         menu.addSeparator()
@@ -2261,7 +2280,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         menu.addAction(a["properties"])
         menu.addSeparator()
         menu.addAction(a["refresh"])  # v1.8 (L-800): ganz unten, mit dem eingestellten Kürzel
-        menu.exec(pos)
+        self._exec_menu(menu, pos)
 
     # --- Archive (F-530 ff.) -------------------------------------------------------------
     def _selected_archives(self) -> list[str]:

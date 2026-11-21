@@ -12,7 +12,7 @@ PanePilot zeigt zwei Dateifenster (Panels) nebeneinander. Eines davon ist **akti
 
 ## Reiter
 - Jedes Fenster kann mehrere **Reiter** haben: **Strg+T** öffnet einen neuen Reiter mit dem aktuellen Ordner, **Strg+W** schließt ihn, **Strg+Tab** / **Strg+Umschalt+Tab** wechseln.
-- Neuer Reiter auch mit der **mittleren Maustaste** oder **Strg+Doppelklick** auf einen Ordner und per Doppelklick auf die freie Reiterleiste. Die mittlere Maustaste auf einem Reiter schließt ihn; Reiter lassen sich per Ziehen umsortieren.
+- Neuer Reiter auch mit der **mittleren Maustaste** oder **Strg+Doppelklick** auf einen Ordner, über **„In neuem Reiter öffnen“** im Kontextmenü (auch für mehrere markierte Ordner) und per Doppelklick auf die freie Reiterleiste. Die mittlere Maustaste auf einem Reiter schließt ihn; Reiter lassen sich per Ziehen umsortieren.
 - Jeder Reiter hat seinen eigenen Ordner, Verlauf, Sortierung, Filter und Ansicht (Details/Symbole); Spalten und Seitenleiste gelten für das ganze Fenster.
 - **Rechtsklick auf einen Reiter**: Neuer Reiter, Schließen, Andere schließen, Sperren/Entsperren, Im anderen Fenster öffnen. Ein **gesperrter Reiter** (🔒) bleibt stehen – wechselt man darin den Ordner, öffnet sich ein neuer Reiter.
 - Die Reiterleiste erscheint ab dem zweiten Reiter (Einstellungen → Dateiansicht → Reiter: „immer anzeigen“). Während Suche, Umbenennen, Meta-Wizard, Synchronisieren oder einer Server-Verbindung sind die Reiter dieses Fensters gesperrt. Alle Reiter werden beim Beenden gemerkt.

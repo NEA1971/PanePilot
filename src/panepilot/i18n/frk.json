@@ -1673,5 +1673,6 @@
   "recent.empty": "(no koane)",
   "settings.sec_tabs": "Reiter",
   "settings.tabs_always": "Reiterleistn immer zeign (aa bei bloß oam Reiter)",
-  "settings.tabs_hint": "Neier Reiter mit Strg+T, mittlerer Maustastn auf an Ordner odder Doppelklick auf d'freie Reiterleistn; Strg+W macht zu, Strg+Tab wechselt. Gsperrte Reiter bleibn stehn – an anderer Ordner geht dann in am neia Reiter auf."
+  "settings.tabs_hint": "Neier Reiter mit Strg+T, mittlerer Maustastn auf an Ordner odder Doppelklick auf d'freie Reiterleistn; Strg+W macht zu, Strg+Tab wechselt. Gsperrte Reiter bleibn stehn – an anderer Ordner geht dann in am neia Reiter auf.",
+  "action.open_in_tab": "In am neia Reiter aufmachn"
 }

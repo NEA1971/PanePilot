@@ -1673,5 +1673,6 @@
   "recent.empty": "(noch keene)",
   "settings.sec_tabs": "Reidor",
   "settings.tabs_always": "Reidorleisde immor zeichn (ooch bei bloß eenem Reidor)",
-  "settings.tabs_hint": "Neior Reidor mit Strg+T, middlor Mausdaste uff een Ordnor odor Dobbelgligg uff de freie Reidorleisde; Strg+W machd zu, Strg+Tab wechseld. Geschbärrde Reidor bleim schdehn – een andror Ordnor gehd dann in eenem neien Reidor uff."
+  "settings.tabs_hint": "Neior Reidor mit Strg+T, middlor Mausdaste uff een Ordnor odor Dobbelgligg uff de freie Reidorleisde; Strg+W machd zu, Strg+Tab wechseld. Geschbärrde Reidor bleim schdehn – een andror Ordnor gehd dann in eenem neien Reidor uff.",
+  "action.open_in_tab": "In eenem neien Reidor uffmachn"
 }

@@ -224,3 +224,25 @@ def test_tab_keys(window, tree, qtbot):  # noqa: F811
     assert panel.tab_bar.currentIndex() == 0 and w.active is panel  # Strg+Tab wechselt den Reiter, nicht das Fenster
     press(qtbot, w, Qt.Key.Key_W, Qt.KeyboardModifier.ControlModifier)
     assert panel.tab_bar.count() == 1
+
+
+def test_open_in_tab_context(window, tree, monkeypatch):  # noqa: F811
+    """2.1.1: Kontextmenü „In neuem Reiter öffnen“ für markierte Ordner."""
+    w = window
+    panel = w.active
+    panel.navigate(str(tree))
+    shown = []
+    monkeypatch.setattr(w, "_exec_menu", lambda menu, pos: shown.append([x.text() for x in menu.actions()]))
+    panel.select_names(["a", "b"], current="a")
+    w._file_context_menu(w.active_side, panel.view.viewport().mapToGlobal(QPoint(5, 5)))
+    assert "In neuem Reiter öffnen" in shown[-1]
+    w.trigger("open_in_tab")
+    assert panel.tab_bar.count() == 3 and panel.tab_bar.currentIndex() == 1
+    assert [panel.tab_bar.tabData(i).path for i in (1, 2)] == [str(tree / "a"), str(tree / "b")]
+    assert panel.current_path == str(tree / "a")
+    panel.navigate(str(tree / "a"))
+    panel.select_names(["eins.txt"], current="eins.txt")
+    w._file_context_menu(w.active_side, panel.view.viewport().mapToGlobal(QPoint(5, 5)))
+    assert "In neuem Reiter öffnen" not in shown[-1]
+    w.trigger("open_in_tab")  # keine Ordner markiert: nichts
+    assert panel.tab_bar.count() == 3
