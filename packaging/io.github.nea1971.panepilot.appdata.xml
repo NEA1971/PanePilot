@@ -52,6 +52,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.23.1" date="2026-11-21">
+      <description>
+        <p>Clipboard entries only in the menu of the Copy button.</p>
+      </description>
+    </release>
     <release version="1.23.0" date="2026-11-21">
       <description>
         <p>View button with icon sizes, file paths and names to the clipboard, launcher follows a downloaded update.</p>
