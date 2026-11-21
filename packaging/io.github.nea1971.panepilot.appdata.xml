@@ -52,6 +52,9 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="2.1.2" date="2026-11-21">
+      <description><p>The mouse wheel no longer changes settings by accident; the settings window is wider and remembers its size.</p></description>
+    </release>
     <release version="2.1.1" date="2026-11-21">
       <description><p>"Open in new tab" in the context menu of folders.</p></description>
     </release>

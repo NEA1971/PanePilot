@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import re
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QObject, Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -50,6 +50,39 @@ _PLACEHOLDER = re.compile(r"\{(\w*)\}")
 
 def size_unit_label(unit: str) -> str:
     return t("settings.size_auto") if unit == "auto" else (t("settings.size_bytes") if unit == "B" else unit)
+
+
+class _WheelGuard(QObject):
+    """Regler und Auswahllisten nehmen das Mausrad nur, wenn sie angeklickt wurden (v2.1.2).
+
+    Sonst rollt das Rad die Seite weiter – vorher verstellte man beim Rollen über die Einstellungen
+    versehentlich z. B. die Skalierung.
+    """
+
+    def eventFilter(self, obj, event) -> bool:
+        from PySide6.QtCore import QCoreApplication, QEvent
+        from PySide6.QtWidgets import QAbstractScrollArea
+
+        if event.type() == QEvent.Type.Wheel and isinstance(obj, QWidget) and not obj.hasFocus():
+            parent = obj.parentWidget()
+            while parent is not None and not isinstance(parent, QAbstractScrollArea):
+                parent = parent.parentWidget()
+            if parent is not None:
+                QCoreApplication.sendEvent(parent.viewport(), event)
+            return True
+        return False
+
+
+def guard_wheel(root: QWidget) -> None:
+    from PySide6.QtWidgets import QAbstractSlider, QAbstractSpinBox, QScrollBar
+
+    guard = _WheelGuard(root)
+    for cls in (QAbstractSlider, QComboBox, QAbstractSpinBox):
+        for w in root.findChildren(cls):
+            if isinstance(w, QScrollBar):
+                continue
+            w.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+            w.installEventFilter(guard)
 
 
 class SectionPage(QWidget):
@@ -154,7 +187,7 @@ class SettingsDialog(QDialog):
         self.window = window
         self.setWindowTitle(t("settings.title"))
         self.setMinimumWidth(820)
-        self.resize(900, 640)
+        self._restore_size()  # v2.1.2: Größe wird gemerkt, Standard 990 × 640
         self.tabs = QTabWidget(self)
         self.pages: dict[str, SectionPage] = {}
         # Reiter „Allgemein“: Sprache, Sicherung, Darstellung
@@ -185,6 +218,25 @@ class SettingsDialog(QDialog):
         from PySide6.QtGui import QKeySequence, QShortcut
 
         QShortcut(QKeySequence("F1"), self, lambda: self.window.do_help("settings", parent=self))
+        guard_wheel(self)  # v2.1.2
+
+    DEFAULT_SIZE = (990, 640)
+
+    def _restore_size(self) -> None:
+        size = self.window.settings.get("settings_size")
+        w, h = self.DEFAULT_SIZE
+        if isinstance(size, list) and len(size) == 2 and all(isinstance(v, int) and v > 0 for v in size):
+            w, h = size
+        screen = self.window.screen() if self.window is not None else None
+        if screen is not None:
+            avail = screen.availableGeometry()
+            w, h = min(w, avail.width()), min(h, avail.height())
+        self.resize(w, h)
+
+    def done(self, result: int) -> None:
+        if not (self.isMaximized() or self.isFullScreen()):
+            self.window.settings.set("settings_size", [self.width(), self.height()])
+        super().done(result)
 
     def _page(self, key: str, title: str) -> SectionPage:
         page = SectionPage(self.tabs)
