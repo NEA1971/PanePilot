@@ -52,6 +52,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="1.22.0" date="2026-11-21">
+      <description>
+        <p>Find similar images and videos by picture content.</p>
+      </description>
+    </release>
     <release version="1.21.0" date="2026-11-20">
       <description>
         <p>Optional shared sidebar for both panels that follows the active panel.</p>
