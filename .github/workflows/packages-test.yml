@@ -72,3 +72,31 @@ jobs:
             dist/PanePilot-*-amd64.deb
             dist/PanePilot-*-x86_64.rpm
           retention-days: 3
+
+  rpm-installieren:
+    needs: appimage
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["fedora:41", "opensuse/tumbleweed"]
+    container: ${{ matrix.image }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pakete
+      - name: .rpm installieren und kurz starten (ohne Bildschirm)
+        env:
+          QT_QPA_PLATFORM: offscreen
+          PANEPILOT_CONFIG_DIR: /tmp/pp-smoke-rpm
+        run: |
+          if command -v dnf >/dev/null; then
+            dnf install -y --setopt=install_weak_deps=False ./PanePilot-*-x86_64.rpm coreutils
+          else
+            zypper --non-interactive install --allow-unsigned-rpm --no-recommends ./PanePilot-*-x86_64.rpm
+          fi
+          test -x /usr/bin/panepilot
+          set +e
+          timeout 10 panepilot
+          code=$?
+          test $code -eq 124 || { echo "rpm-Version ist beim Start abgebrochen (Code $code)"; exit 1; }
