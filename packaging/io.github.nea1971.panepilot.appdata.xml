@@ -52,6 +52,11 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="2.0.0" date="2026-11-21">
+      <description>
+        <p>Installation packages: .deb for Debian, Ubuntu and Mint and .rpm for Fedora, openSUSE and RHEL, in addition to the AppImage.</p>
+      </description>
+    </release>
     <release version="1.23.1" date="2026-11-21">
       <description>
         <p>Clipboard entries only in the menu of the Copy button.</p>
