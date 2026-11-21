@@ -10,6 +10,10 @@ The maintainer (NEA1971) is not a programmer; development is done together with 
   (`tests/test_i18n.py` checks completeness and placeholders).
 - Help pages: `src/panepilot/help/<lang>/*.md` (German and English).
 - Only implement what has been agreed with the maintainer; clarify open questions first and state assumptions explicitly.
+- Agree on new toolbar buttons (which ones, how they behave, icon) with the maintainer before building them.
+- Mouse wheel: closed drop-downs, sliders and spin boxes must never change their value just because the wheel is turned
+  while the pointer passes over them (it caused accidental tag/scale changes). Nested lists/tables inside scrollable pages
+  must not hand the wheel on to the page. Check this for every new dialog or sidebar.
 - Never commit secrets, passwords, private paths or personal data. The supporter-code signing key is NOT part of this repository.
 
 ## Language
