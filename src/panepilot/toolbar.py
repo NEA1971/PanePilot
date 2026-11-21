@@ -44,7 +44,9 @@ HISTORY_ACTIONS = ("back", "forward")
 MENU_ACTIONS = HISTORY_ACTIONS + ("filter_toggle", "view_mode", "clip_copy")  # Knopf mit Pfeil und Menü
 # Nicht in der Symbolleiste: an eine Ansicht gebundene Aktionen; v1.23: die Ansichten stecken im Knopf „Ansicht“
 VIEW_LEGACY = ("toggle_icon_view", "icons_small", "icons_medium", "icons_large")
-EXCLUDED = set(NOT_ASSIGNABLE) | set(VIEW_LEGACY)
+# v1.23.1: die Zwischenablage-Einträge stecken nur im Pfeil-Menü des Knopfs „Kopieren“, keine eigenen Knöpfe
+CLIP_MENU_ONLY = ("clip_path", "clip_name", "clip_stem", "clip_folder", "clip_url", "clip_details")
+EXCLUDED = set(NOT_ASSIGNABLE) | set(VIEW_LEGACY) | set(CLIP_MENU_ONLY)
 
 
 def available_actions() -> list[str]:

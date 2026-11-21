@@ -1627,7 +1627,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
             self._fill_view_menu(menu)
             return
         if aid == "clip_copy":  # v1.23 (L-2310)
-            self._fill_clip_menu(menu)
+            self._fill_clip_menu(menu, with_copy=True)
             return
         for index, path in panel.history_entries(forward=aid == "forward")[:20]:
             label = t("trash.title") if is_trash_uri(path) else path
@@ -2836,7 +2836,10 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
     # --- Zwischenablage: Pfade und Namen (v1.23, L-2310 ff.) ----------------------------------------------
     CLIP_ACTIONS = ("clip_path", "clip_name", "clip_stem", "clip_folder", "clip_url", None, "clip_details")
 
-    def _fill_clip_menu(self, menu: QMenu) -> None:
+    def _fill_clip_menu(self, menu: QMenu, with_copy: bool = False) -> None:
+        if with_copy:  # Pfeil am Knopf „Kopieren“: oben das normale Kopieren (v1.23.1)
+            menu.addAction(self.qactions["clip_copy"])
+            menu.addSeparator()
         for aid in self.CLIP_ACTIONS:
             menu.addSeparator() if aid is None else menu.addAction(self.qactions[aid])
 

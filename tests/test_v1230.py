@@ -157,3 +157,16 @@ def test_view_menu_rows(window, qtbot):  # noqa: F811
     menu.show()
     qtbot.mouseClick(rows[2], Qt.MouseButton.LeftButton)
     assert w.active.icon_mode and w.active.icon_size == 64
+
+
+def test_clip_button_menu_only(window):  # noqa: F811
+    """1.23.1: keine eigenen Knöpfe für die Zwischenablage-Einträge; oben im Pfeil-Menü das normale Kopieren."""
+    from panepilot import toolbar as tb
+
+    for aid in tb.CLIP_MENU_ONLY:
+        assert aid not in tb.available_actions()
+    assert tb.clean_items(["clip_copy", "clip_path", "clip_details", "back"]) == ["clip_copy", "back"]
+    menu = QMenu()
+    window._fill_history_menu("clip_copy", menu)
+    acts = [a for a in menu.actions() if not a.isSeparator()]
+    assert acts[0] is window.qactions["clip_copy"] and len(acts) == 7
