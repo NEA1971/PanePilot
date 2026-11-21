@@ -1649,5 +1649,15 @@
   "update.launcher_hint": "Beim nächstn Start übers Anwendungsmenü odder d'Taskleistn startet die neie Version.",
   "update.remove_old": "D'Aktualisierung is fertig. Die vorige Version „{name}“ liegt noch in\n{folder}\n\nSoll's in Babierkorb?",
   "update.remove_old_yes": "In Babierkorb",
-  "update.remove_old_keep": "Bhaltn"
+  "update.remove_old_keep": "Bhaltn",
+  "about.sys_install": "Installiert als",
+  "about.install_appimage": "AppImage",
+  "about.install_deb": "Debian-Paket (.deb)",
+  "about.install_rpm": "RPM-Paket (.rpm)",
+  "about.install_source": "aus'm Quellcode",
+  "about.install_frozen": "Programmordner",
+  "update.hint_package": "„Runterladn“ speichert des neie Paket ({kind}) im Ordner „Downloads“ und macht's mit der Software-Installation auf. Fürs Installiern wird dei Administrator-Kennwort abgfragt.",
+  "update.package_ready": "Des neie Paket „{name}“ is runterglodn und wird mit der Software-Installation aufgmacht. Nach'm Installiern PanePilot nei startn.\n\nFalls si nix aufmacht, im Terminal:\n{command}",
+  "update.appimage_launcher": "PanePilot is etz als Paket installiert. Im Anwendungsmenü gibt's aber no den Eintrag vo der AppImage-Version – do drüber tät weiter des AppImage startn.\n\nSoll der alte Eintrag weg?",
+  "update.appimage_launcher_remove": "Wegmachn"
 }

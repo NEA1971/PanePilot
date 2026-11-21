@@ -39,7 +39,17 @@ PanePilot brings together what usually takes three or four programs: a classic t
 
 ## Installation
 
-PanePilot is distributed as an **AppImage** for 64-bit Linux (x86_64). Nothing needs to be installed:
+Every [release](https://github.com/NEA1971/PanePilot/releases/latest) offers three files for 64-bit Linux (x86_64):
+
+- **`.deb`** for Debian 12/13, Ubuntu 22.04+ and Linux Mint: double-click, or `sudo apt install ./PanePilot-x.y.z-amd64.deb`.
+- **`.rpm`** for Fedora, openSUSE and RHEL/Rocky/Alma: `sudo dnf install ./PanePilot-x.y.z-x86_64.rpm`
+  (openSUSE: `sudo zypper install ./PanePilot-x.y.z-x86_64.rpm`).
+- **AppImage** – runs without installation (see below).
+
+The packages install to `/opt/panepilot` with a menu entry and pull in ffmpeg, mkvtoolnix and exiftool as
+recommended tools. Remove with `sudo apt remove panepilot` or `sudo dnf remove panepilot`.
+
+### AppImage
 
 1. Download `PanePilot-x.y.z-x86_64.AppImage` from the [latest release](https://github.com/NEA1971/PanePilot/releases/latest).
 2. Make it executable: right-click → Properties → “Executable as program”, or `chmod +x PanePilot-*.AppImage`.
@@ -68,6 +78,7 @@ pip install -r requirements-dev.txt
 PYTHONPATH=src python -m panepilot      # run
 QT_QPA_PLATFORM=offscreen pytest        # tests
 packaging/build_appimage.sh             # build the AppImage (see the release workflow)
+packaging/build_packages.sh             # then .deb and .rpm from the same build
 ```
 
 Python 3 (tested with 3.12) and Qt 6 (PySide6). Releases are built by GitHub Actions: bump the version in `src/panepilot/__init__.py`, add `docs/releases/vX.Y.Z.md` and push to `main`.
@@ -95,9 +106,9 @@ Er vereint, wofür man sonst drei oder vier Programme braucht:
 Die Oberfläche gibt es komplett auf Deutsch, die Hilfe mit F1 ebenfalls.
 
 **Installation:**
-1. Das AppImage unter [Releases](https://github.com/NEA1971/PanePilot/releases/latest) herunterladen.
-2. Ausführbar machen: Rechtsklick → Eigenschaften → „Als Programm ausführbar“.
-3. Per Doppelklick starten.
+- **Debian, Ubuntu, Mint:** die `.deb`-Datei unter [Releases](https://github.com/NEA1971/PanePilot/releases/latest) herunterladen und per Doppelklick installieren (oder `sudo apt install ./PanePilot-x.y.z-amd64.deb`).
+- **Fedora, openSUSE:** die `.rpm`-Datei, z. B. `sudo dnf install ./PanePilot-x.y.z-x86_64.rpm`.
+- **Ohne Installation:** das AppImage herunterladen, ausführbar machen (Rechtsklick → Eigenschaften → „Als Programm ausführbar“) und per Doppelklick starten.
 
 **Rückmeldungen:** Fehler und Wünsche gern als [Issue](https://github.com/NEA1971/PanePilot/issues/new/choose), auch auf Deutsch. Fragen in den [Discussions](https://github.com/NEA1971/PanePilot/discussions).
 

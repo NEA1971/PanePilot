@@ -1649,5 +1649,15 @@
   "update.launcher_hint": "Al iniciar desde el menú de aplicaciones o la barra de tareas se abrirá la nueva versión.",
   "update.remove_old": "La actualización ha terminado. La versión anterior «{name}» sigue en\n{folder}\n\n¿Moverla a la papelera?",
   "update.remove_old_yes": "A la papelera",
-  "update.remove_old_keep": "Conservar"
+  "update.remove_old_keep": "Conservar",
+  "about.sys_install": "Instalado como",
+  "about.install_appimage": "AppImage",
+  "about.install_deb": "Paquete Debian (.deb)",
+  "about.install_rpm": "Paquete RPM (.rpm)",
+  "about.install_source": "desde el código fuente",
+  "about.install_frozen": "carpeta del programa",
+  "update.hint_package": "«Descargar» guarda el nuevo paquete ({kind}) en la carpeta Descargas y lo abre con el instalador de software. La instalación pide tu contraseña de administrador.",
+  "update.package_ready": "El nuevo paquete «{name}» se ha descargado y se abre con el instalador de software. Reinicia PanePilot después de instalarlo.\n\nSi no se abre nada, en una terminal:\n{command}",
+  "update.appimage_launcher": "PanePilot está instalado ahora como paquete. En el menú de aplicaciones sigue la entrada de la versión AppImage, que seguiría abriendo el AppImage.\n\n¿Quitar esa entrada antigua?",
+  "update.appimage_launcher_remove": "Quitar"
 }

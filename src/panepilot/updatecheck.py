@@ -29,6 +29,19 @@ class Release:
     asset_name: str | None
     asset_url: str | None
     asset_size: int
+    packages: dict | None = None  # v2.0: {"deb": (Name, URL, Größe), "rpm": …}
+
+    def for_install(self) -> "Release":
+        """Die Datei, die zur laufenden Installation passt (AppImage bzw. .deb/.rpm)."""
+        from . import installkind
+
+        fmt = installkind.package_format()
+        if fmt and self.packages and fmt in self.packages:
+            name, url, size = self.packages[fmt]
+            return Release(self.version, self.notes, self.page, name, url, size, self.packages)
+        if fmt:
+            return Release(self.version, self.notes, self.page, None, None, 0, self.packages)
+        return self
 
 
 def version_tuple(text: str) -> tuple[int, ...]:
@@ -42,12 +55,18 @@ def is_newer(candidate: str, current: str = __version__) -> bool:
 
 def parse_release(data: dict) -> Release:
     version = str(data.get("tag_name") or "").lstrip("vV")
-    asset = next((a for a in data.get("assets") or []
-                  if str(a.get("name", "")).endswith("x86_64.AppImage")), None)
+    assets = data.get("assets") or []
+    asset = next((a for a in assets if str(a.get("name", "")).endswith("x86_64.AppImage")), None)
+    packages = {}
+    for a in assets:
+        name = str(a.get("name", ""))
+        for fmt, suffix in (("deb", "amd64.deb"), ("rpm", "x86_64.rpm")):
+            if name.endswith(suffix):
+                packages[fmt] = (name, a.get("browser_download_url"), int(a.get("size") or 0))
     return Release(version=version, notes=str(data.get("body") or ""), page=str(data.get("html_url") or RELEASES_URL),
                    asset_name=asset.get("name") if asset else None,
                    asset_url=asset.get("browser_download_url") if asset else None,
-                   asset_size=int(asset.get("size") or 0) if asset else 0)
+                   asset_size=int(asset.get("size") or 0) if asset else 0, packages=packages)
 
 
 def fetch_latest() -> Release:
@@ -60,8 +79,24 @@ def due_today(settings, today: dt.date | None = None) -> bool:
     return bool(settings.get("update_check")) and settings.get("update_last_check") != today.isoformat()
 
 
+def download_folder() -> str:
+    from PySide6.QtCore import QStandardPaths
+
+    return QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DownloadLocation) or \
+        os.path.expanduser("~")
+
+
 def target_path(release: Release) -> str | None:
-    """Wohin die neue Version geladen wird: in den Ordner der laufenden AppImage-Datei."""
+    """Wohin die neue Version geladen wird: in den Ordner der laufenden AppImage-Datei –
+    bzw. bei .deb/.rpm in „Downloads“ (v2.0, L-3004)."""
+    from . import installkind
+
+    release = release.for_install()
+    if installkind.package_format():
+        if not release.asset_name:
+            return None
+        folder = download_folder()
+        return os.path.join(folder, release.asset_name) if os.access(folder, os.W_OK) else None
     current = os.environ.get("APPIMAGE")
     if not current or not release.asset_name:
         return None
@@ -98,7 +133,11 @@ class UpdateDialog(QDialog):
         notes = QTextBrowser(self)
         notes.setOpenExternalLinks(False)
         notes.setMarkdown(_short_notes(release.notes))
-        hint = QLabel(t("update.hint_appimage") if target_path(release) else t("update.hint_page"), self)
+        from . import installkind
+
+        fmt = installkind.package_format()
+        key = ("update.hint_package" if fmt else "update.hint_appimage") if target_path(release) else "update.hint_page"
+        hint = QLabel(t(key, kind=f".{fmt}" if fmt else ""), self)
         hint.setWordWrap(True)
         self.btn_download = QPushButton(t("update.download") if target_path(release) else t("update.open_page"), self)
         self.btn_download.setDefault(True)
@@ -139,7 +178,8 @@ def download_release(parent, release: Release, target: str) -> bool:
         netutil.download(release.asset_url, target,
                          progress=lambda d, tot: task.progress_value.emit(int(d * 100 / tot) if tot else 0),
                          cancel=lambda: state["cancel"])
-        os.chmod(target, 0o755)
+        if target.endswith(".AppImage"):
+            os.chmod(target, 0o755)
         return True
 
     from PySide6.QtCore import Signal
@@ -190,6 +230,20 @@ def handle_release(window, release: Release, manual: bool) -> None:
     target = target_path(release)
     if target is None:
         util.open_url(release.page)
+        return
+    from . import installkind
+
+    fmt = installkind.package_format()
+    if fmt:  # v2.0 (L-3004): Paket laden und mit der Software-Installation öffnen
+        pkg = release.for_install()
+        if not os.path.exists(target) and not download_release(window, pkg, target):
+            return
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+
+        QDesktopServices.openUrl(QUrl.fromLocalFile(target))
+        show_info(window, t("update.title"), t("update.package_ready", name=os.path.basename(target),
+                                                  command=installkind.install_command(target, fmt)))
         return
     if not os.path.exists(target) and not download_release(window, release, target):
         return
@@ -275,3 +329,18 @@ def check(window, manual: bool) -> None:
     task.finished.connect(task.deleteLater)
     window._update_task = task  # Referenz halten
     task.start()
+
+
+def offer_appimage_launcher_removal(window) -> None:
+    """v2.0 (L-3007): Paket läuft, aber ein Menüeintrag der AppImage-Version verdeckt den des Pakets."""
+    from . import desktopint, installkind
+    from .dialogs import confirm
+
+    if not installkind.package_format() or not desktopint.is_integrated():
+        return
+    if window.settings.get("package_launcher_asked"):
+        return
+    window.settings.set("package_launcher_asked", True)
+    if confirm(window, t("update.title"), t("update.appimage_launcher"), yes_key="update.appimage_launcher_remove",
+               no_key="update.remove_old_keep"):
+        desktopint.remove()

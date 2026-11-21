@@ -1649,5 +1649,15 @@
   "update.launcher_hint": "Le prochain lancement depuis le menu des applications ou la barre des tâches ouvrira la nouvelle version.",
   "update.remove_old": "La mise à jour est terminée. La version précédente « {name} » se trouve encore dans\n{folder}\n\nLa mettre à la corbeille ?",
   "update.remove_old_yes": "À la corbeille",
-  "update.remove_old_keep": "Garder"
+  "update.remove_old_keep": "Garder",
+  "about.sys_install": "Installé en tant que",
+  "about.install_appimage": "AppImage",
+  "about.install_deb": "Paquet Debian (.deb)",
+  "about.install_rpm": "Paquet RPM (.rpm)",
+  "about.install_source": "depuis les sources",
+  "about.install_frozen": "dossier du programme",
+  "update.hint_package": "« Télécharger » enregistre le nouveau paquet ({kind}) dans le dossier Téléchargements et l'ouvre avec l'installateur de logiciels. L'installation demande ton mot de passe administrateur.",
+  "update.package_ready": "Le nouveau paquet « {name} » a été téléchargé et s'ouvre avec l'installateur de logiciels. Redémarre PanePilot après l'installation.\n\nSi rien ne s'ouvre, dans un terminal :\n{command}",
+  "update.appimage_launcher": "PanePilot est maintenant installé en tant que paquet. Le menu des applications contient encore l'entrée de la version AppImage, qui continuerait à lancer l'AppImage.\n\nSupprimer cette ancienne entrée ?",
+  "update.appimage_launcher_remove": "Supprimer"
 }

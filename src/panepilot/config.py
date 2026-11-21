@@ -163,7 +163,8 @@ class Settings:
         "opensubs_languages": "de,en",  # v1.14, L-1402
         "subs_direct": False,
         "online_review": "review",
-        "update_old_file": None,  # v1.23 (L-2321): {"old": Pfad, "new": Pfad}  # v1.20 (L-2020): review / auto_empty / auto_all
+        "update_old_file": None,
+        "package_launcher_asked": False,  # v2.0 (L-3007)  # v1.23 (L-2321): {"old": Pfad, "new": Pfad}  # v1.20 (L-2020): review / auto_empty / auto_all
         "sync_last": {},  # v1.16: zuletzt benutzte Einstellungen für „Ordner synchronisieren“
         "chapters_interval": 10,  # v1.15, L-1503
         "chapters_replace_original": False,  # v1.15, L-1508  # v1.14: „Direkt ins Video übernehmen“ gemerkt  # v1.13.2: Formatwechsel löscht danach das Original

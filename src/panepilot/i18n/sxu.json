@@ -1649,5 +1649,15 @@
   "update.launcher_hint": "Beim nächsdn Start übors Anwendungsmenü odor de Dasgleisde schdarded de neie Version.",
   "update.remove_old": "De Aggdualisierung is fertsch. De vorhersche Version „{name}“ liegt noch in\n{folder}\n\nSoll se in Babierkorb?",
   "update.remove_old_yes": "In Babierkorb",
-  "update.remove_old_keep": "Behaldn"
+  "update.remove_old_keep": "Behaldn",
+  "about.sys_install": "Insdalliert als",
+  "about.install_appimage": "AppImage",
+  "about.install_deb": "Debian-Pakeet (.deb)",
+  "about.install_rpm": "RPM-Pakeet (.rpm)",
+  "about.install_source": "aus dem Quellcode",
+  "about.install_frozen": "Brogrammordnor",
+  "update.hint_package": "„Runtorladn“ speichord das neie Pakeet ({kind}) im Ordnor „Downloads“ un macht's mit dor Softwäre-Insdallation uff. Fürs Insdalliern wird dei Administrator-Kennword abgefragt.",
+  "update.package_ready": "Das neie Pakeet „{name}“ is runtorgeladn un wird mit dor Softwäre-Insdallation uffgemacht. Nach dem Insdalliern PanePilot nei schdardn.\n\nFalls sich nischd uffmacht, im Dorminal:\n{command}",
+  "update.appimage_launcher": "PanePilot is jetz als Pakeet insdalliert. Im Anwendungsmenü gibts abor noch den Eintrag dor AppImage-Version – darübor würde weidor das AppImage schdardn.\n\nSoll dor alde Eintrag wech?",
+  "update.appimage_launcher_remove": "Wechmachn"
 }

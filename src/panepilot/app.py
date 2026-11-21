@@ -98,6 +98,7 @@ def main() -> int:
     from . import updatecheck
 
     QTimer.singleShot(2500, lambda: updatecheck.offer_old_file_removal(window))  # alte Datei nach Update (v1.23)
+    QTimer.singleShot(2600, lambda: updatecheck.offer_appimage_launcher_removal(window))  # v2.0
     from . import desktopint
 
     QTimer.singleShot(1500, desktopint.update_if_moved)  # Starter im Anwendungsmenü nachführen (v1.1)

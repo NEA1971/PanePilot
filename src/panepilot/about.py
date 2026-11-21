@@ -12,7 +12,7 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QHBoxLayout, QLabel, QPlainTextEdit, QPushButton, QTabWidget,
                                QVBoxLayout, QWidget)
 
-from . import __version__, donation
+from . import __version__, donation, installkind
 from .i18n import t
 
 GPL_URL = "https://www.gnu.org/licenses/gpl-3.0.html"
@@ -63,6 +63,7 @@ def system_info(config_path: str) -> str:
         f"Python {v['python']} · PySide6 {v['pyside']} · Qt {v['qt']} · mutagen {v['mutagen']}",
         f"ffmpeg: {ffmpeg or t('about.sys_missing')}",
         f"AppImage: {t('about.sys_yes') if os.environ.get('APPIMAGE') else t('about.sys_no')}",
+        f"{t('about.sys_install')}: {t('about.install_' + installkind.kind())}",  # v2.0 (L-3006)
         f"{t('about.sys_language')}: {current_language()}",
         f"{t('about.sys_config')}: {config_path}",
     ]

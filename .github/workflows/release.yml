@@ -74,6 +74,30 @@ jobs:
           timeout 10 dist/PanePilot-*-x86_64.AppImage --appimage-extract-and-run
           code=$?
           test $code -eq 124 || { echo "AppImage ist beim Start abgebrochen (Code $code)"; exit 1; }
+      - name: .deb und .rpm bauen (v2.0)
+        if: steps.ver.outputs.skip == 'false'
+        run: |
+          sudo apt-get install -y --no-install-recommends rpm
+          packaging/build_packages.sh
+          dpkg-deb -I dist/PanePilot-*-amd64.deb
+          rpm -qip dist/PanePilot-*-x86_64.rpm
+          rpm -qpR dist/PanePilot-*-x86_64.rpm
+      - name: .deb installieren und kurz starten (ohne Bildschirm)
+        if: steps.ver.outputs.skip == 'false'
+        env:
+          QT_QPA_PLATFORM: offscreen
+          PANEPILOT_CONFIG_DIR: /tmp/pp-smoke-deb
+        run: |
+          sudo apt-get install -y --no-install-recommends ./dist/PanePilot-*-amd64.deb
+          test -x /usr/bin/panepilot && test -f /usr/share/applications/panepilot.desktop
+          desktop-file-validate /usr/share/applications/panepilot.desktop
+          set +e
+          timeout 10 panepilot
+          code=$?
+          test $code -eq 124 || { echo "Paket-Version ist beim Start abgebrochen (Code $code)"; exit 1; }
+          set -e
+          sudo apt-get remove -y panepilot
+          test ! -e /opt/panepilot/PanePilot
       - name: Release veröffentlichen
         if: steps.ver.outputs.skip == 'false'
         env:
@@ -83,6 +107,7 @@ jobs:
           ls -l dist/
           test -f dist/PanePilot-*-x86_64.AppImage.zsync || { echo "zsync-Datei fehlt"; exit 1; }
           gh release create "$TAG" dist/PanePilot-*-x86_64.AppImage dist/PanePilot-*-x86_64.AppImage.zsync \
+            dist/PanePilot-*-amd64.deb dist/PanePilot-*-x86_64.rpm \
             --target "$GITHUB_SHA" \
             --title "PanePilot $TAG" \
             --notes-file "docs/releases/$TAG.md" \

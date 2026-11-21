@@ -1649,5 +1649,15 @@
   "update.launcher_hint": "При следующем запуске из меню приложений или с панели задач откроется новая версия.",
   "update.remove_old": "Обновление завершено. Предыдущая версия «{name}» всё ещё находится в\n{folder}\n\nПереместить её в корзину?",
   "update.remove_old_yes": "В корзину",
-  "update.remove_old_keep": "Оставить"
+  "update.remove_old_keep": "Оставить",
+  "about.sys_install": "Установлено как",
+  "about.install_appimage": "AppImage",
+  "about.install_deb": "Пакет Debian (.deb)",
+  "about.install_rpm": "Пакет RPM (.rpm)",
+  "about.install_source": "из исходного кода",
+  "about.install_frozen": "папка программы",
+  "update.hint_package": "«Скачать» сохраняет новый пакет ({kind}) в папку «Загрузки» и открывает его в установщике программ. Для установки потребуется пароль администратора.",
+  "update.package_ready": "Новый пакет «{name}» загружен и открывается в установщике программ. После установки перезапусти PanePilot.\n\nЕсли ничего не открылось, в терминале:\n{command}",
+  "update.appimage_launcher": "PanePilot теперь установлен как пакет. В меню приложений ещё есть пункт версии AppImage, который будет запускать AppImage.\n\nУдалить этот старый пункт?",
+  "update.appimage_launcher_remove": "Удалить"
 }

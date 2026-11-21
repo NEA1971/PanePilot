@@ -442,9 +442,15 @@ class SettingsDialog(QDialog):
         row = QHBoxLayout()
         row.addWidget(self.menu_button)
         row.addWidget(self.menu_status, 1)
-        layout.addSpacing(8)
-        layout.addLayout(row)
         self._update_menu_entry()
+        from . import installkind
+
+        if installkind.package_format():  # v2.0 (L-3005): das Paket bringt den Menüeintrag mit
+            self.menu_button.hide()
+            self.menu_status.hide()
+        else:
+            layout.addSpacing(8)
+            layout.addLayout(row)
         return w
 
     def scale_value(self) -> int:
