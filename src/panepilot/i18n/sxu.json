@@ -1695,5 +1695,6 @@
   "settings.archive_open_app": "mit dem Schdandardbrogramm uffmachn",
   "settings.archive_hint": "Im Archiv gannsde blättorn, Dateien uffmachn und ins andre Fenstor gobiern (= auspaggn). Das Archiv selbor bleibt, wie's is.",
   "action.tabs": "Reidorleisde immor zeichn",
-  "toolbar.label.tabs": "Reidor"
+  "toolbar.label.tabs": "Reidor",
+  "online.missing_title": "Ni gefundn ({n}/{total})"
 }

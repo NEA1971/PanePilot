@@ -1696,5 +1696,6 @@
   "settings.archive_open_app": "mit dem Standardprogramm öffnen",
   "settings.archive_hint": "Im Archiv kannst du blättern, Dateien öffnen und ins andere Fenster kopieren (= entpacken). Das Archiv selbst wird nicht verändert.",
   "action.tabs": "Reiterleiste immer anzeigen",
-  "toolbar.label.tabs": "Reiter"
+  "toolbar.label.tabs": "Reiter",
+  "online.missing_title": "Nicht gefunden ({n}/{total})"
 }

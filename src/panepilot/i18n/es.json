@@ -1695,5 +1695,6 @@
   "settings.archive_open_app": "abrir con la aplicación predeterminada",
   "settings.archive_hint": "Dentro de un archivo puedes navegar, abrir ficheros y copiarlos al otro panel (= extraer). El archivo en sí no se modifica.",
   "action.tabs": "Mostrar siempre la barra de pestañas",
-  "toolbar.label.tabs": "Pestañas"
+  "toolbar.label.tabs": "Pestañas",
+  "online.missing_title": "No encontrado ({n}/{total})"
 }

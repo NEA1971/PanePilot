@@ -1695,5 +1695,6 @@
   "settings.archive_open_app": "mit dem Standardprogramm aufmachn",
   "settings.archive_hint": "Im Archiv konnst blättern, Dateien aufmachn und ins andere Fenster kopiern (= auspaggn). Des Archiv selber bleibt, wie's is.",
   "action.tabs": "Reiterleistn immer zeign",
-  "toolbar.label.tabs": "Reiter"
+  "toolbar.label.tabs": "Reiter",
+  "online.missing_title": "Ned gfundn ({n}/{total})"
 }

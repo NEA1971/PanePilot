@@ -1437,7 +1437,7 @@ class MetaWizardMixin:
         from . import moviedb as md
         from . import tags as tg
         from .mbdialogs import cover_mime
-        from .moviedialogs import ChoiceDialog, ReviewDialog, error_text, make_jobs, run_lookup
+        from .moviedialogs import ChoiceDialog, ReviewDialog, error_text, make_jobs, manual_lookup, run_lookup
 
         items = self._meta_targets()
         if not items:
@@ -1467,10 +1467,18 @@ class MetaWizardMixin:
                     if j.group is entry:
                         j.reason = t("online.skipped")
 
+        def job_of(entry):
+            return entry if hasattr(entry, "item") else next(j for j in jobs if j.group is entry)
+
         for n, entry in enumerate(open_choices, 1):
             label = entry.item.display_name if hasattr(entry, "item") else entry.name
-            dlg = ChoiceDialog(self, label, entry.hits, n, len(open_choices))
+            dlg = ChoiceDialog(self, label, entry.hits, n, len(open_choices), manual=True)
             res = dlg.exec()
+            if res == ChoiceDialog.MANUAL:  # v2.2.1: keiner passt – manuell suchen
+                entry.hits = []
+                if manual_lookup(self, service, jobs, job_of(entry)) != "done":
+                    skip(entry)
+                continue
             if res == QDialog.DialogCode.Accepted and dlg.selected() is not None:
                 hit = dlg.selected()
                 if hasattr(entry, "item"):
@@ -1493,6 +1501,27 @@ class MetaWizardMixin:
                 return
         mode = self.settings.get("online_review") or "review"
         report = ""
+        if mode in ("auto_empty", "auto_all"):
+            # v2.2.1: ohne Übersicht die nicht gefundenen Filme/Serien nacheinander manuell suchen lassen
+            missing: list = []
+            for j in jobs:
+                if j.movie is not None or j.reason == t("online.skipped") or j.item.readonly("title"):
+                    continue
+                if j.group is not None and j.group.tmdb:
+                    continue  # Serie gefunden, nur die Folge fehlt – manuelle Suche hilft nicht
+                key = j.group if j.group is not None else j
+                if all(k is not key for k in missing):
+                    missing.append(key)
+            for n, key in enumerate(missing, 1):
+                job = job_of(key)
+                res = manual_lookup(self, service, jobs, job, t("online.missing_title", n=n, total=len(missing)),
+                                    allow_skip=True)
+                if res == "skip":
+                    skip(key)
+                elif res == "cancel":
+                    for rest in missing[n - 1:]:
+                        skip(rest)
+                    break
         if mode in ("auto_empty", "auto_all"):  # v1.20 (L-2020): ohne Übersicht
             from .moviedialogs import auto_changes, auto_report
 

@@ -208,8 +208,9 @@ def error_text(error: str) -> str:
 # --- Auswahl bei mehreren Treffern (L-911) --------------------------------------------------------------------
 class ChoiceDialog(QDialog):
     SKIP = 2
+    MANUAL = 3  # v2.2.1: „Manuell suchen …“ – keiner der Treffer passt
 
-    def __init__(self, parent, name: str, hits: list[md.Hit], index: int, total: int) -> None:
+    def __init__(self, parent, name: str, hits: list[md.Hit], index: int, total: int, manual: bool = False) -> None:
         super().__init__(parent)
         free_window(self)
         self.setWindowTitle(t("online.choose_title", n=index, total=total))
@@ -236,6 +237,9 @@ class ChoiceDialog(QDialog):
         lay.addWidget(self.list, 1)
         box = QDialogButtonBox(self)
         box.addButton(t("online.take"), QDialogButtonBox.ButtonRole.AcceptRole).setDefault(True)
+        if manual:
+            search = box.addButton(t("online.manual"), QDialogButtonBox.ButtonRole.ActionRole)
+            search.clicked.connect(lambda: self.done(self.MANUAL))
         skip = box.addButton(t("online.skip"), QDialogButtonBox.ButtonRole.ActionRole)
         box.addButton(t("button.cancel"), QDialogButtonBox.ButtonRole.RejectRole)
         box.accepted.connect(self.accept)
@@ -422,66 +426,8 @@ class ReviewDialog(QDialog):
         menu.exec(self.tree.viewport().mapToGlobal(pos))
 
     def manual(self, job: Job) -> None:
-        from .dialogs import show_error, show_info
-
-        dlg = ManualSearchDialog(self, job)
-        if dlg.exec() != QDialog.DialogCode.Accepted:
-            return
-        title, year, ident = dlg.values()
-        series = job.ep is not None
-        if series and not isinstance(self.service, md.Tmdb):
-            show_error(self, t("online.title"), t("online.series_no_key"))
-            return
-        imdb, tmdb = md.clean_imdb(ident), (ident.strip() if ident.strip().isdigit() else "")
-
-        def find():
-            if imdb or tmdb:
-                return []
-            search = self.service.search_tv if series else self.service.search
-            hits = md.search_fallback(search, title, year)
-            _thumbs(hits[:8])
-            return hits[:12]
-
-        hits, error = netutil.run_blocking(self, find, t("online.searching"), t("online.title"))
-        if error:
-            show_error(self, t("online.title"), error_text(error))
-            return
-        if not imdb and not tmdb:
-            if not hits:
-                show_info(self, t("online.title"), t("online.manual_none", title=title))
-                return
-            choice = ChoiceDialog(self, title, hits, 1, 1)
-            if choice.exec() != QDialog.DialogCode.Accepted or choice.selected() is None:
-                return
-            hit = choice.selected()
-            imdb, tmdb, qid = hit.imdb, hit.tmdb, hit.qid
-        else:
-            qid = ""
-        targets = [j for j in self.jobs if j.group is job.group] if series else [job]
-
-        def load():
-            if series:
-                tv = tmdb or (self.service.find_imdb(imdb, tv=True) if imdb else "")
-                if not tv:
-                    for j in targets:
-                        j.movie, j.reason = None, t("online.not_found")
-                    return True
-                job.group.tmdb, job.group.hits, job.group.reason = tv, [], ""
-                for j in targets:
-                    j.movie = self.service.episode(tv, j.ep.season, j.ep.episode)
-                    j.reason = "" if j.movie else t("online.episode_not_found", s=f"{j.ep.season:02d}",
-                                                         e=f"{j.ep.episode:02d}")
-            else:
-                job.imdb, job.tmdb, job.qid = imdb, tmdb, qid
-                job.movie = self.service.load(imdb, tmdb, qid)
-                job.reason = "" if job.movie else t("online.not_found")
-            return True
-
-        _ok, error = netutil.run_blocking(self, load, t("online.loading"), t("online.title"))
-        if error:
-            show_error(self, t("online.title"), error_text(error))
-            return
-        self.rebuild()
+        if manual_lookup(self, self.service, self.jobs, job) == "done":
+            self.rebuild()
 
     def rebuild(self) -> None:
         """Baum neu aufbauen; Häkchen bleiben, soweit es die Zeile schon gab."""
@@ -556,15 +502,88 @@ def auto_report(jobs: list[Job], changes: list) -> str:
     return "\n".join(lines)
 
 
+def manual_lookup(parent, service, jobs: list[Job], job: Job, heading: str = "", allow_skip: bool = False) -> str:
+    """Manuelle Suche für einen Film bzw. eine Serie (L-1431/L-1432, v2.2.1 auch ohne Übersicht).
+
+    Ergebnis: "done" (gesucht und geladen), "skip" (Überspringen), "cancel" (Suche abgebrochen),
+    "none" (nichts gefunden bzw. nichts gewählt).
+    """
+    from .dialogs import show_error, show_info
+
+    dlg = ManualSearchDialog(parent, job, heading, allow_skip)
+    res = dlg.exec()
+    if res == ManualSearchDialog.SKIP:
+        return "skip"
+    if res != QDialog.DialogCode.Accepted:
+        return "cancel"
+    title, year, ident = dlg.values()
+    series = job.ep is not None
+    if series and not isinstance(service, md.Tmdb):
+        show_error(parent, t("online.title"), t("online.series_no_key"))
+        return "none"
+    imdb, tmdb = md.clean_imdb(ident), (ident.strip() if ident.strip().isdigit() else "")
+
+    def find():
+        if imdb or tmdb:
+            return []
+        search = service.search_tv if series else service.search
+        hits = md.search_fallback(search, title, year)
+        _thumbs(hits[:8])
+        return hits[:12]
+
+    hits, error = netutil.run_blocking(parent, find, t("online.searching"), t("online.title"))
+    if error:
+        show_error(parent, t("online.title"), error_text(error))
+        return "none"
+    if not imdb and not tmdb:
+        if not hits:
+            show_info(parent, t("online.title"), t("online.manual_none", title=title))
+            return "none"
+        choice = ChoiceDialog(parent, title, hits, 1, 1)
+        if choice.exec() != QDialog.DialogCode.Accepted or choice.selected() is None:
+            return "none"
+        hit = choice.selected()
+        imdb, tmdb, qid = hit.imdb, hit.tmdb, hit.qid
+    else:
+        qid = ""
+    targets = [j for j in jobs if j.group is job.group] if series else [job]
+
+    def load():
+        if series:
+            tv = tmdb or (service.find_imdb(imdb, tv=True) if imdb else "")
+            if not tv:
+                for j in targets:
+                    j.movie, j.reason = None, t("online.not_found")
+                return True
+            job.group.tmdb, job.group.hits, job.group.reason = tv, [], ""
+            for j in targets:
+                j.movie = service.episode(tv, j.ep.season, j.ep.episode)
+                j.reason = "" if j.movie else t("online.episode_not_found", s=f"{j.ep.season:02d}",
+                                                     e=f"{j.ep.episode:02d}")
+        else:
+            job.imdb, job.tmdb, job.qid = imdb, tmdb, qid
+            job.movie = service.load(imdb, tmdb, qid)
+            job.reason = "" if job.movie else t("online.not_found")
+        return True
+
+    _ok, error = netutil.run_blocking(parent, load, t("online.loading"), t("online.title"))
+    if error:
+        show_error(parent, t("online.title"), error_text(error))
+        return "none"
+    return "done"
+
+
 class ManualSearchDialog(QDialog):
     """Titel und Jahr bzw. Kennung eingeben (L-1431)."""
 
-    def __init__(self, parent, job: Job) -> None:
+    SKIP = 2
+
+    def __init__(self, parent, job: Job, heading: str = "", allow_skip: bool = False) -> None:
         from PySide6.QtWidgets import QFormLayout
 
         super().__init__(parent)
         free_window(self)
-        self.setWindowTitle(t("online.manual_title"))
+        self.setWindowTitle(heading or t("online.manual_title"))
         self.resize(520, 200)
         lay = QVBoxLayout(self)
         intro = QLabel(t("online.manual_intro_series" if job.ep is not None else "online.manual_intro",
@@ -585,6 +604,9 @@ class ManualSearchDialog(QDialog):
         lay.addLayout(form)
         box = QDialogButtonBox(self)
         box.addButton(t("online.manual_search"), QDialogButtonBox.ButtonRole.AcceptRole).setDefault(True)
+        if allow_skip:  # v2.2.1: nicht gefundene Filme ohne Übersicht nacheinander
+            box.addButton(t("online.skip"), QDialogButtonBox.ButtonRole.ActionRole).clicked.connect(
+                lambda: self.done(self.SKIP))
         box.addButton(t("button.cancel"), QDialogButtonBox.ButtonRole.RejectRole)
         box.accepted.connect(self.accept)
         box.rejected.connect(self.reject)

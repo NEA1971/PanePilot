@@ -1695,5 +1695,6 @@
   "settings.archive_open_app": "open with the default application",
   "settings.archive_hint": "Inside an archive you can browse, open files and copy them to the other panel (= extract). The archive itself is never changed.",
   "action.tabs": "Always show the tab bar",
-  "toolbar.label.tabs": "Tabs"
+  "toolbar.label.tabs": "Tabs",
+  "online.missing_title": "Not found ({n}/{total})"
 }

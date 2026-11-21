@@ -1695,5 +1695,6 @@
   "settings.archive_open_app": "ouvrir avec l’application par défaut",
   "settings.archive_hint": "Dans une archive, vous pouvez parcourir, ouvrir des fichiers et les copier dans l’autre panneau (= extraire). L’archive elle-même n’est jamais modifiée.",
   "action.tabs": "Toujours afficher la barre d’onglets",
-  "toolbar.label.tabs": "Onglets"
+  "toolbar.label.tabs": "Onglets",
+  "online.missing_title": "Introuvable ({n}/{total})"
 }
