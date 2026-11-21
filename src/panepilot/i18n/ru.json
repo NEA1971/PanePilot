@@ -1632,5 +1632,22 @@
   "dup.mode_visual": "е) Похожее изображение/видео (по содержимому)",
   "dup.col_resolution": "Разрешение",
   "dup.pick_resolution": "Оставить наибольшее разрешение",
-  "dup.fingerprints": "Создание отпечатков: {done} из {total}"
+  "dup.fingerprints": "Создание отпечатков: {done} из {total}",
+  "action.clip_path": "Путь к файлу → буфер обмена",
+  "action.clip_name": "Имя файла → буфер обмена",
+  "action.clip_stem": "Имя без расширения → буфер обмена",
+  "action.clip_folder": "Путь к папке → буфер обмена",
+  "action.clip_url": "Путь как адрес (file://) → буфер обмена",
+  "action.clip_details": "Копировать сведения в буфер обмена",
+  "menu.clip_text": "В буфер обмена",
+  "action.view_mode": "Таблица ↔ значки",
+  "toolbar.label.view_mode": "Вид",
+  "view.large": "Крупные значки",
+  "view.medium": "Средние значки",
+  "view.small": "Мелкие значки",
+  "view.details": "Таблица",
+  "update.launcher_hint": "При следующем запуске из меню приложений или с панели задач откроется новая версия.",
+  "update.remove_old": "Обновление завершено. Предыдущая версия «{name}» всё ещё находится в\n{folder}\n\nПереместить её в корзину?",
+  "update.remove_old_yes": "В корзину",
+  "update.remove_old_keep": "Оставить"
 }

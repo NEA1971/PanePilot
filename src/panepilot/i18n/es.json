@@ -1632,5 +1632,22 @@
   "dup.mode_visual": "f) Imagen/vídeo parecido (contenido)",
   "dup.col_resolution": "Resolución",
   "dup.pick_resolution": "Conservar la mayor resolución",
-  "dup.fingerprints": "Creando huellas: {done} de {total}"
+  "dup.fingerprints": "Creando huellas: {done} de {total}",
+  "action.clip_path": "Ruta del archivo → portapapeles",
+  "action.clip_name": "Nombre del archivo → portapapeles",
+  "action.clip_stem": "Nombre sin extensión → portapapeles",
+  "action.clip_folder": "Ruta de la carpeta → portapapeles",
+  "action.clip_url": "Ruta como dirección (file://) → portapapeles",
+  "action.clip_details": "Copiar detalles al portapapeles",
+  "menu.clip_text": "Al portapapeles",
+  "action.view_mode": "Detalles ↔ iconos",
+  "toolbar.label.view_mode": "Vista",
+  "view.large": "Iconos grandes",
+  "view.medium": "Iconos medianos",
+  "view.small": "Iconos pequeños",
+  "view.details": "Detalles",
+  "update.launcher_hint": "Al iniciar desde el menú de aplicaciones o la barra de tareas se abrirá la nueva versión.",
+  "update.remove_old": "La actualización ha terminado. La versión anterior «{name}» sigue en\n{folder}\n\n¿Moverla a la papelera?",
+  "update.remove_old_yes": "A la papelera",
+  "update.remove_old_keep": "Conservar"
 }

@@ -193,9 +193,58 @@ def handle_release(window, release: Release, manual: bool) -> None:
         return
     if not os.path.exists(target) and not download_release(window, release, target):
         return
-    if confirm(window, t("update.title"), t("update.restart", name=os.path.basename(target)),
-               yes_key="button.restart_now", no_key="donate.later"):
+    launcher = point_launcher(target)
+    remember_old_file(settings, target)
+    text = t("update.restart", name=os.path.basename(target))
+    if launcher:
+        text += "\n\n" + t("update.launcher_hint")
+    if confirm(window, t("update.title"), text, yes_key="button.restart_now", no_key="donate.later"):
         restart_into(window, target)
+
+
+def point_launcher(target: str) -> bool:
+    """v1.23 (L-2320): Starter im Anwendungsmenü/der Taskleiste gleich auf die neue Datei umstellen."""
+    from . import desktopint
+
+    if not desktopint.is_integrated():
+        return False
+    try:
+        desktopint.integrate(target)
+    except OSError:
+        return False
+    return True
+
+
+def remember_old_file(settings, target: str) -> None:
+    """L-2321: laufende (alte) Datei merken – die neue Version fragt beim ersten Start, ob sie weg soll."""
+    current = os.environ.get("APPIMAGE")
+    if current and os.path.abspath(current) != os.path.abspath(target):
+        settings.set("update_old_file", {"old": os.path.abspath(current), "new": os.path.abspath(target)})
+
+
+def offer_old_file_removal(window) -> None:
+    """Beim Start: lief vorher eine ältere Datei, einmal fragen, ob sie in den Papierkorb soll (L-2321)."""
+    from .dialogs import confirm, show_error
+
+    info = window.settings.get("update_old_file")
+    current = os.environ.get("APPIMAGE")
+    if not isinstance(info, dict) or not current:
+        return
+    old, new = info.get("old"), info.get("new")
+    if not isinstance(old, str) or os.path.abspath(current) != new:
+        return  # noch die alte Version oder eine andere Datei gestartet: später fragen
+    window.settings.set("update_old_file", None)  # nur einmal fragen
+    if not os.path.isfile(old) or os.path.abspath(old) == os.path.abspath(current):
+        return
+    if confirm(window, t("update.title"), t("update.remove_old", name=os.path.basename(old),
+                                             folder=os.path.dirname(old)),
+               yes_key="update.remove_old_yes", no_key="update.remove_old_keep", default_yes=False):
+        from .fileops import move_to_trash
+
+        try:
+            move_to_trash(old)
+        except OSError as exc:
+            show_error(window, t("update.title"), f"{old}: {exc.strerror or exc}")
 
 
 def restart_into(window, path: str) -> None:

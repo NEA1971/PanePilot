@@ -1633,5 +1633,22 @@
   "dup.mode_visual": "f) Ähnliches Bild/Video (Bildinhalt)",
   "dup.col_resolution": "Auflösung",
   "dup.pick_resolution": "Höchste Auflösung behalten",
-  "dup.fingerprints": "Fingerabdrücke werden erstellt: {done} von {total}"
+  "dup.fingerprints": "Fingerabdrücke werden erstellt: {done} von {total}",
+  "action.clip_path": "Dateipfad → Zwischenablage",
+  "action.clip_name": "Dateiname → Zwischenablage",
+  "action.clip_stem": "Dateiname ohne Erweiterung → Zwischenablage",
+  "action.clip_folder": "Ordnerpfad → Zwischenablage",
+  "action.clip_url": "Dateipfad als Adresse (file://) → Zwischenablage",
+  "action.clip_details": "Details in die Zwischenablage kopieren",
+  "menu.clip_text": "In die Zwischenablage",
+  "action.view_mode": "Details ↔ Symbole",
+  "toolbar.label.view_mode": "Ansicht",
+  "view.large": "Große Symbole",
+  "view.medium": "Mittelgroße Symbole",
+  "view.small": "Kleine Symbole",
+  "view.details": "Details",
+  "update.launcher_hint": "Beim nächsten Start über das Anwendungsmenü oder die Taskleiste startet die neue Version.",
+  "update.remove_old": "Die Aktualisierung ist fertig. Die vorherige Version „{name}“ liegt noch in\n{folder}\n\nSoll sie in den Papierkorb?",
+  "update.remove_old_yes": "In den Papierkorb",
+  "update.remove_old_keep": "Behalten"
 }

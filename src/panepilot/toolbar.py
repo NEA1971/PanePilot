@@ -41,9 +41,10 @@ def spacer_width(item: str) -> int | None:
         return None
 DEFAULT_ITEMS = ["back", "forward"]
 HISTORY_ACTIONS = ("back", "forward")
-MENU_ACTIONS = HISTORY_ACTIONS + ("filter_toggle",)  # Knopf mit Pfeil und Menü
-# Nicht in der Symbolleiste: an eine Ansicht gebundene Aktionen
-EXCLUDED = set(NOT_ASSIGNABLE)
+MENU_ACTIONS = HISTORY_ACTIONS + ("filter_toggle", "view_mode", "clip_copy")  # Knopf mit Pfeil und Menü
+# Nicht in der Symbolleiste: an eine Ansicht gebundene Aktionen; v1.23: die Ansichten stecken im Knopf „Ansicht“
+VIEW_LEGACY = ("toggle_icon_view", "icons_small", "icons_medium", "icons_large")
+EXCLUDED = set(NOT_ASSIGNABLE) | set(VIEW_LEGACY)
 
 
 def available_actions() -> list[str]:
@@ -57,6 +58,8 @@ def clean_items(items) -> list[str]:
     valid = set(available_actions())
     result: list[str] = []
     for it in items:
+        if it in VIEW_LEGACY:  # v1.23 (L-2302): alte Ansicht-Knöpfe → ein Knopf „Ansicht“
+            it = "view_mode"
         if it == SEPARATOR:
             if result and result[-1] != SEPARATOR:
                 result.append(it)

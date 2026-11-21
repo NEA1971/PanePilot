@@ -79,6 +79,13 @@ ACTION_DEFS: tuple[ActionDef, ...] = (
     ActionDef("clip_copy", "action.clip_copy", ("Ctrl+C",), "list"),
     ActionDef("clip_cut", "action.clip_cut", ("Ctrl+X",), "list"),
     ActionDef("clip_paste", "action.clip_paste", ("Ctrl+V",), "list"),
+    # v1.23 (L-2310 ff.): Pfade und Namen als Text in die Zwischenablage
+    ActionDef("clip_path", "action.clip_path", ("Alt+Ins",), "list"),
+    ActionDef("clip_name", "action.clip_name", ("Alt+Shift+Ins",), "list"),
+    ActionDef("clip_stem", "action.clip_stem", (), "list"),
+    ActionDef("clip_folder", "action.clip_folder", (), "list"),
+    ActionDef("clip_url", "action.clip_url", (), "list"),
+    ActionDef("clip_details", "action.clip_details", (), "list"),
     # Navigation
     ActionDef("go_up", "action.go_up", ("Backspace",), "list"),
     ActionDef("back", "action.back", ("Alt+Left",), "window"),
@@ -109,6 +116,7 @@ ACTION_DEFS: tuple[ActionDef, ...] = (
     ActionDef("toggle_single", "action.toggle_single", (), "window"),
     ActionDef("toggle_stacked", "action.toggle_stacked", ("Ctrl+Shift+H",), "window"),  # v1.10 (L-1000)
     ActionDef("toggle_shared_sidebar", "action.toggle_shared_sidebar", (), "window"),  # v1.21 (L-2100)
+    ActionDef("view_mode", "action.view_mode", (), "window"),  # v1.23 (L-2300): Knopf „Ansicht“
     ActionDef("toggle_icon_view", "action.toggle_icon_view", ("Ctrl+Shift+I",), "window"),  # v1.19 (L-1910)
     ActionDef("icons_small", "action.icons_small", (), "window"),  # v1.19 (L-1911)
     ActionDef("icons_medium", "action.icons_medium", (), "window"),

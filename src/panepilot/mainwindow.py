@@ -1005,6 +1005,8 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         m = mb.addMenu(t("menu.edit"))
         for aid in ("clip_cut", "clip_copy", "clip_paste", None, "select_all", None, "meta_wizard"):
             m.addSeparator() if aid is None else m.addAction(a[aid])
+        m.addSeparator()
+        self._fill_clip_menu(m.addMenu(t("menu.clip_text")))  # v1.23 (L-2312)
 
         m = mb.addMenu(t("menu.view"))
         self.sidebar_menus: dict[str, dict[str, QAction]] = {}
@@ -1032,6 +1034,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         m.addAction(a["toggle_stacked"])
         m.addAction(a["toggle_shared_sidebar"])  # v1.21
         m.addSeparator()
+        m.addAction(a["view_mode"])  # v1.23: Details ↔ Symbole
         m.addAction(a["toggle_icon_view"])  # v1.19 (L-1910 ff.)
         sub = m.addMenu(t("menu.icon_size"))
         for aid in ("icons_small", "icons_medium", "icons_large"):
@@ -1608,6 +1611,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         self.toolbar = MainToolBar(self, self.qactions, key_text, self._fill_history_menu)
         self.toolbar.customize_requested.connect(self.customize_toolbar)
         self.toolbar.rebuilt.connect(self._update_filter_ui)
+        self.toolbar.rebuilt.connect(self._update_view_actions)
         self.toolbar.hide_requested.connect(lambda: self.set_toolbar_visible(False))
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar)
         self.toolbar.set_items(self.settings.get("toolbar"))
@@ -1618,6 +1622,12 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         panel = self.active
         if aid == "filter_toggle":
             self._fill_filter_menu(menu)
+            return
+        if aid == "view_mode":  # v1.23 (L-2300)
+            self._fill_view_menu(menu)
+            return
+        if aid == "clip_copy":  # v1.23 (L-2310)
+            self._fill_clip_menu(menu)
             return
         for index, path in panel.history_entries(forward=aid == "forward")[:20]:
             label = t("trash.title") if is_trash_uri(path) else path
@@ -2125,10 +2135,13 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         if self.active.target_entries():
             menu.addAction(a["compress"])
         self._extract_menu_entries(menu)
-        for aid in (None, "clip_cut", "clip_copy", "clip_paste", None,
+        for aid in (None, "clip_cut", "clip_copy", "clip_paste", "_clip_menu", None,
                     "rename", "duplicate", "multi_rename", "meta_wizard", "delete", "delete_permanent", None,
                     "new_folder", "new_textfile"):
             if aid == "duplicate" and not self.active.target_entries():
+                continue
+            if aid == "_clip_menu":  # v1.23 (L-2312)
+                self._fill_clip_menu(menu.addMenu(t("menu.clip_text")))
                 continue
             menu.addSeparator() if aid is None else menu.addAction(a[aid])
         # Terminal und Verzeichnisliste: angeklickter Ordner, sonst der angezeigte (v1.1)
@@ -2782,12 +2795,109 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
     def do_icons_large(self) -> None:
         self._set_icon_size(256)
 
+    # --- Knopf „Ansicht“ (v1.23, L-2300 ff.) -----------------------------------------------------------
+    VIEW_CHOICES = ((256, "view.large"), (128, "view.medium"), (64, "view.small"), (None, "view.details"))
+
+    def do_view_mode(self) -> None:
+        """Klick auf den Knopf: Details ↔ zuletzt benutzte Symbolgröße."""
+        panel = self.active
+        panel.set_icon_mode(not panel.icon_mode)
+        panel.focus_view()
+        self._update_view_actions()
+
+    def _set_view(self, size) -> None:
+        panel = self.active
+        if size is None:
+            panel.set_icon_mode(False)
+        else:
+            panel.set_icon_size(size)
+            panel.set_icon_mode(True)
+        panel.focus_view()
+        self._update_view_actions()
+
+    def _view_icon(self, panel=None):
+        from .toolicons import VIEW_ICONS
+
+        panel = panel or self.active
+        return VIEW_ICONS[panel.icon_size if panel.icon_mode else "details"]()
+
+    def _fill_view_menu(self, menu: QMenu) -> None:
+        """Punkt vor der aktuellen Ansicht, daneben das Bildchen (L-2301, wie im Explorer)."""
+        from .toolicons import VIEW_ICONS
+        from .viewmenu import ViewMenuRow
+
+        panel = self.active
+        for size, key in self.VIEW_CHOICES:
+            current = panel.icon_mode == (size is not None) and (size is None or panel.icon_size == size)
+            act = ViewMenuRow.action(menu, VIEW_ICONS[size if size else "details"](), t(key), current)
+            act.triggered.connect(lambda _c=False, s=size: self._set_view(s))
+            menu.addAction(act)
+
+    # --- Zwischenablage: Pfade und Namen (v1.23, L-2310 ff.) ----------------------------------------------
+    CLIP_ACTIONS = ("clip_path", "clip_name", "clip_stem", "clip_folder", "clip_url", None, "clip_details")
+
+    def _fill_clip_menu(self, menu: QMenu) -> None:
+        for aid in self.CLIP_ACTIONS:
+            menu.addSeparator() if aid is None else menu.addAction(self.qactions[aid])
+
+    def _clip_text(self, text: str) -> None:
+        if text:
+            QApplication.clipboard().setText(text)
+
+    def _clip_entries(self):
+        return [e for e in self.active.target_entries() if not e.is_parent]
+
+    def do_clip_path(self) -> None:
+        self._clip_text("\n".join(e.path for e in self._clip_entries()))
+
+    def do_clip_name(self) -> None:
+        self._clip_text("\n".join(e.name for e in self._clip_entries()))
+
+    def do_clip_stem(self) -> None:
+        self._clip_text("\n".join(e.name if e.is_dir else os.path.splitext(e.name)[0] for e in self._clip_entries()))
+
+    def do_clip_folder(self) -> None:
+        """Ordner des aktiven Fensters (bei Suchergebnissen: Ordner der markierten Dateien)."""
+        panel = self.active
+        if panel.search_mode:
+            folders = list(dict.fromkeys(os.path.dirname(e.path) for e in self._clip_entries()))
+            self._clip_text("\n".join(folders))
+        elif not panel.in_trash:
+            self._clip_text(panel.current_path)
+
+    def do_clip_url(self) -> None:
+        out = []
+        for e in self._clip_entries():
+            out.append(e.path if "://" in e.path else QUrl.fromLocalFile(e.path).toString(
+                QUrl.ComponentFormattingOption.FullyEncoded))
+        self._clip_text("\n".join(out))
+
+    def do_clip_details(self) -> None:
+        """Name, Größe (Bytes), Geändert, Typ – durch Tabulator getrennt, z. B. für Excel (L-2310)."""
+        import time as _time
+
+        entries = self._clip_entries()
+        if not entries:
+            return
+        lines = ["\t".join((t("menu.sort_name"), t("column.size"), t("column.date"), t("column.type")))]
+        for e in entries:
+            size = "" if e.is_dir else str(e.size)
+            when = _time.strftime("%Y-%m-%d %H:%M", _time.localtime(e.mtime)) if e.mtime else ""
+            kind = e.type_text
+            lines.append("\t".join((e.name, size, when, kind)))
+        self._clip_text("\n".join(lines))
+
     def _update_view_actions(self) -> None:
         qa = getattr(self, "qactions", None)
         if not qa or "toggle_icon_view" not in qa or not hasattr(self, "sides"):
             return
         panel = self.active
         qa["toggle_icon_view"].setChecked(panel.icon_mode)
+        toolbar = getattr(self, "toolbar", None)
+        if toolbar is not None:  # Knopf „Ansicht“ zeigt die aktuelle Ansicht (L-2300)
+            toolbar.set_action_look("view_mode", icon=self._view_icon(panel),
+                                    tooltip=t("toolbar.label.view_mode") + ": " + t(dict(
+                                        (k, v) for k, v in self.VIEW_CHOICES)[panel.icon_size if panel.icon_mode else None]))
         aid = {64: "icons_small", 128: "icons_medium", 256: "icons_large"}.get(panel.icon_size, "icons_medium")
         qa[aid].setChecked(True)
 

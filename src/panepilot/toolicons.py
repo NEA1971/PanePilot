@@ -849,3 +849,102 @@ def icon_icon_view() -> QIcon:
 
 
 _PAINTED["toggle_icon_view"] = icon_icon_view
+
+
+# --- v1.23 -------------------------------------------------------------------------------------------------
+def icon_shared_sidebar() -> QIcon:
+    """Gemeinsame Seitenleiste: wie „Fenster übereinander“, aber nebeneinander; Seitenleiste über die volle Höhe."""
+    fg, _accent = _colors()
+
+    def draw(p: QPainter) -> None:
+        p.setPen(_pen(fg, 1.4))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRoundedRect(QRectF(2.5, 3, 19, 18), 2, 2)
+        p.drawLine(QPointF(2.5, 6.5), QPointF(21.5, 6.5))
+        p.drawLine(QPointF(7.5, 6.5), QPointF(7.5, 21))  # gemeinsame Seitenleiste
+        p.drawLine(QPointF(14.5, 6.5), QPointF(14.5, 21))  # zwei Fenster nebeneinander
+    return _paint_icon(draw)
+
+
+def icon_shared_sidebar_tinted() -> QIcon:
+    """Entwurf b: Seitenleiste farbig hinterlegt."""
+    fg, accent = _colors()
+
+    def draw(p: QPainter) -> None:
+        c = QColor(accent)
+        c.setAlpha(110)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawRect(QRectF(3.2, 6.5, 4.3, 13.8))
+        p.setPen(_pen(fg, 1.4))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRoundedRect(QRectF(2.5, 3, 19, 18), 2, 2)
+        p.drawLine(QPointF(2.5, 6.5), QPointF(21.5, 6.5))
+        p.drawLine(QPointF(7.5, 6.5), QPointF(7.5, 21))
+        p.drawLine(QPointF(14.5, 6.5), QPointF(14.5, 21))
+    return _paint_icon(draw)
+
+
+def _view_boxes(p: QPainter, fg, n: int) -> None:
+    """Symbolansichten: n × n Kästchen (1 = groß, 2 = mittel, 3 = klein)."""
+    p.setPen(_pen(fg, 1.5 if n < 3 else 1.3))
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    gap = 2.0 if n > 1 else 0
+    size = (19 - gap * (n - 1)) / n
+    for r in range(n):
+        for c in range(n):
+            p.drawRoundedRect(QRectF(2.5 + c * (size + gap), 2.5 + r * (size + gap), size, size), 1.5, 1.5)
+
+
+def icon_view_large() -> QIcon:
+    fg, accent = _colors()
+
+    def draw(p: QPainter) -> None:
+        _view_boxes(p, fg, 1)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(accent)
+        p.drawRect(QRectF(7, 7, 10, 10))
+    return _paint_icon(draw)
+
+
+def icon_view_medium() -> QIcon:
+    fg, accent = _colors()
+
+    def draw(p: QPainter) -> None:
+        _view_boxes(p, fg, 2)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(accent)
+        for x, y in ((5.2, 5.2), (15.7, 5.2), (5.2, 15.7), (15.7, 15.7)):
+            p.drawRect(QRectF(x - 0.2, y - 0.2, 3.6, 3.6))
+    return _paint_icon(draw)
+
+
+def icon_view_small() -> QIcon:
+    fg, _accent = _colors()
+
+    def draw(p: QPainter) -> None:
+        _view_boxes(p, fg, 3)
+    return _paint_icon(draw)
+
+
+def icon_view_details() -> QIcon:
+    fg, accent = _colors()
+
+    def draw(p: QPainter) -> None:
+        p.setPen(_pen(fg, 1.6))
+        for y in (5, 9.7, 14.3, 19):
+            p.drawLine(QPointF(8, y), QPointF(21.5, y))
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(accent)
+        for y in (5, 9.7, 14.3, 19):
+            p.drawRect(QRectF(2.5, y - 1.6, 3.2, 3.2))
+    return _paint_icon(draw)
+
+
+VIEW_ICONS = {"details": icon_view_details, 64: icon_view_small, 128: icon_view_medium, 256: icon_view_large}
+
+
+_PAINTED.update({
+    "toggle_shared_sidebar": icon_shared_sidebar_tinted,  # Entwurf b (21.11.2026)
+    "view_mode": icon_view_details,
+})

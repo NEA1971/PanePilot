@@ -1632,5 +1632,22 @@
   "dup.mode_visual": "f) Image/vidéo similaire (contenu)",
   "dup.col_resolution": "Résolution",
   "dup.pick_resolution": "Garder la plus haute résolution",
-  "dup.fingerprints": "Création des empreintes : {done} sur {total}"
+  "dup.fingerprints": "Création des empreintes : {done} sur {total}",
+  "action.clip_path": "Chemin du fichier → presse-papiers",
+  "action.clip_name": "Nom du fichier → presse-papiers",
+  "action.clip_stem": "Nom sans extension → presse-papiers",
+  "action.clip_folder": "Chemin du dossier → presse-papiers",
+  "action.clip_url": "Chemin en adresse (file://) → presse-papiers",
+  "action.clip_details": "Copier les détails dans le presse-papiers",
+  "menu.clip_text": "Vers le presse-papiers",
+  "action.view_mode": "Détails ↔ icônes",
+  "toolbar.label.view_mode": "Affichage",
+  "view.large": "Grandes icônes",
+  "view.medium": "Icônes moyennes",
+  "view.small": "Petites icônes",
+  "view.details": "Détails",
+  "update.launcher_hint": "Le prochain lancement depuis le menu des applications ou la barre des tâches ouvrira la nouvelle version.",
+  "update.remove_old": "La mise à jour est terminée. La version précédente « {name} » se trouve encore dans\n{folder}\n\nLa mettre à la corbeille ?",
+  "update.remove_old_yes": "À la corbeille",
+  "update.remove_old_keep": "Garder"
 }

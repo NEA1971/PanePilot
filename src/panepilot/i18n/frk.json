@@ -1632,5 +1632,22 @@
   "dup.mode_visual": "f) Ähnlichs Bild/Video (Bildinhalt)",
   "dup.col_resolution": "Auflösung",
   "dup.pick_resolution": "Höchste Auflösung bhaltn",
-  "dup.fingerprints": "Fingerabdrück wern gmacht: {done} vo {total}"
+  "dup.fingerprints": "Fingerabdrück wern gmacht: {done} vo {total}",
+  "action.clip_path": "Dateipfad → Zwischnablag",
+  "action.clip_name": "Dateinam → Zwischnablag",
+  "action.clip_stem": "Dateinam ohne Endung → Zwischnablag",
+  "action.clip_folder": "Ordnerpfad → Zwischnablag",
+  "action.clip_url": "Dateipfad als Adress (file://) → Zwischnablag",
+  "action.clip_details": "Details in d'Zwischnablag kopiern",
+  "menu.clip_text": "In d'Zwischnablag",
+  "action.view_mode": "Details ↔ Symbole",
+  "toolbar.label.view_mode": "Ansicht",
+  "view.large": "Große Symbole",
+  "view.medium": "Mittelgroße Symbole",
+  "view.small": "Kloane Symbole",
+  "view.details": "Details",
+  "update.launcher_hint": "Beim nächstn Start übers Anwendungsmenü odder d'Taskleistn startet die neie Version.",
+  "update.remove_old": "D'Aktualisierung is fertig. Die vorige Version „{name}“ liegt noch in\n{folder}\n\nSoll's in Babierkorb?",
+  "update.remove_old_yes": "In Babierkorb",
+  "update.remove_old_keep": "Bhaltn"
 }

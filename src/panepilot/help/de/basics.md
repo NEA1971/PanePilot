@@ -13,6 +13,7 @@ PanePilot zeigt zwei Dateifenster (Panels) nebeneinander. Eines davon ist **akti
 - **Kopieren / Verschieben** ins andere Panel (F5 / F6) fragt vorher nach, die Varianten „ohne Rückfrage“ legen sofort los. Ziehen mit der Maus geht ebenfalls, auch von und nach Nautilus.
 - **Umbenennen** (F2), **Neuer Ordner** (F7), **Neue Textdatei** (Umschalt+F4), **In den Papierkorb** (F8), **Endgültig löschen**. Beim Umbenennen zeigt das Eingabefeld immer den kompletten Namen mit Endung – auch in der Spalte „Name (ohne Endung)“. Vorab markiert ist der Teil vor der Endung; die Endung lässt sich mit ändern.
 - **Zwischenablage**: Kopieren, Ausschneiden, Einfügen (Strg+C/X/V), auch zusammen mit anderen Programmen.
+- **Pfade und Namen in die Zwischenablage** (Menü Bearbeiten, Rechtsklick → „In die Zwischenablage“ oder Pfeil am Knopf „Kopieren“): Dateipfad (Alt+Einfg), Dateiname (Alt+Umschalt+Einfg), Dateiname ohne Erweiterung, Ordnerpfad, Dateipfad als Adresse (`file:///…`) und Details (Name, Größe in Bytes, Datum, Typ – durch Tabulator getrennt, z. B. zum Einfügen in Excel). Bei mehreren markierten Dateien steht jede in einer eigenen Zeile.
 - **Duplizieren** (Strg+D, auch im Rechtsklick-Menü): legt von den markierten Dateien und Ordnern im selben Ordner eine Kopie an, ohne Rückfrage – `Bericht.docx` wird zu `Bericht-Kopie.docx`, beim nächsten Mal `Bericht-Kopie-2.docx`. Die Kopien sind danach markiert, z. B. zum Umbenennen mit F2. Auf FTP-/SFTP-Servern nicht möglich.
 - **Fenster übereinander** (Ansicht → „Fenster übereinander“, Strg+Umschalt+H): stellt die beiden Fenster übereinander statt nebeneinander. Jedes Fenster behält seine Seitenleiste links daneben, die Knopfleiste liegt waagerecht dazwischen. Die Aufteilung wird für beide Anordnungen getrennt gemerkt.
 - **Aktualisieren** (Strg+R, auch ganz unten im Rechtsklick-Menü): liest den angezeigten Ordner neu ein; die Markierung bleibt erhalten.
@@ -34,6 +35,7 @@ PanePilot zeigt zwei Dateifenster (Panels) nebeneinander. Eines davon ist **akti
 - Im Menü „Ansicht“ gibt es dann nur einen Eintrag „Seitenleiste“. Die Breite wird je Anordnung gemerkt.
 
 ## Symbolansicht
+- **Knopf „Ansicht“** in der Symbolleiste (über „Symbolleiste anpassen“): ein Klick wechselt zwischen Details und der zuletzt benutzten Symbolgröße, der Pfeil daneben zeigt Große, Mittelgroße und Kleine Symbole sowie Details; der Punkt markiert die aktuelle Ansicht.
 - **Ansicht → Symbolansicht** (Strg+Umschalt+I) zeigt das aktive Fenster mit großen Symbolen statt als Liste; jedes Fenster merkt sich seine Ansicht.
 - Drei Größen über **Ansicht → Symbolgröße** oder **Strg+Mausrad**.
 - **Vorschaubilder:** Bilder, die erste Seite von PDFs, das Cover von Musikdateien und das Poster von Videos (sonst ein Bild aus dem Film). Vorschaubilder, die schon im gemeinsamen Zwischenspeicher `~/.cache/thumbnails` liegen (z. B. von Nautilus), werden sofort genutzt, fehlende im Hintergrund erzeugt und dort abgelegt.
