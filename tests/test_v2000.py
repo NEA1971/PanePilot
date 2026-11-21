@@ -30,28 +30,28 @@ def test_install_kind(monkeypatch, tmp_path):
     assert "zypper" in ik.install_command("/d/a.rpm", "rpm") and "dnf" in ik.install_command("/d/a.rpm", "rpm")
 
 
-RELEASE = {"tag_name": "v9.0.0", "body": "neu", "html_url": "https://example.invalid/r",
-           "assets": [{"name": "PanePilot-9.0.0-x86_64.AppImage", "browser_download_url": "https://e/a", "size": 3},
-                      {"name": "PanePilot-9.0.0-x86_64.AppImage.zsync", "browser_download_url": "https://e/z"},
-                      {"name": "PanePilot-9.0.0-amd64.deb", "browser_download_url": "https://e/d", "size": 5},
-                      {"name": "PanePilot-9.0.0-x86_64.rpm", "browser_download_url": "https://e/r", "size": 7}]}
+RELEASE = {"tag_name": "v99.0.0", "body": "neu", "html_url": "https://example.invalid/r",
+           "assets": [{"name": "PanePilot-99.0.0-x86_64.AppImage", "browser_download_url": "https://e/a", "size": 3},
+                      {"name": "PanePilot-99.0.0-x86_64.AppImage.zsync", "browser_download_url": "https://e/z"},
+                      {"name": "PanePilot-99.0.0-amd64.deb", "browser_download_url": "https://e/d", "size": 5},
+                      {"name": "PanePilot-99.0.0-x86_64.rpm", "browser_download_url": "https://e/r", "size": 7}]}
 
 
 def test_release_assets_per_install(monkeypatch, tmp_path):
     from panepilot import updatecheck as uc
 
     rel = uc.parse_release(RELEASE)
-    assert rel.asset_name == "PanePilot-9.0.0-x86_64.AppImage"
-    assert rel.packages["deb"][0] == "PanePilot-9.0.0-amd64.deb" and rel.packages["rpm"][2] == 7
+    assert rel.asset_name == "PanePilot-99.0.0-x86_64.AppImage"
+    assert rel.packages["deb"][0] == "PanePilot-99.0.0-amd64.deb" and rel.packages["rpm"][2] == 7
     monkeypatch.delenv("APPIMAGE", raising=False)
     assert rel.for_install() is rel
     _fake_package(monkeypatch, tmp_path, "rpm")
     pkg = rel.for_install()
-    assert (pkg.asset_name, pkg.asset_url, pkg.asset_size) == ("PanePilot-9.0.0-x86_64.rpm", "https://e/r", 7)
+    assert (pkg.asset_name, pkg.asset_url, pkg.asset_size) == ("PanePilot-99.0.0-x86_64.rpm", "https://e/r", 7)
     downloads = tmp_path / "Downloads"
     downloads.mkdir()
     monkeypatch.setattr(uc, "download_folder", lambda: str(downloads))
-    assert uc.target_path(rel) == str(downloads / "PanePilot-9.0.0-x86_64.rpm")
+    assert uc.target_path(rel) == str(downloads / "PanePilot-99.0.0-x86_64.rpm")
     old = uc.parse_release({**RELEASE, "assets": RELEASE["assets"][:2]})  # Release ohne Pakete
     assert uc.target_path(old) is None  # → Release-Seite öffnen
 
@@ -81,8 +81,8 @@ def test_package_update_flow(window, monkeypatch, tmp_path):  # noqa: F811
     monkeypatch.setattr(QDesktopServices, "openUrl", lambda url: opened.append(url.toLocalFile()) or True)
     monkeypatch.setattr(dialogs, "show_info", lambda *a: infos.append(a[2]))
     uc.handle_release(window, uc.parse_release(RELEASE), manual=True)
-    target = str(downloads / "PanePilot-9.0.0-amd64.deb")
-    assert got == [("PanePilot-9.0.0-amd64.deb", target)] and opened == [target]
+    target = str(downloads / "PanePilot-99.0.0-amd64.deb")
+    assert got == [("PanePilot-99.0.0-amd64.deb", target)] and opened == [target]
     assert "sudo apt install" in infos[-1] and os.stat(target).st_mode & 0o111 == 0  # nicht ausführbar
 
 

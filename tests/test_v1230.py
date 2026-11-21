@@ -116,7 +116,7 @@ def test_update_points_launcher_and_offers_old_file(window, tmp_path, monkeypatc
     monkeypatch.setenv("APPIMAGE", str(old))
     desktopint.integrate(str(old))
     assert str(old) in desktopint.desktop_path().read_text()
-    rel = updatecheck.Release("1.99.0", "notes", "https://example.invalid", new.name, "https://example.invalid/x", 3)
+    rel = updatecheck.Release("99.0.0", "notes", "https://example.invalid", new.name, "https://example.invalid/x", 3)
     asked = []
     monkeypatch.setattr(updatecheck, "UpdateDialog", type("D", (), {
         "DOWNLOAD": 1, "SKIP": 2, "LATER": 3,
