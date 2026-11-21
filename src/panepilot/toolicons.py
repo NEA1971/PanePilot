@@ -993,3 +993,29 @@ def icon_archive() -> QIcon:
 
 _PAINTED["archive"] = icon_archive
 _PAINTED["archive_open"] = icon_archive
+
+
+def icon_tabs() -> QIcon:
+    """Knopf „Reiter“ (v2.2): Fenster mit vorderem Reiter links, hinterer rechts; nur Umriss."""
+    def draw(p: QPainter) -> None:
+        fg, accent = _colors()
+        bg = QApplication.palette().color(QApplication.palette().ColorRole.Window)
+        back = QPainterPath(QPointF(12.5, 9.5))
+        for x, y in ((13.6, 6.2), (20.4, 6.2), (21.5, 9.5)):
+            back.lineTo(QPointF(x, y))
+        p.setPen(_pen(fg, 1.3))
+        p.setBrush(bg)
+        p.drawPath(back)
+        win = QPainterPath(QPointF(2, 9.5))
+        for x, y in ((3.3, 4.5), (11.2, 4.5), (12.5, 9.5), (22, 9.5), (22, 21), (2, 21)):
+            win.lineTo(QPointF(x, y))
+        win.closeSubpath()
+        p.setPen(_pen(fg, 1.4))
+        p.drawPath(win)
+        p.setPen(_pen(accent, 1.8))
+        p.drawLine(QPointF(5.5, 13.5), QPointF(18.5, 13.5))
+        p.drawLine(QPointF(5.5, 17), QPointF(13, 17))
+    return _paint_icon(draw)
+
+
+_PAINTED["tabs"] = icon_tabs

@@ -1693,5 +1693,7 @@
   "settings.archive_open": "Doble clic en un archivo comprimido (zip, tar, 7z, rar):",
   "settings.archive_open_panepilot": "abrir en PanePilot como una carpeta",
   "settings.archive_open_app": "abrir con la aplicación predeterminada",
-  "settings.archive_hint": "Dentro de un archivo puedes navegar, abrir ficheros y copiarlos al otro panel (= extraer). El archivo en sí no se modifica."
+  "settings.archive_hint": "Dentro de un archivo puedes navegar, abrir ficheros y copiarlos al otro panel (= extraer). El archivo en sí no se modifica.",
+  "action.tabs": "Mostrar siempre la barra de pestañas",
+  "toolbar.label.tabs": "Pestañas"
 }

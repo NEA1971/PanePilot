@@ -1693,5 +1693,7 @@
   "settings.archive_open": "Double-clic sur une archive (zip, tar, 7z, rar) :",
   "settings.archive_open_panepilot": "ouvrir dans PanePilot comme un dossier",
   "settings.archive_open_app": "ouvrir avec l’application par défaut",
-  "settings.archive_hint": "Dans une archive, vous pouvez parcourir, ouvrir des fichiers et les copier dans l’autre panneau (= extraire). L’archive elle-même n’est jamais modifiée."
+  "settings.archive_hint": "Dans une archive, vous pouvez parcourir, ouvrir des fichiers et les copier dans l’autre panneau (= extraire). L’archive elle-même n’est jamais modifiée.",
+  "action.tabs": "Toujours afficher la barre d’onglets",
+  "toolbar.label.tabs": "Onglets"
 }

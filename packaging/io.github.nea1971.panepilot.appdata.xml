@@ -52,6 +52,9 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="2.2.0" date="2026-11-21">
+      <description><p>Archives open like folders (read-only); new "Archive" and "Tabs" toolbar buttons.</p></description>
+    </release>
     <release version="2.1.2" date="2026-11-21">
       <description><p>The mouse wheel no longer changes settings by accident; the settings window is wider and remembers its size.</p></description>
     </release>

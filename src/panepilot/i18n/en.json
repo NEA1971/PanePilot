@@ -1693,5 +1693,7 @@
   "settings.archive_open": "Double-click on an archive (zip, tar, 7z, rar):",
   "settings.archive_open_panepilot": "open in PanePilot like a folder",
   "settings.archive_open_app": "open with the default application",
-  "settings.archive_hint": "Inside an archive you can browse, open files and copy them to the other panel (= extract). The archive itself is never changed."
+  "settings.archive_hint": "Inside an archive you can browse, open files and copy them to the other panel (= extract). The archive itself is never changed.",
+  "action.tabs": "Always show the tab bar",
+  "toolbar.label.tabs": "Tabs"
 }

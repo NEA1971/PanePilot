@@ -1694,5 +1694,7 @@
   "settings.archive_open": "Doppelklick auf ein Archiv (zip, tar, 7z, rar):",
   "settings.archive_open_panepilot": "in PanePilot wie einen Ordner öffnen",
   "settings.archive_open_app": "mit dem Standardprogramm öffnen",
-  "settings.archive_hint": "Im Archiv kannst du blättern, Dateien öffnen und ins andere Fenster kopieren (= entpacken). Das Archiv selbst wird nicht verändert."
+  "settings.archive_hint": "Im Archiv kannst du blättern, Dateien öffnen und ins andere Fenster kopieren (= entpacken). Das Archiv selbst wird nicht verändert.",
+  "action.tabs": "Reiterleiste immer anzeigen",
+  "toolbar.label.tabs": "Reiter"
 }

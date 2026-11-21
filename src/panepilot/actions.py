@@ -119,6 +119,7 @@ ACTION_DEFS: tuple[ActionDef, ...] = (
     ActionDef("toggle_stacked", "action.toggle_stacked", ("Ctrl+Shift+H",), "window"),  # v1.10 (L-1000)
     ActionDef("toggle_shared_sidebar", "action.toggle_shared_sidebar", (), "window"),  # v1.21 (L-2100)
     # v2.1 (L-3100 ff.): Reiter und Verlauf
+    ActionDef("tabs", "action.tabs", (), "window"),  # v2.2: Knopf mit Pfeil-Menü
     ActionDef("tab_new", "action.tab_new", ("Ctrl+T",), "window"),
     ActionDef("open_in_tab", "action.open_in_tab", (), "list"),  # v2.1.1: markierte Ordner in neuen Reitern
     ActionDef("tab_close", "action.tab_close", ("Ctrl+W",), "window"),

@@ -1693,5 +1693,7 @@
   "settings.archive_open": "Doppelgligg uff e Archiv (zip, tar, 7z, rar):",
   "settings.archive_open_panepilot": "in PanePilot wie en Ordnor uffmachn",
   "settings.archive_open_app": "mit dem Schdandardbrogramm uffmachn",
-  "settings.archive_hint": "Im Archiv gannsde blättorn, Dateien uffmachn und ins andre Fenstor gobiern (= auspaggn). Das Archiv selbor bleibt, wie's is."
+  "settings.archive_hint": "Im Archiv gannsde blättorn, Dateien uffmachn und ins andre Fenstor gobiern (= auspaggn). Das Archiv selbor bleibt, wie's is.",
+  "action.tabs": "Reidorleisde immor zeichn",
+  "toolbar.label.tabs": "Reidor"
 }

@@ -81,6 +81,18 @@ class ArchiveIndex:
         self.dirs[inner] = {}
         self.dirs[parent].setdefault(name, Item(name, True))
 
+    def fill_dir_times(self) -> None:
+        """Ordner ohne eigenen Eintrag: Zeit der jüngsten Datei darin (statt 1970)."""
+        def walk(inner: str) -> float:
+            newest = 0.0
+            for it in (self.dirs.get(inner) or {}).values():
+                t_ = walk(posixpath.join(inner, it.name)) if it.is_dir else it.mtime
+                if it.is_dir and not it.mtime:
+                    it.mtime = t_
+                newest = max(newest, it.mtime or 0.0, t_)
+            return newest
+        walk("")
+
     # --- Abfragen ------------------------------------------------------------------------------------
     def listdir(self, inner: str) -> list[Item] | None:
         folder = self.dirs.get(inner.strip("/"))
@@ -222,6 +234,7 @@ def read_index(archive: str, password: str | None = None, progress=lambda f: Non
         if not ar.unrar_tool():
             raise ar.ArchiveError(ar.missing_hint(fmt, False))
         _index_unrar(idx, cancelled)
+    idx.fill_dir_times()
     progress(1.0)
     return idx
 

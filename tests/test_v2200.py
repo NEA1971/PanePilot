@@ -253,3 +253,40 @@ def test_tabs_restore_outside_archive(window, tree, zipped):  # noqa: F811
     panel.restore_tabs(state)
     assert panel.current_path == str(tree / "a") and panel.current_entry().name == "Fotos.zip"
     QApplication.processEvents()
+
+
+# --- Knopf „Reiter“ ---------------------------------------------------------------------------------------
+def test_tabs_button(window, tree):  # noqa: F811
+    from PySide6.QtWidgets import QMenu
+
+    from panepilot import toolbar
+
+    assert toolbar.clean_items(["tab_new", "tab_close", "back", "open_in_tab", "recent_dirs"]) == \
+        ["tabs", "back", "recent_dirs"]
+    assert "tabs" in toolbar.available_actions() and "tab_new" not in toolbar.available_actions()
+    window.settings.set("tabs_always", False)
+    panel = window.sides["left"].panel
+    window.trigger("tabs")  # Klick: Reiterleiste immer anzeigen
+    assert window.settings.get("tabs_always") and window.qactions["tabs"].isChecked()
+    assert all(s.panel.tabs_always for s in window.sides.values()) and panel.tab_bar.isVisible()
+    panel.select_names(["sub"], current="sub")
+    menu = QMenu()
+    window._fill_tabs_menu(menu)
+    rows = [(a.text(), a.isEnabled(), a.isChecked()) for a in menu.actions() if not a.isSeparator()]
+    assert [r[0] for r in rows] == ["In neuem Reiter öffnen", "Neuer Reiter", "Nächster Reiter",
+                                    "Vorheriger Reiter", "Reiter schließen", "Reiter sperren"]
+    assert rows[0][1] and not rows[2][1] and not rows[5][2]
+    menu.actions()[0].trigger()
+    assert panel.tab_bar.count() == 2 and panel.current_path == str(tree / "a" / "sub")
+    window._fill_tabs_menu(menu)
+    [a for a in menu.actions() if a.text() == "Reiter sperren"][0].trigger()
+    window._fill_tabs_menu(menu)
+    assert [a for a in menu.actions() if a.text() == "Reiter sperren"][0].isChecked()
+    window.trigger("tabs")
+    assert not window.settings.get("tabs_always") and not window.qactions["tabs"].isChecked()
+    from panepilot.settingsdialog import SettingsDialog
+
+    dlg = SettingsDialog(window)
+    dlg.tabs_always.setChecked(True)
+    dlg.accept()
+    assert window.qactions["tabs"].isChecked()

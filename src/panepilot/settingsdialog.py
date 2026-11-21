@@ -1152,13 +1152,11 @@ class SettingsDialog(QDialog):
         s.set("size_unit", self.unit_box.currentData())
         s.set("replaygain_target", round(self.rg_target.value(), 1))
         s.set("update_check", self.update_check.isChecked())
-        s.set("tabs_always", self.tabs_always.isChecked())
+        self.window.set_tabs_always(self.tabs_always.isChecked())  # v2.2: auch der Knopf „Reiter“
         archive_open = "app" if self.archive_open["app"].isChecked() else "panepilot"
         s.set("archive_open", archive_open)
         for side in self.window.sides.values():
             side.panel.open_archives_inside = archive_open != "app"
-        for side in self.window.sides.values():
-            side.panel.set_tabs_always(self.tabs_always.isChecked())
         from . import moviedb as md
 
         if self.tmdb_key.text().strip() != md.load_key():

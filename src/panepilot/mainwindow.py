@@ -917,6 +917,42 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         return w if isinstance(w, FolderTreeView) else None
 
     # --- Reiter (v2.1, L-3100 ff.) ---------------------------------------------------------------------
+    def do_tabs(self) -> None:
+        """Knopf „Reiter“ (v2.2): Reiterleiste immer anzeigen ein/aus – gleiche Einstellung wie im Dialog."""
+        self.set_tabs_always(not bool(self.settings.get("tabs_always")))
+
+    def set_tabs_always(self, on: bool) -> None:
+        self.settings.set("tabs_always", bool(on))
+        self.qactions["tabs"].setChecked(bool(on))
+        for side in self.sides.values():
+            side.panel.set_tabs_always(bool(on))
+
+    def _fill_tabs_menu(self, menu: QMenu) -> None:
+        """Pfeil-Menü am Knopf „Reiter“ (v2.2)."""
+        panel = self.active
+        blocked = panel._tabs_blocked()
+        dirs = [e for e in panel.target_entries() if e.is_dir and not e.is_parent]
+
+        def add(text: str, aid: str, enabled: bool = True):
+            act = menu.addAction(text)
+            act.setEnabled(enabled and not blocked)
+            keys = self.keymap.keys_for(aid)
+            if keys:  # nur zur Anzeige – ausgelöst wird zentral über den KeyFilter
+                act.setShortcut(QKeySequence(keys[0]))
+                act.setShortcutContext(Qt.ShortcutContext.WidgetShortcut)
+            act.triggered.connect(lambda _c=False, x=aid: self.trigger(x))
+            return act
+        add(t("action.open_in_tab"), "open_in_tab", bool(dirs) and not panel.in_remote and not panel.in_trash)
+        menu.addSeparator()
+        add(t("action.tab_new"), "tab_new")
+        add(t("action.tab_next"), "tab_next", panel.tab_bar.count() > 1)
+        add(t("action.tab_prev"), "tab_prev", panel.tab_bar.count() > 1)
+        add(t("action.tab_close"), "tab_close", panel.tab_bar.count() > 1)
+        menu.addSeparator()
+        lock = add(t("menu.tab_lock"), "tab_lock")
+        lock.setCheckable(True)
+        lock.setChecked(panel._tab_is_locked())
+
     def do_tab_new(self) -> None:
         self.active.new_tab()
         self.active.focus_view()
@@ -1074,6 +1110,8 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
             self.qactions[aid].setCheckable(True)
             self._icon_size_group.addAction(self.qactions[aid])
         self.qactions["filter_toggle"].setCheckable(True)
+        self.qactions["tabs"].setCheckable(True)  # v2.2: Knopf „Reiter“ = Reiterleiste immer anzeigen
+        self.qactions["tabs"].setChecked(bool(self.settings.get("tabs_always")))
         self.qactions["rename_undo"].setEnabled(False)
         for aid, key in (("toggle_buttonbar", "show_buttonbar"), ("toggle_fkeybar", "show_fkeybar"),
                          ("toggle_toolbar", "show_toolbar")):
@@ -1747,6 +1785,9 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
             return
         if aid == "clip_copy":  # v1.23 (L-2310)
             self._fill_clip_menu(menu, with_copy=True)
+            return
+        if aid == "tabs":  # v2.2
+            self._fill_tabs_menu(menu)
             return
         if aid == "archive":  # v2.2 (L-3200)
             self._fill_archive_menu(menu)
