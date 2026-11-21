@@ -1,6 +1,6 @@
 # Meta-Wizard
 
-**Meta-Wizard …** (Strg+T) bearbeitet die Tags von Musikdateien (MP3, FLAC, Ogg, Opus, M4A, WMA, WAV), ähnlich wie MP3TAG, und die Metadaten von Fotos, Videos und Dokumenten (siehe unten).
+**Meta-Wizard …** (Strg+Umschalt+T) bearbeitet die Tags von Musikdateien (MP3, FLAC, Ogg, Opus, M4A, WMA, WAV), ähnlich wie MP3TAG, und die Metadaten von Fotos, Videos und Dokumenten (siehe unten).
 
 ## Grundlagen
 - Die Titelliste zeigt die Dateien des aktuellen Ordners mit ihren Tags. Spalten wählt man per Rechtsklick auf die Spaltenköpfe, dort lassen sich auch eigene Felder anlegen.

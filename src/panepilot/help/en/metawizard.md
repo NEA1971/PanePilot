@@ -1,6 +1,6 @@
 # Meta wizard
 
-**Meta wizard …** (Ctrl+T) edits the tags of music files (MP3, FLAC, Ogg, Opus, M4A, WMA, WAV), similar to MP3TAG, and the metadata of photos, videos and documents (see below).
+**Meta wizard …** (Ctrl+Shift+T) edits the tags of music files (MP3, FLAC, Ogg, Opus, M4A, WMA, WAV), similar to MP3TAG, and the metadata of photos, videos and documents (see below).
 
 ## Basics
 - The track list shows the files of the current folder with their tags. Choose columns by right-clicking the column headers; you can also create your own fields there.

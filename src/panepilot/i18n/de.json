@@ -1660,5 +1660,19 @@
   "update.hint_package": "„Herunterladen“ speichert das neue Paket ({kind}) im Ordner „Downloads“ und öffnet es mit der Software-Installation. Für die Installation wird dein Administrator-Kennwort abgefragt.",
   "update.package_ready": "Das neue Paket „{name}“ ist heruntergeladen und wird mit der Software-Installation geöffnet. Nach der Installation PanePilot neu starten.\n\nFalls sich nichts öffnet, im Terminal:\n{command}",
   "update.appimage_launcher": "PanePilot ist jetzt als Paket installiert. Im Anwendungsmenü gibt es aber noch den Eintrag der AppImage-Version – darüber würde weiterhin das AppImage starten.\n\nSoll dieser alte Eintrag entfernt werden?",
-  "update.appimage_launcher_remove": "Entfernen"
+  "update.appimage_launcher_remove": "Entfernen",
+  "action.tab_new": "Neuer Reiter",
+  "action.tab_close": "Reiter schließen",
+  "action.tab_next": "Nächster Reiter",
+  "action.tab_prev": "Vorheriger Reiter",
+  "action.tab_lock": "Reiter sperren/entsperren",
+  "action.tab_to_other": "Im anderen Fenster öffnen",
+  "action.recent_dirs": "Zuletzt besuchte Ordner …",
+  "menu.tab_close_others": "Andere Reiter schließen",
+  "menu.tab_lock": "Reiter sperren",
+  "menu.tab_unlock": "Reiter entsperren",
+  "recent.empty": "(noch keine)",
+  "settings.sec_tabs": "Reiter",
+  "settings.tabs_always": "Reiterleiste immer anzeigen (auch bei nur einem Reiter)",
+  "settings.tabs_hint": "Neuer Reiter mit Strg+T, mittlerer Maustaste auf einen Ordner oder Doppelklick auf die freie Reiterleiste; Strg+W schließt, Strg+Tab wechselt. Gesperrte Reiter bleiben stehen – ein anderer Ordner öffnet sich dann in einem neuen Reiter."
 }

@@ -1659,5 +1659,19 @@
   "update.hint_package": "“Download” saves the new package ({kind}) in your Downloads folder and opens it with the software installer. Installing asks for your administrator password.",
   "update.package_ready": "The new package “{name}” has been downloaded and is opened with the software installer. Restart PanePilot after installing.\n\nIf nothing opens, in a terminal:\n{command}",
   "update.appimage_launcher": "PanePilot is now installed as a package. The application menu still has the entry of the AppImage version, which would keep starting the AppImage.\n\nRemove this old entry?",
-  "update.appimage_launcher_remove": "Remove"
+  "update.appimage_launcher_remove": "Remove",
+  "action.tab_new": "New tab",
+  "action.tab_close": "Close tab",
+  "action.tab_next": "Next tab",
+  "action.tab_prev": "Previous tab",
+  "action.tab_lock": "Lock/unlock tab",
+  "action.tab_to_other": "Open in other panel",
+  "action.recent_dirs": "Recently visited folders …",
+  "menu.tab_close_others": "Close other tabs",
+  "menu.tab_lock": "Lock tab",
+  "menu.tab_unlock": "Unlock tab",
+  "recent.empty": "(none yet)",
+  "settings.sec_tabs": "Tabs",
+  "settings.tabs_always": "Always show the tab bar (also with a single tab)",
+  "settings.tabs_hint": "New tab with Ctrl+T, middle-clicking a folder or double-clicking the empty tab bar; Ctrl+W closes, Ctrl+Tab switches. Locked tabs stay put – another folder then opens in a new tab."
 }

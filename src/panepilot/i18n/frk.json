@@ -1659,5 +1659,19 @@
   "update.hint_package": "„Runterladn“ speichert des neie Paket ({kind}) im Ordner „Downloads“ und macht's mit der Software-Installation auf. Fürs Installiern wird dei Administrator-Kennwort abgfragt.",
   "update.package_ready": "Des neie Paket „{name}“ is runterglodn und wird mit der Software-Installation aufgmacht. Nach'm Installiern PanePilot nei startn.\n\nFalls si nix aufmacht, im Terminal:\n{command}",
   "update.appimage_launcher": "PanePilot is etz als Paket installiert. Im Anwendungsmenü gibt's aber no den Eintrag vo der AppImage-Version – do drüber tät weiter des AppImage startn.\n\nSoll der alte Eintrag weg?",
-  "update.appimage_launcher_remove": "Wegmachn"
+  "update.appimage_launcher_remove": "Wegmachn",
+  "action.tab_new": "Neier Reiter",
+  "action.tab_close": "Reiter zumachn",
+  "action.tab_next": "Nächster Reiter",
+  "action.tab_prev": "Voriger Reiter",
+  "action.tab_lock": "Reiter sperrn/entsperrn",
+  "action.tab_to_other": "Im andern Fenster aufmachn",
+  "action.recent_dirs": "Zletzt bsuchte Ordner …",
+  "menu.tab_close_others": "Andere Reiter zumachn",
+  "menu.tab_lock": "Reiter sperrn",
+  "menu.tab_unlock": "Reiter entsperrn",
+  "recent.empty": "(no koane)",
+  "settings.sec_tabs": "Reiter",
+  "settings.tabs_always": "Reiterleistn immer zeign (aa bei bloß oam Reiter)",
+  "settings.tabs_hint": "Neier Reiter mit Strg+T, mittlerer Maustastn auf an Ordner odder Doppelklick auf d'freie Reiterleistn; Strg+W macht zu, Strg+Tab wechselt. Gsperrte Reiter bleibn stehn – an anderer Ordner geht dann in am neia Reiter auf."
 }

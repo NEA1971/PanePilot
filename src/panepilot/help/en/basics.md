@@ -8,6 +8,14 @@ PanePilot shows two file panels side by side. One of them is **active**, recogni
 - **Tab** switches between the panels.
 - You can type a path directly into the **path bar**.
 - In the **Navigate** menu: same folder in the other panel, swap panels, back, forward.
+- **Recently visited folders**: the arrow at the right of the path bar (or Alt+↓) shows the last 20 folders of both panels, newest first; the list is remembered on exit.
+
+## Tabs
+- Each panel can have several **tabs**: **Ctrl+T** opens a new tab with the current folder, **Ctrl+W** closes it, **Ctrl+Tab** / **Ctrl+Shift+Tab** switch.
+- A new tab also opens with the **middle mouse button** or **Ctrl+double-click** on a folder and by double-clicking the empty tab bar. The middle button on a tab closes it; tabs can be reordered by dragging.
+- Every tab has its own folder, history, sorting, filter and view (details/icons); columns and sidebar apply to the whole panel.
+- **Right-click a tab**: new tab, close, close others, lock/unlock, open in other panel. A **locked tab** (🔒) stays put – changing the folder in it opens a new tab.
+- The tab bar appears from the second tab on (Settings → File view → Tabs: “always show”). While search, multi-rename, meta wizard, synchronization or a server connection run, the tabs of that panel are locked. All tabs are remembered on exit.
 
 ## Working with files
 - **Copy / Move** to the other panel (F5 / F6) asks first; the “without asking” variants start right away. Drag and drop works too, also to and from Nautilus.

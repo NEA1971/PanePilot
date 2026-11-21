@@ -130,7 +130,7 @@ def test_settings_layout_and_display_toggles(window):  # noqa: F811
     assert [dlg.tabs.tabText(i) for i in range(dlg.tabs.count())] == ["Allgemein", "Dateiansicht", "Meta-Wizard"]
     general = dlg.pages["general"]
     assert [general.nav.item(i).text() for i in range(general.nav.count())] == ["Sprache", "Sicherung", "Darstellung", "Updates", "FTP-Server"]
-    assert [g.title() for g in dlg.pages["view"].groups] == ["Größeneinheit", "Spalten"]
+    assert [g.title() for g in dlg.pages["view"].groups] == ["Größeneinheit", "Spalten", "Reiter"]  # Reiter: v2.1
     assert [g.title() for g in dlg.pages["meta"].groups] == ["ReplayGain", "Online-Daten für Filme",
                                                          "Untertitel (OpenSubtitles)"]
     dlg.resize(900, 500)

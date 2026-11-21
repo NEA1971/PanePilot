@@ -948,3 +948,14 @@ _PAINTED.update({
     "toggle_shared_sidebar": icon_shared_sidebar_tinted,  # Entwurf b (21.11.2026)
     "view_mode": icon_view_details,
 })
+
+
+def icon_chevron_down() -> QIcon:
+    """Kleiner Pfeil für „Zuletzt besuchte Ordner“ in der Pfadzeile (v2.1)."""
+    fg, _accent = _colors()
+
+    def draw(p: QPainter) -> None:
+        p.setPen(_pen(fg, 2.0))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawPolyline([QPointF(7, 10), QPointF(12, 15), QPointF(17, 10)])
+    return _paint_icon(draw)

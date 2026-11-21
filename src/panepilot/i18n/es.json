@@ -1659,5 +1659,19 @@
   "update.hint_package": "«Descargar» guarda el nuevo paquete ({kind}) en la carpeta Descargas y lo abre con el instalador de software. La instalación pide tu contraseña de administrador.",
   "update.package_ready": "El nuevo paquete «{name}» se ha descargado y se abre con el instalador de software. Reinicia PanePilot después de instalarlo.\n\nSi no se abre nada, en una terminal:\n{command}",
   "update.appimage_launcher": "PanePilot está instalado ahora como paquete. En el menú de aplicaciones sigue la entrada de la versión AppImage, que seguiría abriendo el AppImage.\n\n¿Quitar esa entrada antigua?",
-  "update.appimage_launcher_remove": "Quitar"
+  "update.appimage_launcher_remove": "Quitar",
+  "action.tab_new": "Nueva pestaña",
+  "action.tab_close": "Cerrar pestaña",
+  "action.tab_next": "Pestaña siguiente",
+  "action.tab_prev": "Pestaña anterior",
+  "action.tab_lock": "Bloquear/desbloquear pestaña",
+  "action.tab_to_other": "Abrir en el otro panel",
+  "action.recent_dirs": "Carpetas visitadas recientemente …",
+  "menu.tab_close_others": "Cerrar las otras pestañas",
+  "menu.tab_lock": "Bloquear pestaña",
+  "menu.tab_unlock": "Desbloquear pestaña",
+  "recent.empty": "(ninguna todavía)",
+  "settings.sec_tabs": "Pestañas",
+  "settings.tabs_always": "Mostrar siempre la barra de pestañas (también con una sola)",
+  "settings.tabs_hint": "Nueva pestaña con Ctrl+T, clic central en una carpeta o doble clic en la barra vacía; Ctrl+W cierra, Ctrl+Tab cambia. Las pestañas bloqueadas no se mueven: otra carpeta se abre entonces en una pestaña nueva."
 }

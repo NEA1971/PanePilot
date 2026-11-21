@@ -1659,5 +1659,19 @@
   "update.hint_package": "« Télécharger » enregistre le nouveau paquet ({kind}) dans le dossier Téléchargements et l'ouvre avec l'installateur de logiciels. L'installation demande ton mot de passe administrateur.",
   "update.package_ready": "Le nouveau paquet « {name} » a été téléchargé et s'ouvre avec l'installateur de logiciels. Redémarre PanePilot après l'installation.\n\nSi rien ne s'ouvre, dans un terminal :\n{command}",
   "update.appimage_launcher": "PanePilot est maintenant installé en tant que paquet. Le menu des applications contient encore l'entrée de la version AppImage, qui continuerait à lancer l'AppImage.\n\nSupprimer cette ancienne entrée ?",
-  "update.appimage_launcher_remove": "Supprimer"
+  "update.appimage_launcher_remove": "Supprimer",
+  "action.tab_new": "Nouvel onglet",
+  "action.tab_close": "Fermer l'onglet",
+  "action.tab_next": "Onglet suivant",
+  "action.tab_prev": "Onglet précédent",
+  "action.tab_lock": "Verrouiller/déverrouiller l'onglet",
+  "action.tab_to_other": "Ouvrir dans l'autre panneau",
+  "action.recent_dirs": "Dossiers visités récemment …",
+  "menu.tab_close_others": "Fermer les autres onglets",
+  "menu.tab_lock": "Verrouiller l'onglet",
+  "menu.tab_unlock": "Déverrouiller l'onglet",
+  "recent.empty": "(aucun pour l'instant)",
+  "settings.sec_tabs": "Onglets",
+  "settings.tabs_always": "Toujours afficher la barre d'onglets (même avec un seul onglet)",
+  "settings.tabs_hint": "Nouvel onglet avec Ctrl+T, clic du milieu sur un dossier ou double-clic sur la barre vide ; Ctrl+W ferme, Ctrl+Tab change. Les onglets verrouillés restent en place – un autre dossier s'ouvre alors dans un nouvel onglet."
 }

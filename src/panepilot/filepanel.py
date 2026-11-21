@@ -63,6 +63,15 @@ class RenameDelegate(QStyledItemDelegate):
 class _FileListMixin:
     """Gemeinsames Ziehen und Ablegen von Liste und Symbolansicht (v1.19)."""
 
+    def mouseReleaseEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.MiddleButton:
+            index = self.indexAt(event.position().toPoint())
+            if index.isValid():
+                self.tab_open_requested.emit(index.row())
+                event.accept()
+                return
+        super().mouseReleaseEvent(event)
+
     def focusInEvent(self, event) -> None:
         super().focusInEvent(event)
         self.focus_entered.emit()
@@ -206,6 +215,7 @@ class FileView(_FileListMixin, QTreeView):
     drop_requested = Signal(list, str, object)  # Pfade, Zielordner, Qt.DropAction
     remote_drop_requested = Signal(object, str, object)  # {side, paths, dirs} aus einem Server-Fenster (v1.3)
     focus_entered = Signal()
+    tab_open_requested = Signal(int)  # Zeile – mittlere Maustaste auf einen Ordner (v2.1, L-3104)
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -352,6 +362,7 @@ class IconView(_FileListMixin, QListView):
     drop_requested = Signal(list, str, object)
     remote_drop_requested = Signal(object, str, object)
     focus_entered = Signal()
+    tab_open_requested = Signal(int)  # Zeile – mittlere Maustaste auf einen Ordner (v2.1, L-3104)
     zoom_requested = Signal(int)  # +1 größer, -1 kleiner (Strg+Mausrad, L-1911)
 
     def __init__(self, parent=None) -> None:
@@ -445,6 +456,7 @@ class ParentBar(_FileListMixin, QListView):
     drop_requested = Signal(list, str, object)
     remote_drop_requested = Signal(object, str, object)
     focus_entered = Signal()
+    tab_open_requested = Signal(int)  # Zeile – mittlere Maustaste auf einen Ordner (v2.1, L-3104)
 
     def __init__(self, icons_view: IconView, parent=None) -> None:
         super().__init__(parent)
@@ -502,6 +514,7 @@ class ParentBar(_FileListMixin, QListView):
 
 class FilePanel(QWidget):
     focus_entered = Signal()
+    tab_open_requested = Signal(int)  # Zeile – mittlere Maustaste auf einen Ordner (v2.1, L-3104)
     path_changed = Signal(str)
     context_menu_requested = Signal(QPoint)
     drop_requested = Signal(list, str, object)
@@ -515,6 +528,8 @@ class FilePanel(QWidget):
     new_profile_requested = Signal()
     filter_changed = Signal()
     icon_size_changed = Signal(int)  # v1.19
+    tabs_changed = Signal()  # v2.1: Reiter geöffnet/geschlossen/gewechselt/gesperrt
+    tab_menu_requested = Signal(int, object)  # Index, globale Position
 
     def __init__(self, side: str, icons: IconProvider, parent=None) -> None:
         super().__init__(parent)
@@ -560,6 +575,7 @@ class FilePanel(QWidget):
             lambda pos: self.context_menu_requested.emit(self.view.viewport().mapToGlobal(pos))
         )
         self.view.drop_requested.connect(self.drop_requested)
+        self.view.tab_open_requested.connect(self._open_row_in_tab)
         self.view.remote_drop_requested.connect(self.remote_drop_requested)
         self.model.remote_side = side
         hdr = self.view.header()
@@ -602,6 +618,7 @@ class FilePanel(QWidget):
             lambda pos: self.context_menu_requested.emit(self.icon_view.viewport().mapToGlobal(pos))
         )
         self.icon_view.drop_requested.connect(self.drop_requested)
+        self.icon_view.tab_open_requested.connect(self._open_row_in_tab)
         self.icon_view.remote_drop_requested.connect(self.remote_drop_requested)
         self.icon_view.zoom_requested.connect(self.zoom_icons)
         self.icon_view.setFrameShape(QFrame.Shape.NoFrame)
@@ -617,6 +634,7 @@ class FilePanel(QWidget):
             lambda pos: self.context_menu_requested.emit(self.parent_bar.viewport().mapToGlobal(pos))
         )
         self.parent_bar.drop_requested.connect(self.drop_requested)
+        self.parent_bar.tab_open_requested.connect(self._open_row_in_tab)
         self.parent_bar.remote_drop_requested.connect(self.remote_drop_requested)
         self.icon_view.parent_bar = self.parent_bar
         # Rahmen um beide wie bei der Liste
@@ -639,9 +657,24 @@ class FilePanel(QWidget):
         self.status.setObjectName("panelStatus")
         self.status.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
 
+        # Reiter (v2.1, L-3100 ff.)
+        from .paneltabs import PanelTabBar
+
+        self.tab_bar = PanelTabBar(self)
+        self.tab_bar.currentChanged.connect(self._tab_switched)
+        self.tab_bar.tabMoved.connect(lambda *_a: self.tabs_changed.emit())
+        self.tab_bar.new_requested.connect(lambda: self.new_tab())
+        self.tab_bar.close_requested.connect(self.close_tab)
+        self.tab_bar.menu_requested.connect(self.tab_menu_requested)
+        self.tabs_always = False  # Einstellung „Reiterleiste immer anzeigen“
+        self._tab_index = -1  # Reiter, dessen Zustand gerade angezeigt wird
+        self._applying_tab = False
+        self.tab_bar.hide()
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(2)
+        layout.addWidget(self.tab_bar)
         layout.addWidget(self.header)
         layout.addWidget(self.view, 1)
         layout.addWidget(self.icon_box, 1)
@@ -659,7 +692,7 @@ class FilePanel(QWidget):
         self.preview.hide()
         layout.addWidget(self.preview, 1)
         layout.addWidget(self.status)
-        self.locked = False  # während „Mehrfach umbenennen“: kein Ordnerwechsel (F-706)
+        self._locked = False  # während „Mehrfach umbenennen“: kein Ordnerwechsel (F-706)
 
         self._watcher = QFileSystemWatcher(self)
         self._watcher.directoryChanged.connect(lambda _p: self._refresh_timer.start())
@@ -667,6 +700,7 @@ class FilePanel(QWidget):
         self._refresh_timer.setSingleShot(True)
         self._refresh_timer.setInterval(250)
         self._refresh_timer.timeout.connect(self.refresh)
+        self.path_changed.connect(self._update_tab_title)
 
     # --- Eigenschaften --------------------------------------------------------------
     @property
@@ -778,6 +812,7 @@ class FilePanel(QWidget):
         if self.remote is not None and self.remote is not session:
             self.close_remote()
         self.remote = session
+        self._update_tab_bar()
         self.model.remote_rename = session.rename_entry
         self.set_remote_color(session.cfg.color)
         if not self.navigate(session.base + path):
@@ -791,6 +826,7 @@ class FilePanel(QWidget):
         if session is None:
             return
         self.remote = None
+        self._update_tab_bar()
         self.model.remote_rename = None
         self.set_remote_color("")
         base = session.base
@@ -807,6 +843,230 @@ class FilePanel(QWidget):
         elif navigate_away and self.in_remote:
             target = self._history[self._history_pos] if 0 <= self._history_pos < len(self._history) else ""
             self.navigate(target or os.path.expanduser("~"), add_history=not target)
+
+    # --- Reiter (v2.1, L-3100 ff.) ---------------------------------------------------------------------
+    def _tabs_blocked(self) -> bool:
+        """Werkzeug läuft (Suche, Umbenennen, Meta-Wizard, Synchronisieren) oder Server verbunden (L-3106)."""
+        return bool(self._locked or self.search_mode or self.preview.isVisible()
+                    or getattr(self, "_custom_view", None) is not None or self.remote is not None)
+
+    def _update_tab_bar(self) -> None:
+        bar = self.tab_bar
+        bar.setVisible(bar.count() > 1 or (self.tabs_always and bar.count() > 0))
+        bar.setEnabled(not self._tabs_blocked())
+
+    def _tab_state(self, index: int):
+        return self.tab_bar.tabData(index) if 0 <= index < self.tab_bar.count() else None
+
+    def _tab_is_locked(self) -> bool:
+        st = self._tab_state(self.tab_bar.currentIndex())
+        return bool(st is not None and st.locked)
+
+    def capture_tab_state(self):
+        from .paneltabs import TabState
+
+        history, pos = self.history_state()
+        col, order = self.sort_state()
+        old = self._tab_state(self._tab_index)
+        return TabState(self.current_path, history, pos, (col, order), self.filter_spec, self._filter_on,
+                        self.icon_mode, self.icon_size, bool(old is not None and old.locked))
+
+    def _store_current_tab(self) -> None:
+        if 0 <= self._tab_index < self.tab_bar.count() and self.current_path and not self.search_mode:
+            self.tab_bar.setTabData(self._tab_index, self.capture_tab_state())
+
+    def apply_tab_state(self, st, select_name: str | None = None) -> None:
+        self._applying_tab = True
+        try:
+            self.set_sort_state(*st.sort)
+            self.filter_spec = st.filter_spec
+            self._filter_on = bool(st.filter_on and st.filter_spec is not None)
+            self.model.accept = self.filter_spec.accepts() if self.filter_active else None
+            self.set_icon_size(st.icon_size)
+            self.set_icon_mode(st.icon_mode)
+            path = st.path
+            if getattr(self, "_restoring_tabs", False) and self.mounts is not None and \
+                    self.mounts.needs_mount(path) is not None:
+                path = os.path.expanduser("~")  # beim Start keine Freigabe von selbst einhängen (F-500)
+            if not self.navigate(path, select_name=select_name, add_history=False):
+                self.navigate(nearest_existing_dir(path) if not is_remote_uri(path) else os.path.expanduser("~"),
+                              add_history=False)
+            hist = st.history or [self.current_path]
+            self.set_history_state(hist, st.pos if st.history else 0)
+            self.filter_changed.emit()
+        finally:
+            self._applying_tab = False
+
+    def ensure_first_tab(self) -> None:
+        """Der erste Reiter entsteht mit dem ersten Ordner."""
+        if self.tab_bar.count() == 0:
+            self.tab_bar.blockSignals(True)
+            i = self.tab_bar.addTab("")
+            self.tab_bar.blockSignals(False)
+            self._tab_index = i
+            self._store_current_tab()
+            self._update_tab_title(self.current_path)
+            self._update_tab_bar()
+
+    def new_tab(self, path: str | None = None, activate: bool = True, select_name: str | None = None) -> int:
+        """Strg+T: neuer Reiter neben dem aktuellen, mit dem aktuellen bzw. dem angegebenen Ordner (L-3104)."""
+        if self._tabs_blocked():
+            return -1
+        self.ensure_first_tab()
+        self._store_current_tab()
+        base = self._tab_state(self._tab_index) or self.capture_tab_state()
+        st = base.copy_for(path or self.current_path)
+        from .paneltabs import tab_title
+
+        self.tab_bar.blockSignals(True)
+        i = self.tab_bar.insertTab(self.tab_bar.currentIndex() + 1, tab_title(st.path))
+        self.tab_bar.setTabData(i, st)
+        self.tab_bar.setTabToolTip(i, st.path)
+        self.tab_bar.blockSignals(False)
+        if activate:
+            self.tab_bar.setCurrentIndex(i)  # → _tab_switched
+            if select_name:
+                self._select_name_later(select_name)
+        self._update_tab_bar()
+        self.tabs_changed.emit()
+        return i
+
+    def close_tab(self, index: int | None = None) -> bool:
+        """Strg+W; der letzte Reiter bleibt."""
+        bar = self.tab_bar
+        index = bar.currentIndex() if index is None else index
+        if bar.count() <= 1 or not 0 <= index < bar.count() or self._tabs_blocked():
+            return False
+        current = index == bar.currentIndex()
+        if current:
+            self._tab_index = -1  # Zustand nicht mehr speichern
+        else:
+            self._store_current_tab()
+        bar.removeTab(index)  # wählt bei Bedarf den Nachbarn → _tab_switched
+        if not current:
+            self._tab_index = bar.currentIndex()
+        self._update_tab_bar()
+        self.tabs_changed.emit()
+        return True
+
+    def close_other_tabs(self, keep: int) -> None:
+        bar = self.tab_bar
+        if self._tabs_blocked() or not 0 <= keep < bar.count():
+            return
+        if keep != bar.currentIndex():
+            bar.setCurrentIndex(keep)
+        for i in range(bar.count() - 1, -1, -1):
+            if i != bar.currentIndex():
+                bar.removeTab(i)
+        self._tab_index = bar.currentIndex()
+        self._update_tab_bar()
+        self.tabs_changed.emit()
+
+    def toggle_tab_lock(self, index: int | None = None) -> None:
+        index = self.tab_bar.currentIndex() if index is None else index
+        self._store_current_tab()
+        st = self._tab_state(index)
+        if st is None:
+            self.ensure_first_tab()
+            st = self._tab_state(0)
+            index = 0
+        st.locked = not st.locked
+        self._update_tab_title(st.path if index != self.tab_bar.currentIndex() else self.current_path, index)
+        self.tabs_changed.emit()
+
+    def switch_tab(self, step: int) -> None:
+        bar = self.tab_bar
+        if bar.count() > 1 and not self._tabs_blocked():
+            bar.setCurrentIndex((bar.currentIndex() + step) % bar.count())
+
+    def _tab_switched(self, index: int) -> None:
+        if index < 0:
+            return
+        if self._tabs_blocked() and self._tab_index >= 0:
+            self.tab_bar.blockSignals(True)
+            self.tab_bar.setCurrentIndex(self._tab_index)
+            self.tab_bar.blockSignals(False)
+            return
+        if index == self._tab_index:
+            return
+        self._store_current_tab()
+        self._tab_index = index
+        st = self._tab_state(index)
+        if st is not None:
+            self.apply_tab_state(st)
+            self._update_tab_title(self.current_path, index)
+        self.tabs_changed.emit()
+
+    def _update_tab_title(self, path: str, index: int | None = None) -> None:
+        from .paneltabs import tab_title
+
+        bar = self.tab_bar
+        if bar.count() == 0 and path and not self._applying_tab:
+            self.ensure_first_tab()
+            return
+        index = bar.currentIndex() if index is None else index
+        if not 0 <= index < bar.count() or not path:
+            return
+        st = self._tab_state(index)
+        if index == bar.currentIndex() and st is not None and not self.search_mode:
+            st.path = path
+        title = tab_title(path)
+        bar.setTabText(index, ("🔒 " if st is not None and st.locked else "") + title)
+        bar.setTabToolTip(index, path)
+
+    def tabs_state(self) -> dict:
+        """Zum Merken beim Beenden (L-3107): Server-Ordner und Papierkorb werden zum Heimordner."""
+        self.ensure_first_tab()
+        self._store_current_tab()
+        tabs = []
+        for i in range(self.tab_bar.count()):
+            st = self._tab_state(i)
+            if st is None:
+                continue
+            d = st.to_dict()
+            if is_remote_uri(d["path"]) or is_trash_uri(d["path"]):
+                d["path"] = os.path.expanduser("~")
+            d["history"] = [h for h in d["history"] if not is_remote_uri(h)]
+            d["pos"] = min(d["pos"], len(d["history"]) - 1)
+            tabs.append(d)
+        return {"tabs": tabs, "current": self.tab_bar.currentIndex()}
+
+    def restore_tabs(self, data) -> None:
+        """Gemerkte Reiter wiederherstellen; der aktuelle zeigt seinen Ordner sofort."""
+        from .paneltabs import TabState, tab_title
+
+        if not isinstance(data, dict) or not isinstance(data.get("tabs"), list):
+            return
+        states = [st for st in (TabState.from_dict(d) for d in data["tabs"]) if st is not None]
+        if len(states) < 1:
+            return
+        current = data.get("current") if isinstance(data.get("current"), int) else 0
+        current = min(max(current, 0), len(states) - 1)
+        bar = self.tab_bar
+        bar.blockSignals(True)
+        while bar.count():
+            bar.removeTab(0)
+        for st in states:
+            i = bar.addTab(tab_title(st.path))
+            bar.setTabData(i, st)
+            bar.setTabToolTip(i, st.path)
+            if st.locked:
+                bar.setTabText(i, "🔒 " + tab_title(st.path))
+        bar.setCurrentIndex(current)
+        bar.blockSignals(False)
+        self._tab_index = current
+        self._restoring_tabs = True
+        try:
+            self.apply_tab_state(states[current])
+        finally:
+            self._restoring_tabs = False
+        self._update_tab_title(self.current_path, current)
+        self._update_tab_bar()
+
+    def set_tabs_always(self, on: bool) -> None:
+        self.tabs_always = bool(on)
+        self.ensure_first_tab()
+        self._update_tab_bar()
 
     def set_remote_color(self, color: str) -> None:
         self.view.setStyleSheet(f"QTreeView {{ background-color: {color}; }}" if color else "")
@@ -884,9 +1144,23 @@ class FilePanel(QWidget):
         if 0 <= i < len(ICON_SIZES):
             self.set_icon_size(ICON_SIZES[i])
 
+    @property
+    def locked(self) -> bool:
+        return self._locked
+
+    @locked.setter
+    def locked(self, value: bool) -> None:
+        self._locked = bool(value)
+        self._update_tab_bar()
+
     def navigate(self, path: str, select_name: str | None = None, add_history: bool = True) -> bool:
         if self.locked:
             return False
+        if self._tab_is_locked() and not self._applying_tab and self.current_path and \
+                os.path.normpath(path) != os.path.normpath(self.current_path):
+            # Gesperrter Reiter bleibt stehen – der neue Ordner öffnet sich in einem neuen Reiter (L-3103)
+            self.new_tab(path, select_name=select_name)
+            return True
         self._end_search_view()
         if is_remote_uri(path):
             return self._navigate_remote(path, select_name, add_history)
@@ -1045,6 +1319,9 @@ class FilePanel(QWidget):
         return self._history_pos < len(self._history) - 1
 
     def back(self) -> None:
+        if self.can_go_back() and self._tab_is_locked():  # gesperrter Reiter: Ziel in neuem Reiter
+            self.new_tab(self._history[self._history_pos - 1])
+            return
         if self.can_go_back():
             came_from = self.current_path
             self._history_pos -= 1
@@ -1052,6 +1329,9 @@ class FilePanel(QWidget):
                           select_name=_child_name(self._history[self._history_pos], came_from))
 
     def forward(self) -> None:
+        if self.can_go_forward() and self._tab_is_locked():
+            self.new_tab(self._history[self._history_pos + 1])
+            return
         if self.can_go_forward():
             self._history_pos += 1
             self.navigate(self._history[self._history_pos], add_history=False)
@@ -1063,6 +1343,9 @@ class FilePanel(QWidget):
         return [(i, self._history[i]) for i in range(self._history_pos - 1, -1, -1)]
 
     def go_history(self, index: int) -> None:
+        if 0 <= index < len(self._history) and index != self._history_pos and self._tab_is_locked():
+            self.new_tab(self._history[index])
+            return
         if 0 <= index < len(self._history) and index != self._history_pos:
             came_from = self.current_path
             self._history_pos = index
@@ -1098,7 +1381,21 @@ class FilePanel(QWidget):
     def _on_double_click(self, index: QModelIndex) -> None:
         entry = self.model.entry(index.row())
         if entry is not None:
+            from PySide6.QtWidgets import QApplication
+
+            if QApplication.keyboardModifiers() & Qt.KeyboardModifier.ControlModifier and self._open_row_in_tab(
+                    index.row()):
+                return  # Strg+Doppelklick auf einen Ordner: neuer Reiter (L-3104)
             self.open_entry(entry)
+
+    def _open_row_in_tab(self, row: int) -> bool:
+        entry = self.model.entry(row)
+        if entry is None or not entry.is_dir or self.in_trash:
+            return False
+        target = os.path.dirname(self.current_path.rstrip("/")) if entry.is_parent else entry.path
+        if self.in_remote or self.remote is not None:
+            return False
+        return self.new_tab(target) >= 0
 
     def _on_path_entered(self) -> None:
         text = self.path_edit.text().strip()
@@ -1372,6 +1669,7 @@ class FilePanel(QWidget):
         return self.model.search_base is not None
 
     def show_search_results(self, base: str) -> None:
+        QTimer.singleShot(0, self._update_tab_bar)
         """Liste leeren und für Treffer vorbereiten; die Spalte „Ordner“ wird sichtbar."""
         hdr = self.view.header()
         if not hasattr(self, "_type_hidden_before") or self._type_hidden_before is None:
@@ -1407,6 +1705,7 @@ class FilePanel(QWidget):
         self._update_status()
 
     def _end_search_view(self) -> None:
+        QTimer.singleShot(0, self._update_tab_bar)
         before = getattr(self, "_type_hidden_before", None)
         if before is not None:
             self._type_hidden_before = None
@@ -1417,6 +1716,7 @@ class FilePanel(QWidget):
 
     # --- Vorschau „Mehrfach umbenennen“ ---------------------------------------------------
     def set_preview_mode(self, on: bool, model=None) -> None:
+        QTimer.singleShot(0, self._update_tab_bar)
         self.locked = on
         self.path_edit.setReadOnly(on)
         if on:
@@ -1437,6 +1737,7 @@ class FilePanel(QWidget):
 
     # --- Eigene Ansicht statt der Dateiliste (Meta-Wizard, F-903) --------------------------
     def set_custom_view(self, widget: QWidget | None) -> None:
+        QTimer.singleShot(0, self._update_tab_bar)
         layout = self.layout()
         old = getattr(self, "_custom_view", None)
         if old is not None:

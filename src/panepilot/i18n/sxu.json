@@ -1659,5 +1659,19 @@
   "update.hint_package": "„Runtorladn“ speichord das neie Pakeet ({kind}) im Ordnor „Downloads“ un macht's mit dor Softwäre-Insdallation uff. Fürs Insdalliern wird dei Administrator-Kennword abgefragt.",
   "update.package_ready": "Das neie Pakeet „{name}“ is runtorgeladn un wird mit dor Softwäre-Insdallation uffgemacht. Nach dem Insdalliern PanePilot nei schdardn.\n\nFalls sich nischd uffmacht, im Dorminal:\n{command}",
   "update.appimage_launcher": "PanePilot is jetz als Pakeet insdalliert. Im Anwendungsmenü gibts abor noch den Eintrag dor AppImage-Version – darübor würde weidor das AppImage schdardn.\n\nSoll dor alde Eintrag wech?",
-  "update.appimage_launcher_remove": "Wechmachn"
+  "update.appimage_launcher_remove": "Wechmachn",
+  "action.tab_new": "Neior Reidor",
+  "action.tab_close": "Reidor zumachn",
+  "action.tab_next": "Nächsdor Reidor",
+  "action.tab_prev": "Vorhersch'r Reidor",
+  "action.tab_lock": "Reidor schbärrn/endschbärrn",
+  "action.tab_to_other": "Im andorn Fensdor uffmachn",
+  "action.recent_dirs": "Zuletzt besuchde Ordnor …",
+  "menu.tab_close_others": "Andre Reidor zumachn",
+  "menu.tab_lock": "Reidor schbärrn",
+  "menu.tab_unlock": "Reidor endschbärrn",
+  "recent.empty": "(noch keene)",
+  "settings.sec_tabs": "Reidor",
+  "settings.tabs_always": "Reidorleisde immor zeichn (ooch bei bloß eenem Reidor)",
+  "settings.tabs_hint": "Neior Reidor mit Strg+T, middlor Mausdaste uff een Ordnor odor Dobbelgligg uff de freie Reidorleisde; Strg+W machd zu, Strg+Tab wechseld. Geschbärrde Reidor bleim schdehn – een andror Ordnor gehd dann in eenem neien Reidor uff."
 }

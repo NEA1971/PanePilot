@@ -244,6 +244,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         self.single_mode = False
         self.stacked = False  # v1.10: Fenster übereinander (L-1000 ff.)
         self.shared_sidebar = False  # v1.21: gemeinsame Seitenleiste (L-2100 ff.)
+        self.recent_dirs: list[str] = []  # v2.1: zuletzt besuchte Ordner (L-3108)
         self._bar_pin: str | None = None  # Werkzeug hält die gemeinsame Leiste bei diesem Fenster (L-2103)
         self._bar_shown = "left"
         self._layout_sizes: dict[str, dict] = {}
@@ -333,6 +334,14 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         panel.open_file_requested.connect(self._open_file)
         panel.message.connect(lambda title, text: show_error(self, title, text))
         panel.filter_changed.connect(lambda n=name: self._on_filter_changed(n))
+        panel.tab_menu_requested.connect(lambda i, pos, n=name: self._tab_menu(n, i, pos))
+        panel.tabs_always = bool(self.settings.get("tabs_always"))
+        # Verlauf (v2.1, L-3108): Pfeil rechts in der Pfadzeile
+        from .toolicons import icon_chevron_down
+
+        act = panel.path_edit.addAction(icon_chevron_down(), panel.path_edit.ActionPosition.TrailingPosition)
+        act.setToolTip(t("action.recent_dirs"))
+        act.triggered.connect(lambda _c=False, n=name: self.show_recent_dirs(n))
         panel.model.modelReset.connect(lambda n=name: self._on_filter_changed(n))
         return Side(name, panel, sidebar, splitter)
 
@@ -902,7 +911,89 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         w = w.view if isinstance(w, SidebarPane) else w
         return w if isinstance(w, FolderTreeView) else None
 
+    # --- Reiter (v2.1, L-3100 ff.) ---------------------------------------------------------------------
+    def do_tab_new(self) -> None:
+        self.active.new_tab()
+        self.active.focus_view()
+
+    def do_tab_close(self) -> None:
+        self.active.close_tab()
+        self.active.focus_view()
+
+    def do_tab_next(self) -> None:
+        self.active.switch_tab(1)
+
+    def do_tab_prev(self) -> None:
+        self.active.switch_tab(-1)
+
+    def do_tab_lock(self) -> None:
+        self.active.toggle_tab_lock()
+
+    def do_tab_to_other(self, index: int | None = None, side: str | None = None) -> None:
+        """Ordner des Reiters als neuen Reiter im anderen Fenster öffnen."""
+        side = side or self.active_side
+        panel = self.sides[side].panel
+        index = panel.tab_bar.currentIndex() if index is None else index
+        st = panel.tab_bar.tabData(index) if index >= 0 else None
+        path = panel.current_path if st is None or index == panel.tab_bar.currentIndex() else st.path
+        other = self.sides["right" if side == "left" else "left"].panel
+        if other.new_tab(path) >= 0:
+            self.set_active_side(other.side)
+            other.focus_view()
+
+    def _tab_menu(self, side: str, index: int, pos) -> None:
+        panel = self.sides[side].panel
+        menu = QMenu(self)
+        menu.addAction(t("action.tab_new")).triggered.connect(lambda: panel.new_tab())
+        if index >= 0:
+            st = panel.tab_bar.tabData(index)
+            close = menu.addAction(t("action.tab_close"))
+            close.setEnabled(panel.tab_bar.count() > 1)
+            close.triggered.connect(lambda: panel.close_tab(index))
+            others = menu.addAction(t("menu.tab_close_others"))
+            others.setEnabled(panel.tab_bar.count() > 1)
+            others.triggered.connect(lambda: panel.close_other_tabs(index))
+            menu.addSeparator()
+            lock = menu.addAction(t("menu.tab_unlock" if st is not None and st.locked else "menu.tab_lock"))
+            lock.triggered.connect(lambda: panel.toggle_tab_lock(index))
+            menu.addAction(t("action.tab_to_other")).triggered.connect(
+                lambda: self.do_tab_to_other(index, side))
+        self._exec_menu(menu, pos)
+
+    def _exec_menu(self, menu: QMenu, pos) -> None:
+        """Eigene Methode, damit Tests das Menü ohne Warten prüfen können."""
+        menu.exec(pos)
+
+    # --- Zuletzt besuchte Ordner (v2.1, L-3108) ----------------------------------------------------------
+    RECENT_LIMIT = 20
+
+    def _remember_recent(self, path: str) -> None:
+        if not path or is_remote_uri(path) or is_trash_uri(path) or not os.path.isabs(path):
+            return
+        recent = [p for p in self.recent_dirs if p != path]
+        self.recent_dirs = [path] + recent[: self.RECENT_LIMIT - 1]
+
+    def do_recent_dirs(self) -> None:
+        self.show_recent_dirs(self.active_side)
+
+    def show_recent_dirs(self, side: str) -> None:
+        panel = self.sides[side].panel
+        self.set_active_side(side)
+        menu = QMenu(self)
+        entries = [p for p in self.recent_dirs if p != panel.current_path] or []
+        if not entries:
+            act = menu.addAction(t("recent.empty"))
+            act.setEnabled(False)
+        for path in entries:
+            act = menu.addAction(self.icons.dir_icon(path), path)
+            act.triggered.connect(lambda _c=False, p=path: (panel.navigate(p), panel.focus_view()))
+        edit = panel.path_edit
+        menu.setMinimumWidth(edit.width())
+        self._exec_menu(menu, edit.mapToGlobal(edit.rect().bottomLeft()))
+
     def _on_panel_path_changed(self, side: str, path: str) -> None:
+        if not self.sides[side].panel.search_mode:
+            self._remember_recent(path)
         tool = self.tool_mode.get(side)
         if tool and tool["mode"] == MODE_SEARCH and not self.sides[side].panel.search_mode:
             self.close_tool(side, navigate_back=False)  # Ordner gewechselt → Suche schließen (F-818)
@@ -1048,7 +1139,8 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
         m.addAction(a["refresh"])
 
         m = mb.addMenu(t("menu.navigate"))
-        for aid in ("back", "forward", "go_up", "edit_path", None, "switch_panel", "same_path", "swap_panels",
+        for aid in ("back", "forward", "go_up", "edit_path", "recent_dirs", None, "switch_panel", "same_path",
+                    "swap_panels", None, "tab_new", "tab_close", "tab_next", "tab_prev", "tab_lock", "tab_to_other",
                     None, "open_trash", "trash_empty"):
             m.addSeparator() if aid is None else m.addAction(a[aid])
 
@@ -3010,6 +3102,9 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
                 history = [h for h in history if not is_remote_uri(h)]
                 pos = st.get("history_pos", len(history) - 1)
                 s.panel.set_history_state(history, pos if isinstance(pos, int) else len(history) - 1)
+            s.panel.ensure_first_tab()
+            if isinstance(st.get("tabs"), dict) and len(st["tabs"].get("tabs") or []) > 0:
+                s.panel.restore_tabs(st["tabs"])  # v2.1 (L-3107)
             inner = st.get("inner")
             if isinstance(inner, list) and len(inner) == 2:
                 s.splitter.setSizes([int(x) for x in inner])
@@ -3039,6 +3134,9 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
             self.qactions["toggle_stacked"].setChecked(True)
             for side, sub in self.sidebar_submenus.items():
                 sub.setTitle(self._sidebar_menu_title(side))
+        recent = state.get("recent_dirs")
+        if isinstance(recent, list):
+            self.recent_dirs = [p for p in recent if isinstance(p, str)][: self.RECENT_LIMIT]
         active = state.get("active", "left")
         self.set_active_side(active if active in SIDES else "left")
         if state.get("shared_sidebar") is True:  # v1.21
@@ -3069,6 +3167,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
                 "sort": [col, order],
                 "icon_view": s.panel.icon_mode,
                 "icon_size": s.panel.icon_size,
+                "tabs": s.panel.tabs_state(),  # v2.1 (L-3107)
                 "header": s.panel.header_state(),
                 "header_columns": COLUMN_COUNT,
                 "sidebar": s.sidebar.mode,
@@ -3088,6 +3187,7 @@ class MainWindow(RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
             "single": self.single_mode,
             "stacked": self.stacked,
             "shared_sidebar": self.shared_sidebar,
+            "recent_dirs": self.recent_dirs[: self.RECENT_LIMIT],
             "shared": self.main_split.sizes() if self.shared_sidebar and self.shared_box.isVisible() else None,
             "layouts": {k: v for k, v in self._layout_sizes.items() if k != self._layout_key()},
             "sides": sides_state,

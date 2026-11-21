@@ -168,6 +168,7 @@ class SettingsDialog(QDialog):
         page = self._page("view", t("settings.tab_view"))
         page.add_section(t("settings.sec_size"), self._size_section())
         page.add_section(t("settings.sec_columns"), self._columns_tab())
+        page.add_section(t("settings.sec_tabs"), self._tabs_section())  # v2.1
         # Reiter „Meta-Wizard“: ReplayGain
         page = self._page("meta", t("settings.tab_meta"))
         page.add_section(t("settings.sec_replaygain"), self._replaygain_section())
@@ -197,6 +198,19 @@ class SettingsDialog(QDialog):
         label.setWordWrap(True)
         label.setEnabled(False)
         return label
+
+    # --- Reiter (v2.1, L-3101) --------------------------------------------------------------
+    def _tabs_section(self) -> QWidget:
+        from PySide6.QtWidgets import QCheckBox
+
+        w = QWidget(self)
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        self.tabs_always = QCheckBox(t("settings.tabs_always"), w)
+        self.tabs_always.setChecked(bool(self.window.settings.get("tabs_always")))
+        lay.addWidget(self.tabs_always)
+        lay.addWidget(self._hint(t("settings.tabs_hint"), w))
+        return w
 
     # --- Updates (v1.2) -----------------------------------------------------------------
     def _updates_section(self) -> QWidget:
@@ -1065,6 +1079,9 @@ class SettingsDialog(QDialog):
         s.set("size_unit", self.unit_box.currentData())
         s.set("replaygain_target", round(self.rg_target.value(), 1))
         s.set("update_check", self.update_check.isChecked())
+        s.set("tabs_always", self.tabs_always.isChecked())
+        for side in self.window.sides.values():
+            side.panel.set_tabs_always(self.tabs_always.isChecked())
         from . import moviedb as md
 
         if self.tmdb_key.text().strip() != md.load_key():

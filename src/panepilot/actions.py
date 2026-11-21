@@ -56,7 +56,7 @@ ACTION_DEFS: tuple[ActionDef, ...] = (
     ActionDef("rename", "action.rename", (), "window"),
     ActionDef("duplicate", "action.duplicate", ("Ctrl+D",), "list"),  # v1.10 (L-1010)
     ActionDef("multi_rename", "action.multi_rename", ("Ctrl+M",), "window"),
-    ActionDef("meta_wizard", "action.meta_wizard", ("Ctrl+T",), "window"),
+    ActionDef("meta_wizard", "action.meta_wizard", ("Ctrl+Shift+T",), "window"),  # v2.1: Strg+T → neuer Reiter
     ActionDef("rename_undo", "action.rename_undo", (), "window"),
     ActionDef("search", "action.search", ("Ctrl+F",), "window"),
     ActionDef("checksums", "action.checksums", (), "window"),
@@ -116,6 +116,14 @@ ACTION_DEFS: tuple[ActionDef, ...] = (
     ActionDef("toggle_single", "action.toggle_single", (), "window"),
     ActionDef("toggle_stacked", "action.toggle_stacked", ("Ctrl+Shift+H",), "window"),  # v1.10 (L-1000)
     ActionDef("toggle_shared_sidebar", "action.toggle_shared_sidebar", (), "window"),  # v1.21 (L-2100)
+    # v2.1 (L-3100 ff.): Reiter und Verlauf
+    ActionDef("tab_new", "action.tab_new", ("Ctrl+T",), "window"),
+    ActionDef("tab_close", "action.tab_close", ("Ctrl+W",), "window"),
+    ActionDef("tab_next", "action.tab_next", ("Ctrl+Tab",), "window"),
+    ActionDef("tab_prev", "action.tab_prev", ("Ctrl+Shift+Tab",), "window"),
+    ActionDef("tab_lock", "action.tab_lock", (), "window"),
+    ActionDef("tab_to_other", "action.tab_to_other", (), "window"),
+    ActionDef("recent_dirs", "action.recent_dirs", ("Alt+Down",), "window"),
     ActionDef("view_mode", "action.view_mode", (), "window"),  # v1.23 (L-2300): Knopf „Ansicht“
     ActionDef("toggle_icon_view", "action.toggle_icon_view", ("Ctrl+Shift+I",), "window"),  # v1.19 (L-1910)
     ActionDef("icons_small", "action.icons_small", (), "window"),  # v1.19 (L-1911)
