@@ -45,6 +45,8 @@ class MetaWizardMixin:
         pane.meta_view.escape_pressed.connect(self.meta_close)
         pane.meta_view.selectionModel().selectionChanged.connect(lambda *_: self._meta_selection_changed())
         pane.meta_view.field_editor_requested.connect(self.meta_field_editor)
+        pane.meta_view.cell_double_clicked.connect(self._meta_cell_double)  # v2.4
+        pane.meta_view.cell_edited.connect(self._meta_cell_edited)
         from . import convert as cv
         from .replaygain import ffmpeg_path
 
@@ -393,6 +395,68 @@ class MetaWizardMixin:
         self._meta_update_state()
 
     # --- Langer Text (F-980) ----------------------------------------------------------------------------
+    # --- v2.4: Doppelklick auf einen Tag ------------------------------------------------------------------
+    LONG_FIELDS = ("lyrics", "comment", "description")
+
+    def _meta_cell_double(self, item, col: str, index) -> None:
+        from .metawizard import COL_FILENAME, COL_PATH, COVER
+
+        if self.meta_mode is None or self.meta_mode.get("save") is not None or item.record.error:
+            return
+        pane = self._meta_pane()
+        view = pane.meta_view
+        if col == COL_FILENAME:
+            view.start_inline(index, item, col, item.display_name, stem_only=True)
+            return
+        if col.startswith("i:") or col == COL_PATH:
+            return  # Dateiangaben (Länge, Größe …) und Pfad lassen sich nicht bearbeiten
+        if col in self.LONG_FIELDS or col == COVER:  # mehrzeilig bzw. Bild: ins Feld der Seitenleiste
+            view.select_items([item])
+            target = pane.cover if col == COVER else pane.boxes.get(col)
+            if target is not None:
+                target.setFocus()
+                if hasattr(target, "lineEdit") and target.lineEdit() is not None:
+                    target.lineEdit().selectAll()
+            elif col in self.LONG_FIELDS:
+                self._meta_long_text(col)
+            return
+        if item.readonly(col) or item.remove_only(col):
+            return
+        view.start_inline(index, item, col, item.value(col))
+
+    def _meta_cell_edited(self, item, col: str, text: str) -> None:
+        from .dialogs import show_error
+        from .metawizard import COL_FILENAME
+
+        if self.meta_mode is None or self.meta_mode.get("save") is not None:
+            return
+        if col == COL_FILENAME:
+            name = text.strip()
+            old = item.record.name
+            error = ""
+            if not name or "/" in name or name in (".", ".."):
+                error = t("meta.bad_name")
+            elif os.path.splitext(name)[1].casefold() != os.path.splitext(old)[1].casefold():
+                error = t("meta.keep_ext", ext=os.path.splitext(old)[1])
+            elif name != old and os.path.exists(os.path.join(os.path.dirname(item.record.path), name)) \
+                    and name.casefold() != old.casefold():
+                error = t("meta.name_exists", name=name)
+            elif any(o is not item and o.display_name == name and o.folder() == item.folder()
+                     for o in self._meta_pane().meta_model.items):
+                error = t("meta.name_exists", name=name)
+            if error:
+                show_error(self, t("meta.title"), error)
+                return
+            item.pending_name = None if name == old else name
+        else:
+            if item.readonly(col) or item.remove_only(col):
+                return
+            item.set(col, text if text.strip() else None)
+        pane = self._meta_pane()
+        pane.meta_model.rows_changed()
+        pane.show_selection(pane.meta_view.selected_items())
+        self._meta_update_state()
+
     def _meta_long_text(self, key: str) -> None:
         from .metadialogs import TextDialog
         from .metawizard import column_title
@@ -1445,7 +1509,15 @@ class MetaWizardMixin:
         title = t("online.title")
         key = md.load_key()
         service = md.service(key)
-        jobs = make_jobs(items)
+        def ask_loose(folder: str, series: str, season: int, nums: list[int]) -> bool:  # v2.4
+            from .dialogs import confirm
+
+            span = f"{nums[0]}–{nums[-1]}" if len(nums) > 1 else str(nums[0])
+            return confirm(self, title, t("online.loose_question", n=len(nums), folder=os.path.basename(folder),
+                                          numbers=span, season=season, series=series),
+                           yes_key="button.yes", no_key="online.loose_no")
+
+        jobs = make_jobs(items, ask_loose)
         error = run_lookup(self, service, jobs)
         if error:
             show_error(self, title, error_text(error))
@@ -1543,9 +1615,9 @@ class MetaWizardMixin:
         self._meta_pane().summary.setText(t("online.done", n=len(changes)))
         self._meta_refresh()
         if report:
-            from .dialogs import show_info
+            from .dialogs import show_report
 
-            show_info(self, title, report)
+            show_report(self, title, report)
 
     def meta_playlist(self) -> None:
         from .dialogs import confirm

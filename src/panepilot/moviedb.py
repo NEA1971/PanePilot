@@ -200,6 +200,41 @@ def episode_ref(path: str) -> EpisodeRef | None:
     return EpisodeRef(title, year, season, episode, tmdb, imdb, tvdb)
 
 
+# v2.4: Folgen ohne „S01E03“ – nur eine Nummer oder „Folge/Teil/Episode 3“ bzw. „E03“ (nach Rückfrage)
+_LOOSE_NUM_RX = re.compile(r"^\s*(\d{1,3})\s*$")
+_LOOSE_WORD_RX = re.compile(r"(?<![A-Za-z0-9])(?:folge|teil|episode|ep\.?|e)[ ._-]*(\d{1,3})(?![0-9])", re.IGNORECASE)
+_SEASON_NUM_RX = re.compile(r"(\d{1,2})")
+
+
+def loose_episode_ref(path: str) -> EpisodeRef | None:
+    """„Auf Leben und Tod/1.mkv“ → Serie „Auf Leben und Tod“, Staffel 1, Folge 1 (v2.4).
+
+    Nur für Dateien ohne S01E03; ob sie wirklich Folgen sind, fragt der Meta-Wizard vorher je Ordner.
+    """
+    import os
+
+    folder, name = os.path.split(path)
+    stem = _NAME_ID_RX.sub("", os.path.splitext(name)[0]).strip()
+    m = _LOOSE_NUM_RX.match(stem) or _LOOSE_WORD_RX.search(stem)
+    if not m:
+        return None
+    episode = int(m.group(1))
+    parent = os.path.basename(folder)
+    grand = os.path.basename(os.path.dirname(folder))
+    plain_parent = _NAME_ID_RX.sub("", parent).strip()
+    season, series_dir = 1, parent
+    if _SEASON_DIR_RX.match(plain_parent):
+        season, series_dir = int(_SEASON_NUM_RX.search(plain_parent).group(1)), grand
+    tmdb = imdb = tvdb = ""
+    for d in ([series_dir, parent] if series_dir != parent else [parent]) + [stem]:
+        i_id, t_id, v_id = all_ids_from_name(d)
+        tmdb, imdb, tvdb = tmdb or t_id, imdb or i_id, tvdb or v_id
+    title, year = title_year(series_dir)
+    if not title or episode == 0:
+        return None
+    return EpisodeRef(title, year, season, episode, tmdb, imdb, tvdb)
+
+
 # --- HTTP --------------------------------------------------------------------------------------------------
 _lock = threading.Lock()
 _last = {"tmdb": 0.0, "wikidata": 0.0}

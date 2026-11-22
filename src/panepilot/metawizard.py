@@ -22,6 +22,7 @@ from PySide6.QtCore import (
     QSortFilterProxyModel,
     Qt,
     QThread,
+    QTimer,
     Signal,
 )
 from PySide6.QtGui import QBrush, QColor, QImage, QPixmap
@@ -397,6 +398,8 @@ class MetaView(QTreeView):
     escape_pressed = Signal()
     field_editor_requested = Signal()  # F-970
     row_menu_requested = Signal(object)  # globale Position (F-990)
+    cell_double_clicked = Signal(object, str, object)  # v2.4: MetaItem, Spalte, Index (in der Ansicht)
+    cell_edited = Signal(object, str, str)  # v2.4: MetaItem, Spalte, neuer Text (Enter)
 
     def __init__(self, model: MetaModel, parent=None) -> None:
         super().__init__(parent)
@@ -425,7 +428,69 @@ class MetaView(QTreeView):
         self.customContextMenuRequested.connect(lambda pos: self.row_menu_requested.emit(
             self.viewport().mapToGlobal(pos)))
         self._resetting = False
+        self._inline = None  # v2.4: (QLineEdit, MetaItem, Spalte) während der Eingabe in der Zelle
         model.modelReset.connect(self._apply_widths)
+
+    # --- v2.4: Doppelklick bearbeitet die Zelle ------------------------------------------------------------
+    def mouseDoubleClickEvent(self, event) -> None:
+        index = self.indexAt(event.position().toPoint())
+        if not index.isValid() or event.button() != Qt.MouseButton.LeftButton:
+            super().mouseDoubleClickEvent(event)
+            return
+        src = self.proxy.mapToSource(index)
+        if 0 <= src.row() < len(self.source.items) and 0 <= src.column() < len(self.source.columns):
+            self.cell_double_clicked.emit(self.source.items[src.row()], self.source.columns[src.column()], index)
+        event.accept()
+
+    def start_inline(self, index, item, col: str, text: str, stem_only: bool = False) -> None:
+        """Eingabefeld direkt in der Zelle: Enter übernimmt, Esc (oder Wegklicken) bricht ab."""
+        from PySide6.QtWidgets import QLineEdit
+
+        self.cancel_inline()
+        edit = QLineEdit(self.viewport())
+        edit.setObjectName("metaInline")
+        edit.setText(text)
+        rect = self.visualRect(index)
+        rect.setWidth(max(rect.width(), 240))
+        edit.setGeometry(rect)
+        if stem_only and "." in text:
+            edit.setSelection(0, len(os.path.splitext(text)[0]))
+        else:
+            edit.selectAll()
+        edit.returnPressed.connect(self._inline_commit)
+        edit.installEventFilter(self)
+        self._inline = (edit, item, col)
+        edit.show()
+        edit.setFocus()
+
+    def _inline_commit(self) -> None:
+        if self._inline is None:
+            return
+        edit, item, col = self._inline
+        text = edit.text()
+        self.cancel_inline()
+        self.cell_edited.emit(item, col, text)
+
+    def cancel_inline(self) -> None:
+        if self._inline is None:
+            return
+        edit = self._inline[0]
+        self._inline = None
+        edit.removeEventFilter(self)
+        edit.hide()
+        edit.deleteLater()
+        self.setFocus()
+
+    def eventFilter(self, obj, event) -> bool:
+        from PySide6.QtCore import QEvent
+
+        if self._inline is not None and obj is self._inline[0]:
+            if event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Escape:
+                self.cancel_inline()
+                return True
+            if event.type() == QEvent.Type.FocusOut:
+                QTimer.singleShot(0, self.cancel_inline)
+        return super().eventFilter(obj, event)
 
     # Darstellung
     def keyPressEvent(self, event) -> None:

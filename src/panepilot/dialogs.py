@@ -73,6 +73,30 @@ def show_info(parent, title: str, text: str) -> None:
     _msgbox(parent, QMessageBox.Icon.Information, title, text, [("button.ok", QMessageBox.ButtonRole.AcceptRole, True)])
 
 
+def show_report(parent, title: str, text: str) -> None:
+    """Meldung; lange Listen (v2.4: übernommene Filme) in einem Fenster mit Rollbalken."""
+    if text.count("\n") <= 18:
+        show_info(parent, title, text)
+        return
+    from PySide6.QtWidgets import QPlainTextEdit
+
+    dlg = QDialog(parent)
+    free_window(dlg)
+    dlg.setWindowTitle(title)
+    lay = QVBoxLayout(dlg)
+    view = QPlainTextEdit(dlg)
+    view.setReadOnly(True)
+    view.setPlainText(text)
+    view.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+    lay.addWidget(view)
+    box = QDialogButtonBox(dlg)
+    box.addButton(t("button.ok"), QDialogButtonBox.ButtonRole.AcceptRole)
+    box.accepted.connect(dlg.accept)
+    lay.addWidget(box)
+    dlg.resize(760, 520)
+    dlg.exec()
+
+
 def ask_text(parent, title: str, label: str, text: str = "") -> str | None:
     dlg = QInputDialog(parent)
     dlg.setWindowTitle(title)

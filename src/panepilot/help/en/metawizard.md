@@ -5,6 +5,7 @@
 ## Basics
 - The track list shows the files of the current folder with their tags. Choose columns by right-clicking the column headers; you can also create your own fields there.
 - You edit the selected tracks in the sidebar. With several tracks that have different values it shows `< keep >`: whatever you don’t touch stays as it is in each file.
+- **Double-click a cell** to edit the value directly in the list – for that one row only. **Enter** applies, **Esc** cancels. Double-clicking the **file name** renames the file (the extension stays). For long texts (description, comment, lyrics) the double-click jumps to the field in the sidebar. As always nothing is written before “Save tag”.
 - Changes are only **pending** at first and marked green. **Save tag** writes them to the files. **Undo** reverts the last save.
 - **Cover**: drag an image in, or right-click the cover to load, save or remove it.
 
@@ -66,7 +67,7 @@ In video mode the button **“Online data (movies, series) …”** fetches titl
   - **Wikidata** if no key is entered: no account needed, but no plot summary and no poster.
 - **Language:** title, plot summary and genre come in the **program language** (German for Franconian and Saxon). If there is no version in that language, English is used.
 - **Overview:** before applying, PanePilot shows “field – current – new” for each movie. Only fields that are empty so far are checked; existing values are only overwritten if you tick them. The buttons “All fields” and “Only empty fields” set the ticks for all movies.
-- **Without overview:** in **Settings → Meta wizard → Online data** you can choose: with overview (default), without overview filling only empty fields, or without overview overwriting everything (including the poster). With several matches the selection list still appears – if none fits, **“Search manually …”** lets you enter title, year or an ID. Movies (or series) that were not found are offered one after another for a manual search before anything is applied (“Not found (1/3)”, with Skip and Cancel). At the end a message shows how many movies were applied, not found or skipped. Nothing is written until “Save tags”.
+- **Without overview:** in **Settings → Meta wizard → Online data** you can choose: with overview (default), without overview filling only empty fields, or without overview overwriting everything (including the poster). With several matches the selection list still appears – if none fits, **“Search manually …”** lets you enter title, year or an ID. Movies (or series) that were not found are offered one after another for a manual search before anything is applied (“Not found (1/3)”, with Skip and Cancel). At the end a message shows how many movies were applied, not found or skipped – and which movie or episode was applied to each file (to check for wrong matches). Nothing is written until “Save tags”.
 - **Apply** marks the values in green; nothing is written until **“Save tags”**, and “Undo” works as usual.
 - **With TMDB only** there are also `Actors` (the first 5 cast members), `Rating` (TMDB rating, e.g. `7.8`) and `Certification` (age rating for the country of the program language, e.g. `PG-13`) – like all fields only as a proposal.
 - A missing ID is added: a movie with `imdbid` also gets `themoviedb` and vice versa. If the original title differs from the title, it goes into the field `originaltitle`. The poster (about 500 pixels wide) is stored as cover in MP4, MKV and WMV.
@@ -125,6 +126,7 @@ In video mode **“Tracks …”** opens a table of all tracks of the selected M
 
 ## Online data for TV series
 **“Online data (movies, series) …”** recognises episodes by the pattern **`S01E02`** in the file name (also `s1e2` or `1x02`).
+- **Without `S01E02`:** if the files are only called `1.mkv`, `2.mkv` … or `Folge 3`, `Teil 3`, `Episode 3` or `E03`, PanePilot asks once per folder whether they are episodes of the series named by the folder (e.g. “Treat the 6 files in ‘Auf Leben und Tod’ as episodes 1–6 of season 1?”). In a folder `Season 2` they count as season 2, otherwise season 1. With “No” they are searched as movies.
 - **Series name:** from the folder, e.g. `Breaking Bad/Season 1/Breaking Bad - S01E02.mkv` or `Breaking Bad (2008) [tmdbid-1396]/S01E02.mkv`; otherwise from the file name before `S01E02`.
 - The series is searched **once per series**; with several matches you choose it once, and it applies to all episodes.
 - **Fields:** title (episode title), `Series`, `Season` and `Episode` (two digits, e.g. `01`), year of first broadcast, episode summary, genre of the series, season poster as cover and `themoviedb` (ID of the series). In MP4, series, season and episode are also written to the iTunes standard fields.

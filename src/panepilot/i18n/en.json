@@ -1701,5 +1701,11 @@
   "settings.update_old": "Old AppImage file after an update:",
   "settings.update_old_ask": "Ask",
   "settings.update_old_trash": "Always move to the trash",
-  "settings.update_old_keep": "Always keep"
+  "settings.update_old_keep": "Always keep",
+  "online.auto_taken": "Applied:",
+  "online.loose_question": "The {n} files in “{folder}” have no “S01E01” in their names. Treat them as episodes {numbers} of season {season} of the series “{series}”?",
+  "online.loose_no": "No, search as movies",
+  "meta.bad_name": "This file name is not possible.",
+  "meta.keep_ext": "The extension “{ext}” must stay – it cannot be changed here.",
+  "meta.name_exists": "“{name}” already exists in this folder."
 }

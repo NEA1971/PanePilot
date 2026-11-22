@@ -1702,5 +1702,11 @@
   "settings.update_old": "Alte AppImage-Datei nach einem Update:",
   "settings.update_old_ask": "Nachfragen",
   "settings.update_old_trash": "Immer in den Papierkorb",
-  "settings.update_old_keep": "Immer behalten"
+  "settings.update_old_keep": "Immer behalten",
+  "online.auto_taken": "Übernommen:",
+  "online.loose_question": "Die {n} Dateien in „{folder}“ haben kein „S01E01“ im Namen. Als Folgen {numbers} von Staffel {season} der Serie „{series}“ behandeln?",
+  "online.loose_no": "Nein, als Filme suchen",
+  "meta.bad_name": "Dieser Dateiname ist nicht möglich.",
+  "meta.keep_ext": "Die Endung „{ext}“ muss bleiben – sie lässt sich hier nicht ändern.",
+  "meta.name_exists": "„{name}“ gibt es in diesem Ordner schon."
 }

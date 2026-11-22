@@ -1701,5 +1701,11 @@
   "settings.update_old": "Старый файл AppImage после обновления:",
   "settings.update_old_ask": "Спрашивать",
   "settings.update_old_trash": "Всегда в корзину",
-  "settings.update_old_keep": "Всегда оставлять"
+  "settings.update_old_keep": "Всегда оставлять",
+  "online.auto_taken": "Применено:",
+  "online.loose_question": "У {n} файлов в «{folder}» нет «S01E01» в имени. Считать их сериями {numbers} сезона {season} сериала «{series}»?",
+  "online.loose_no": "Нет, искать как фильмы",
+  "meta.bad_name": "Такое имя файла невозможно.",
+  "meta.keep_ext": "Расширение «{ext}» должно остаться — здесь его изменить нельзя.",
+  "meta.name_exists": "«{name}» уже есть в этой папке."
 }

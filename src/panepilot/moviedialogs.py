@@ -49,12 +49,30 @@ class Job:
     tvdb: str = ""  # v2.3
 
 
-def make_jobs(items) -> list[Job]:
-    """Filme wie bisher; Folgen (S01E02) einer Serie teilen sich eine SeriesGroup."""
+def make_jobs(items, ask_loose=None) -> list[Job]:
+    """Filme wie bisher; Folgen (S01E02) einer Serie teilen sich eine SeriesGroup.
+
+    v2.4: Dateien ohne S01E02, die nur eine Nummer bzw. „Folge 3“ heißen, werden je Ordner zusammengefasst;
+    ask_loose(ordner, serie, staffel, nummern) entscheidet, ob sie als Folgen gelten (sonst wie Filme).
+    """
+    import os
+
     groups: dict = {}
     jobs = []
+    loose: dict[str, list] = {}
     for it in items:
-        ref = md.episode_ref(it.record.path)
+        if md.episode_ref(it.record.path) is None and ask_loose is not None:
+            lref = md.loose_episode_ref(it.record.path)
+            if lref is not None:
+                loose.setdefault(os.path.dirname(it.record.path), []).append((it, lref))
+    accepted: dict[int, md.EpisodeRef] = {}
+    for folder, pairs in loose.items():
+        nums = sorted(r.episode for _it, r in pairs)
+        first = pairs[0][1]
+        if ask_loose(folder, first.series, first.season, nums):
+            accepted.update({id(it): r for it, r in pairs})
+    for it in items:
+        ref = md.episode_ref(it.record.path) or accepted.get(id(it))
         if ref is None or not ref.series:
             jobs.append(make_job(it))
             continue
@@ -502,6 +520,14 @@ def auto_changes(jobs: list[Job], overwrite: bool) -> list[tuple[object, dict, b
     return out
 
 
+def found_text(m: md.Movie) -> str:
+    """„Heat (1995)“ bzw. „Columbo – S01E02 „Tödliche Trennung““ für die Abschlussmeldung (v2.4)."""
+    if m.series:
+        head = f"{m.series} – S{m.season or '00'}E{m.episode or '00'}"
+        return f"{head} „{m.title}“" if m.title else head
+    return f"{m.title} ({m.year})" if m.year else m.title
+
+
 def auto_report(jobs: list[Job], changes: list) -> str:
     """L-2022: kurze Meldung mit Zahlen und den Gründen für nicht übernommene Filme."""
     taken = {id(it) for it, _v, _p in changes}
@@ -511,6 +537,12 @@ def auto_report(jobs: list[Job], changes: list) -> str:
     lines = [t("online.auto_done", taken=len(taken), missing=len(missing), skipped=len(skipped))]
     if unchanged:
         lines.append(t("online.auto_unchanged", n=len(unchanged)))
+    found = [j for j in jobs if j.movie is not None and id(j.item) in taken]
+    if found:  # v2.4: welcher Film bzw. welche Folge übernommen wurde – zum Prüfen auf falsche Treffer
+        lines.append("")
+        lines.append(t("online.auto_taken"))
+        for j in found:
+            lines.append(f"• {j.item.display_name} → {found_text(j.movie)}")
     if missing or skipped:
         lines.append("")
         for j in missing + skipped:

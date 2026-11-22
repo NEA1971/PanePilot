@@ -1701,5 +1701,11 @@
   "settings.update_old": "Alde AppImage-Dadei nach eem Ubdeet:",
   "settings.update_old_ask": "Nachfrachn",
   "settings.update_old_trash": "Immor in Babierkorb",
-  "settings.update_old_keep": "Immor behaldn"
+  "settings.update_old_keep": "Immor behaldn",
+  "online.auto_taken": "Iebernomm:",
+  "online.loose_question": "Die {n} Dadein in „{folder}“ ham geen „S01E01“ im Nam. Als Folchn {numbers} von Schdaffel {season} vor Serie „{series}“ nehm?",
+  "online.loose_no": "Nee, als Filme suchn",
+  "meta.bad_name": "Dor Dadeinam gehd ni.",
+  "meta.keep_ext": "De Endung „{ext}“ muss bleibn – die gannsde hier ni ändorn.",
+  "meta.name_exists": "„{name}“ gibt’s in dem Ordnor schon."
 }

@@ -157,6 +157,9 @@ class KeyFilter(QObject):
                 and self.window.meta_mode is not None and QApplication.activeModalWidget() is None
                 and QApplication.activePopupWidget() is None):
             focus = QApplication.focusWidget()
+            if "metaInline" in (focus.objectName() if focus is not None else "",
+                                getattr(obj, "objectName", lambda: "")()):
+                return False  # v2.4: Esc bricht nur die Eingabe in der Zelle ab
             if focus is not None and focus.window() is self.window:
                 self.window.meta_close()  # Esc = Schließen mit Rückfrage (F-925)
                 return True

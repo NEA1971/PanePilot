@@ -52,6 +52,9 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="2.4.0" date="2026-11-22">
+      <description><p>Meta wizard: edit cells by double-click, episodes without S01E01, list of applied films.</p></description>
+    </release>
     <release version="2.3.1" date="2026-11-22">
       <description><p>Mouse wheel in lists no longer scrolls the surrounding page at the end of the list.</p></description>
     </release>
