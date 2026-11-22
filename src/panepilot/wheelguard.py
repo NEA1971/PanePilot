@@ -53,6 +53,13 @@ def _scroll(area: QAbstractScrollArea | None, event) -> None:
         QCoreApplication.sendEvent(_bar_for(area, event), event)
 
 
+def _done(event) -> bool:
+    """Ereignis erledigt: angenommen markieren, sonst reicht Qt ein echtes Mausrad-Ereignis an die
+    übergeordneten Fenster weiter (so rollte am Ende einer Liste doch wieder die Seite – Meldung vom 22.11.2026)."""
+    event.accept()
+    return True
+
+
 class WheelGuard(QObject):
     _busy = False
 
@@ -81,13 +88,13 @@ class WheelGuard(QObject):
             inner = _outer_area(obj)
             if inner is not None and _outer_area(inner) is not None:
                 QCoreApplication.sendEvent(obj, event)
-                return True
+                return _done(event)
             return False
         owner = _owner(obj)
         if owner is not None:
             if isinstance(owner, QComboBox) or not owner.hasFocus():
                 _scroll(_outer_area(owner), event)  # zugeklappt bzw. nicht angeklickt: Seite rollen
-                return True
+                return _done(event)
             return False
         area = obj.parentWidget() if isinstance(obj.parentWidget(), QAbstractScrollArea) else None
         if area is None or obj is not area.viewport():
@@ -98,9 +105,9 @@ class WheelGuard(QObject):
         bar = _bar_for(area, event)
         if bar.maximum() <= bar.minimum():
             _scroll(outer, event)  # innere Liste kann gar nicht rollen: Seite rollen
-            return True
+            return _done(event)
         QCoreApplication.sendEvent(bar, event)  # nur die innere Liste – am Ende nicht weiter (L-3300)
-        return True
+        return _done(event)
 
 
 _guard: WheelGuard | None = None

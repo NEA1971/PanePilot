@@ -242,3 +242,24 @@ def test_series_lookup_by_imdb(monkeypatch):
     job = mdl.Job(item=None, title="Columbo", ep=md.EpisodeRef("Columbo", "", 1, 2), group=group)
     mdl.LookupThread(svc, [job])._episode(job)
     assert group.tmdb == "873" and job.movie.title == "1/2" and calls == [("tt0066626", "imdb_id", True)]
+
+
+def test_wheel_guard_accepts_at_end(window):  # noqa: F811
+    """Echte (spontane) Mausrad-Ereignisse reicht Qt an das übergeordnete Fenster weiter, wenn sie nicht
+    angenommen sind – am Ende der Liste muss das Ereignis daher als erledigt markiert sein (2.3.1)."""
+    area, combo, spin, lst, short = _page(window)
+    bar = lst.verticalScrollBar()
+    bar.setValue(bar.maximum())
+    pos = QPointF(lst.viewport().rect().center())
+    ev = QWheelEvent(pos, QPointF(lst.viewport().mapToGlobal(pos.toPoint())), QPoint(0, 0), QPoint(0, -120),
+                     Qt.MouseButton.NoButton, Qt.KeyboardModifier.NoModifier, Qt.ScrollPhase.NoScrollPhase, False)
+    ev.ignore()
+    QApplication.sendEvent(lst.viewport(), ev)
+    assert ev.isAccepted() and bar.value() == bar.maximum()
+    ev2 = QWheelEvent(QPointF(5, 5), QPointF(combo.mapToGlobal(QPoint(5, 5))), QPoint(0, 0), QPoint(0, -120),
+                      Qt.MouseButton.NoButton, Qt.KeyboardModifier.NoModifier, Qt.ScrollPhase.NoScrollPhase, False)
+    area.verticalScrollBar().setValue(area.verticalScrollBar().maximum())
+    ev2.ignore()
+    QApplication.sendEvent(combo, ev2)
+    assert ev2.isAccepted() and combo.currentIndex() == 0
+    area.close()
