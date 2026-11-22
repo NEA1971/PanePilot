@@ -135,7 +135,7 @@ def test_open_with_app_setting(window, tree, zipped, monkeypatch):  # noqa: F811
     from panepilot.settingsdialog import SettingsDialog
 
     dlg = SettingsDialog(window)
-    assert dlg.archive_open["app"].isChecked()
+    assert dlg.archive_app.isChecked()
     dlg.accept()
     assert panel.open_archives_inside is False
     panel.refresh()

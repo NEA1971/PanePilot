@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import re
 
-from PySide6.QtCore import QObject, Qt
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -50,39 +50,6 @@ _PLACEHOLDER = re.compile(r"\{(\w*)\}")
 
 def size_unit_label(unit: str) -> str:
     return t("settings.size_auto") if unit == "auto" else (t("settings.size_bytes") if unit == "B" else unit)
-
-
-class _WheelGuard(QObject):
-    """Regler und Auswahllisten nehmen das Mausrad nur, wenn sie angeklickt wurden (v2.1.2).
-
-    Sonst rollt das Rad die Seite weiter – vorher verstellte man beim Rollen über die Einstellungen
-    versehentlich z. B. die Skalierung.
-    """
-
-    def eventFilter(self, obj, event) -> bool:
-        from PySide6.QtCore import QCoreApplication, QEvent
-        from PySide6.QtWidgets import QAbstractScrollArea
-
-        if event.type() == QEvent.Type.Wheel and isinstance(obj, QWidget) and not obj.hasFocus():
-            parent = obj.parentWidget()
-            while parent is not None and not isinstance(parent, QAbstractScrollArea):
-                parent = parent.parentWidget()
-            if parent is not None:
-                QCoreApplication.sendEvent(parent.viewport(), event)
-            return True
-        return False
-
-
-def guard_wheel(root: QWidget) -> None:
-    from PySide6.QtWidgets import QAbstractSlider, QAbstractSpinBox, QScrollBar
-
-    guard = _WheelGuard(root)
-    for cls in (QAbstractSlider, QComboBox, QAbstractSpinBox):
-        for w in root.findChildren(cls):
-            if isinstance(w, QScrollBar):
-                continue
-            w.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-            w.installEventFilter(guard)
 
 
 class SectionPage(QWidget):
@@ -219,7 +186,6 @@ class SettingsDialog(QDialog):
         from PySide6.QtGui import QKeySequence, QShortcut
 
         QShortcut(QKeySequence("F1"), self, lambda: self.window.do_help("settings", parent=self))
-        guard_wheel(self)  # v2.1.2
 
     DEFAULT_SIZE = (990, 640)
 
@@ -267,35 +233,56 @@ class SettingsDialog(QDialog):
 
     # --- Archive (v2.2, L-3206) ------------------------------------------------------------------------
     def _archives_section(self) -> QWidget:
-        from PySide6.QtWidgets import QButtonGroup, QRadioButton
-
-        w = QWidget(self)
-        lay = QVBoxLayout(w)
-        lay.setContentsMargins(0, 0, 0, 0)
-        lay.addWidget(QLabel(t("settings.archive_open"), w))
-        self.archive_open: dict[str, QRadioButton] = {}
-        group = QButtonGroup(w)
-        current = "app" if self.window.settings.get("archive_open") == "app" else "panepilot"
-        for key in ("panepilot", "app"):
-            b = QRadioButton(t(f"settings.archive_open_{key}"), w)
-            b.setChecked(key == current)
-            group.addButton(b)
-            lay.addWidget(b)
-            self.archive_open[key] = b
-        lay.addWidget(self._hint(t("settings.archive_hint"), w))
-        return w
-
-    # --- Updates (v1.2) -----------------------------------------------------------------
-    def _updates_section(self) -> QWidget:
         from PySide6.QtWidgets import QCheckBox
 
         w = QWidget(self)
         lay = QVBoxLayout(w)
         lay.setContentsMargins(0, 0, 0, 0)
-        self.update_check = QCheckBox(t("settings.update_check"), w)
-        self.update_check.setChecked(bool(self.window.settings.get("update_check")))
-        lay.addWidget(self.update_check)
+        # v2.3: ein Häkchen statt zwei Auswahlknöpfen; die Wahl aus 2.2 bleibt (gleicher Schlüssel)
+        self.archive_app = QCheckBox(t("settings.archive_open_app"), w)
+        self.archive_app.setChecked(self.window.settings.get("archive_open") == "app")
+        lay.addWidget(self.archive_app)
+        lay.addWidget(self._hint(t("settings.archive_hint"), w))
+        return w
+
+    # --- Updates (v1.2) -----------------------------------------------------------------
+    def _updates_section(self) -> QWidget:
+        w = QWidget(self)
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        from PySide6.QtWidgets import QButtonGroup, QRadioButton
+
+        from . import installkind, updatecheck
+
+        # v2.3: wie oft suchen – Nie / Einmal am Tag / Bei jedem Start
+        lay.addWidget(QLabel(t("settings.update_mode"), w))
+        self.update_mode: dict[str, QRadioButton] = {}
+        group = QButtonGroup(w)
+        current = updatecheck.check_mode(self.window.settings)
+        for key in (updatecheck.NEVER, updatecheck.DAILY, updatecheck.START):
+            b = QRadioButton(t(f"settings.update_mode_{key}"), w)
+            b.setChecked(key == current)
+            group.addButton(b)
+            lay.addWidget(b)
+            self.update_mode[key] = b
         lay.addWidget(self._hint(t("settings.update_hint"), w))
+        # v2.3: alte AppImage-Datei nach einem Update (Pakete ersetzen sich selbst)
+        self.old_box = QWidget(w)
+        ob = QVBoxLayout(self.old_box)
+        ob.setContentsMargins(0, 8, 0, 0)
+        ob.addWidget(QLabel(t("settings.update_old"), self.old_box))
+        self.update_old: dict[str, QRadioButton] = {}
+        group2 = QButtonGroup(self.old_box)
+        policy = self.window.settings.get("update_old_policy")
+        policy = policy if policy in ("ask", "trash", "keep") else "ask"
+        for key in ("ask", "trash", "keep"):
+            b = QRadioButton(t(f"settings.update_old_{key}"), self.old_box)
+            b.setChecked(key == policy)
+            group2.addButton(b)
+            ob.addWidget(b)
+            self.update_old[key] = b
+        lay.addWidget(self.old_box)
+        self.old_box.setHidden(installkind.package_format() is not None)
         return w
 
     # --- Server (v1.3) -------------------------------------------------------------------
@@ -1151,9 +1138,12 @@ class SettingsDialog(QDialog):
         self._apply_backup_settings()
         s.set("size_unit", self.unit_box.currentData())
         s.set("replaygain_target", round(self.rg_target.value(), 1))
-        s.set("update_check", self.update_check.isChecked())
+        from . import updatecheck
+
+        updatecheck.set_check_mode(s, next(k for k, b in self.update_mode.items() if b.isChecked()))
+        s.set("update_old_policy", next(k for k, b in self.update_old.items() if b.isChecked()))
         self.window.set_tabs_always(self.tabs_always.isChecked())  # v2.2: auch der Knopf „Reiter“
-        archive_open = "app" if self.archive_open["app"].isChecked() else "panepilot"
+        archive_open = "app" if self.archive_app.isChecked() else "panepilot"
         s.set("archive_open", archive_open)
         for side in self.window.sides.values():
             side.panel.open_archives_inside = archive_open != "app"

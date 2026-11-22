@@ -109,8 +109,8 @@ def test_settings_update_checkbox(window):  # noqa: F811
     from panepilot.settingsdialog import SettingsDialog
 
     dlg = SettingsDialog(window)
-    assert not dlg.update_check.isChecked()
-    dlg.update_check.setChecked(True)
+    assert dlg.update_mode["never"].isChecked()
+    dlg.update_mode["daily"].setChecked(True)
     dlg.accept()
     assert window.settings.get("update_check") is True
 

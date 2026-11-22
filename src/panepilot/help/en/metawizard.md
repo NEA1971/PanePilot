@@ -58,7 +58,7 @@ If the folder contains videos, the meta wizard shows their metadata. If several 
 In video mode the button **“Online data (movies, series) …”** fetches title, year, genre, plot summary, director and poster from the internet for the selected videos (without a selection for all shown).
 - **How PanePilot knows which movie it is**, in this order:
   1. custom fields `imdbid` or `themoviedb`
-  2. an ID in the file name in Jellyfin style, e.g. `Alien (1979) [imdbid-tt0078748].mkv` or `[tmdbid-348]`
+  2. an ID in the file or folder name in Jellyfin style, e.g. `Alien (1979) [imdbid-tt0078748].mkv` (see “File names and IDs”)
   3. otherwise a search for title and year from the file name, e.g. `Alien (1979).mkv`. If there is exactly one match with that year it is used, otherwise you choose the movie from a list (or “Skip”). If the search finds nothing, PanePilot tries again with umlauts (`ae` → `ä`, `oe` → `ö`, `ue` → `ü`, `ss` → `ß`) and then without the year.
 - **Not found or wrong movie?** In the overview a movie that was not found has the button **“Search manually …”**: adjust title and year or enter an ID (`tt0078748` or the TMDB number), then pick the movie from the result list. For a movie that was found, right-click and choose **“Search for a different film …”** (for series “Search for a different series …”, which then applies to all episodes of the series).
 - **Sources:**
@@ -129,7 +129,20 @@ In video mode **“Tracks …”** opens a table of all tracks of the selected M
 - The series is searched **once per series**; with several matches you choose it once, and it applies to all episodes.
 - **Fields:** title (episode title), `Series`, `Season` and `Episode` (two digits, e.g. `01`), year of first broadcast, episode summary, genre of the series, season poster as cover and `themoviedb` (ID of the series). In MP4, series, season and episode are also written to the iTunes standard fields.
 - Series need a **TMDB key**; without a key a note appears, movies still come from Wikidata.
+- If an **ID** is on the series folder, the season folder or the episode, PanePilot does not search but takes the series directly (see “File names and IDs”).
 - With **tag → file name** and `%Series% - S%Season%E%Episode% - %title%` you can then name the episodes consistently, e.g. `Breaking Bad - S01E02 - Cat's in the Bag.mkv`.
+
+## File names and IDs
+With an ID in the name PanePilot finds the movie or series reliably, without searching or choosing. The notation is the same as in **Jellyfin** – folders named this way work for both programs.
+- **Notation:** prefix, hyphen, ID, in square, round or curly brackets:
+  - `[imdbid-tt0078748]` or `[imdb-tt0078748]` – IMDb (the number starts with `tt`)
+  - `[tmdbid-348]` or `{tmdb-348}` – TMDB (the number from the address `themoviedb.org/movie/348` or `…/tv/873`)
+  - `[tvdbid-73584]` or `(tvdb-73584)` – TheTVDB
+  - Several IDs in one name are allowed. A bare number such as `[tt0078748]` without prefix is – as in Jellyfin – **not** recognised.
+- **Movies:** ID in the file name, e.g. `Alien (1979) [imdbid-tt0078748].mkv`, or in the folder directly above, e.g. `Alien (1979) [imdbid-tt0078748]/Alien.mkv`. The ID in the file name wins.
+- **Series:** ID on the **series folder**, e.g. `Columbo (1971) {tmdbid-873}/Season 1/Columbo S01E01.mkv` or `Columbo [imdbid-tt1466074]/…`. It also works on the season folder (`Season 01 [tvdbid-73584]`) or on the episode (`Columbo S01E01 [imdbid-tt0065189].mkv`). Season and episode always come from `S01E01`. If the IMDb ID is that of a single episode, PanePilot takes the series it belongs to. For series, `tmdbid-` always means the number of the series.
+- PanePilot looks up IMDb and TVDB IDs at TMDB; without a TMDB key only the IMDb ID of movies works (via Wikidata).
+- Custom fields `imdbid`/`themoviedb` in the tag win for movies; for series the ID in the name wins.
 
 ## Documents
 Office files and PDFs can be tagged in the meta wizard as well. In mixed folders choose **“Documents”** in the **“Music | Photos | Videos | Documents”** switch at the top. No additional programs are needed.

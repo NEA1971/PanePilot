@@ -28,6 +28,8 @@ class SeriesGroup:
     hits: list = field(default_factory=list)
     reason: str = ""
     searched: bool = False
+    imdb: str = ""  # v2.3: Kennungen aus Ordner/Datei (wie Jellyfin), TMDb löst sie zur Serie auf
+    tvdb: str = ""
 
 
 @dataclass
@@ -44,6 +46,7 @@ class Job:
     reason: str = ""  # Grund ohne Ergebnis (L-943)
     ep: md.EpisodeRef | None = None
     group: SeriesGroup | None = None
+    tvdb: str = ""  # v2.3
 
 
 def make_jobs(items) -> list[Job]:
@@ -58,18 +61,25 @@ def make_jobs(items) -> list[Job]:
         ref.tmdb = ref.tmdb or md.clean_tmdb(it.value(tg.EXTRA + md.F_TMDB))  # Serienkennung aus früherem Abruf
         key = ("tmdb", ref.tmdb) if ref.tmdb else (ref.series.casefold(), ref.year)
         group = groups.setdefault(key, SeriesGroup(ref.series, ref.year, ref.tmdb))
+        group.imdb = group.imdb or ref.imdb
+        group.tvdb = group.tvdb or ref.tvdb
         jobs.append(Job(it, title=ref.series, year=ref.year, ep=ref, group=group))
     return jobs
 
 
 def make_job(item) -> Job:
     """Kennung aus eigenen Feldern, sonst aus dem Dateinamen, sonst Titel und Jahr (L-910)."""
+    import os
+
     name = item.display_name
     imdb = md.clean_imdb(item.value(tg.EXTRA + md.F_IMDB))
     tmdb = md.clean_tmdb(item.value(tg.EXTRA + md.F_TMDB))
-    n_imdb, n_tmdb = md.ids_from_name(name)
+    n_imdb, n_tmdb, n_tvdb = md.all_ids_from_name(name)
+    if not (n_imdb or n_tmdb or n_tvdb):  # v2.3: sonst aus dem Ordner darüber (Jellyfin: „Alien (1979) [imdbid-…]/“)
+        folder = os.path.basename(os.path.dirname(getattr(item.record, "path", "") or ""))
+        n_imdb, n_tmdb, n_tvdb = md.all_ids_from_name(folder)
     title, year = md.title_year(name)
-    return Job(item, imdb or n_imdb, tmdb or n_tmdb, title, year)
+    return Job(item, imdb or n_imdb, tmdb or n_tmdb, title, year, tvdb=n_tvdb)
 
 
 class LookupThread(QThread):
@@ -107,6 +117,11 @@ class LookupThread(QThread):
         if job.ep is not None:
             self._episode(job)
             return
+        if job.tvdb and not (job.imdb or job.tmdb or job.qid) and isinstance(self.service, md.Tmdb):
+            job.tmdb = self.service.find_external(job.tvdb, "tvdb_id")  # v2.3
+            if not job.tmdb:
+                job.reason = t("online.not_found")
+                return
         if job.imdb or job.tmdb or job.qid:
             job.movie = self.service.load(job.imdb, job.tmdb, job.qid)
             if job.movie is None:
@@ -134,6 +149,9 @@ class LookupThread(QThread):
         if not isinstance(self.service, md.Tmdb):
             job.reason = t("online.series_no_key")  # L-1112
             return
+        if not g.tmdb and not g.searched and (g.imdb or g.tvdb):
+            g.tmdb = (self.service.find_external(g.imdb, "imdb_id", tv=True) if g.imdb else "") or \
+                (self.service.find_external(g.tvdb, "tvdb_id", tv=True) if g.tvdb else "")  # v2.3
         if not g.tmdb and not g.searched:
             g.searched = True
             hits = md.search_fallback(self.service.search_tv, g.name, g.year)

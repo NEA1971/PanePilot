@@ -58,7 +58,7 @@ Enthält der Ordner Videos, zeigt der Meta-Wizard deren Metadaten. Sind mehrere 
 Im Video-Modus holt der Knopf **„Online-Daten (Filme, Serien) …“** Titel, Jahr, Genre, Inhaltsangabe, Regie und Poster aus dem Internet, für die markierten Videos (ohne Markierung für alle angezeigten).
 - **Woher PanePilot weiß, welcher Film es ist**, in dieser Reihenfolge:
   1. eigene Felder `imdbid` bzw. `themoviedb`
-  2. Kennung im Dateinamen im Jellyfin-Stil, z. B. `Alien (1979) [imdbid-tt0078748].mkv` oder `[tmdbid-348]`
+  2. Kennung im Datei- oder Ordnernamen im Jellyfin-Stil, z. B. `Alien (1979) [imdbid-tt0078748].mkv` (siehe „Dateinamen und Kennungen“)
   3. sonst Suche über Titel und Jahr aus dem Dateinamen, z. B. `Alien (1979).mkv`. Gibt es genau einen Treffer mit diesem Jahr, wird er genommen, sonst wählst du den Film aus einer Liste (oder „Überspringen“). Findet die Suche nichts, versucht PanePilot es noch einmal mit Umlauten (`ae` → `ä`, `oe` → `ö`, `ue` → `ü`, `ss` → `ß`) und danach ohne Jahr – so wird z. B. `Die Olsenbande faehrt nach Juetland (1971).mkv` gefunden.
 - **Nicht gefunden oder falscher Film?** In der Übersicht hat ein nicht gefundener Film den Knopf **„Manuell suchen …“**: Titel und Jahr anpassen oder eine Kennung eingeben (`tt0078748` oder die TMDb-Nummer), dann den Film aus der Trefferliste wählen. Bei einem gefundenen Film geht das per Rechtsklick mit **„Anderen Film suchen …“** (bei Serien „Andere Serie suchen …“, das gilt dann für alle Folgen der Serie).
 - **Quellen:**
@@ -129,7 +129,20 @@ Im Video-Modus öffnet **„Spuren …“** für die markierten MKV- und MP4-Vid
 - Die Serie wird **einmal je Serie** gesucht; bei mehreren Treffern wählt man sie einmal aus, das gilt dann für alle Folgen.
 - **Felder:** Titel (Episodentitel), `Series`, `Season` und `Episode` (zweistellig, z. B. `01`), Jahr der Erstausstrahlung, Inhalt der Folge, Genre der Serie, Staffelposter als Cover und `themoviedb` (Kennung der Serie). Bei MP4 kommen Serie, Staffel und Folge zusätzlich in die iTunes-Standardfelder.
 - Serien gibt es nur mit **TMDb-Schlüssel**; ohne Schlüssel erscheint ein Hinweis, Filme kommen weiterhin von Wikidata.
+- Steht eine **Kennung** am Serienordner, am Staffelordner oder an der Folge, sucht PanePilot nicht, sondern nimmt die Serie direkt (siehe „Dateinamen und Kennungen“).
 - Mit **Tag → Dateiname** und `%Series% - S%Season%E%Episode% - %title%` lassen sich die Folgen danach einheitlich benennen, z. B. `Breaking Bad - S01E02 - Die Katze ist im Sack.mkv`.
+
+## Dateinamen und Kennungen
+Mit einer Kennung im Namen findet PanePilot Film oder Serie sicher, ohne Suche und ohne Auswahl. Die Schreibweise ist dieselbe wie bei **Jellyfin** – so benannte Ordner passen für beide Programme.
+- **Schreibweise:** Vorsilbe, Bindestrich, Kennung, in eckigen, runden oder geschweiften Klammern:
+  - `[imdbid-tt0078748]` oder `[imdb-tt0078748]` – IMDb (die Nummer beginnt mit `tt`)
+  - `[tmdbid-348]` oder `{tmdb-348}` – TMDb (die Zahl aus der Adresse `themoviedb.org/movie/348` bzw. `…/tv/873`)
+  - `[tvdbid-73584]` oder `(tvdb-73584)` – TheTVDB
+  - Mehrere Kennungen in einem Namen sind erlaubt. Eine bloße Nummer wie `[tt0078748]` ohne Vorsilbe wird – wie bei Jellyfin – **nicht** erkannt.
+- **Filme:** Kennung im Dateinamen, z. B. `Alien (1979) [imdbid-tt0078748].mkv`, oder im Ordner direkt darüber, z. B. `Alien (1979) [imdbid-tt0078748]/Alien.mkv`. Die Kennung im Dateinamen geht vor.
+- **Serien:** Kennung am **Serienordner**, z. B. `Columbo (1971) {tmdbid-873}/Staffel 1/Columbo S01E01.mkv` oder `Columbo [imdbid-tt1466074]/…`. Auch am Staffelordner (`Season 01 [tvdbid-73584]`) oder an der Folge (`Columbo S01E01 [imdbid-tt0065189].mkv`) geht es. Staffel und Folge kommen immer aus `S01E01`. Ist die IMDb-Kennung die einer einzelnen Folge, nimmt PanePilot die Serie, zu der sie gehört. Bei Serien gilt `tmdbid-` immer als Nummer der Serie.
+- IMDb- und TVDB-Kennungen schlägt PanePilot bei TMDb nach; ohne TMDb-Schlüssel funktioniert nur die IMDb-Kennung bei Filmen (über Wikidata).
+- Eigene Felder `imdbid`/`themoviedb` im Tag gehen bei Filmen vor; bei Serien geht die Kennung im Namen vor.
 
 ## Dokumente
 Auch Office-Dateien und PDFs lassen sich im Meta-Wizard beschriften. Bei gemischten Ordnern wählt man oben **„Dokumente“** im Umschalter **„Musik | Fotos | Videos | Dokumente“**. Zusatzprogramme sind dafür nicht nötig.

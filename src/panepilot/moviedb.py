@@ -98,7 +98,9 @@ def language(code: str | None = None) -> str:
 
 # --- Kennung und Titel aus Feldern bzw. Dateinamen (L-910) --------------------------------------------------
 _IMDB_RX = re.compile(r"^tt\d{5,10}$")
-_NAME_ID_RX = re.compile(r"[\[{]\s*(imdbid|imdb|tmdbid|tmdb)\s*[-=]\s*([A-Za-z0-9]+)\s*[\]}]", re.IGNORECASE)
+# v2.3: wie Jellyfin – Vorsilbe imdbid-/imdb-, tmdbid-/tmdb-, tvdbid-/tvdb-, Klammern [], () oder {}
+_NAME_ID_RX = re.compile(r"[\[{(]\s*(imdbid|imdb|tmdbid|tmdb|tvdbid|tvdb)\s*[-=]\s*([A-Za-z0-9]+)\s*[\]})]",
+                         re.IGNORECASE)
 _YEAR_RX = re.compile(r"[\(\[]\s*((?:19|20)\d\d)\s*[\)\]]")
 
 
@@ -115,13 +117,22 @@ def clean_tmdb(value: str) -> str:
 
 
 def ids_from_name(name: str) -> tuple[str, str]:
-    imdb = tmdb = ""
-    for kind, value in _NAME_ID_RX.findall(name or ""):
-        if kind.lower().startswith("imdb") and not imdb:
-            imdb = clean_imdb(value)
-        elif kind.lower().startswith("tmdb") and not tmdb:
-            tmdb = clean_tmdb(value)
+    imdb, tmdb, _tvdb = all_ids_from_name(name)
     return imdb, tmdb
+
+
+def all_ids_from_name(name: str) -> tuple[str, str, str]:
+    """(imdb, tmdb, tvdb) aus „… [imdbid-tt0078748] (tmdb-348) {tvdbid-81189} …“ (v2.3, wie Jellyfin)."""
+    imdb = tmdb = tvdb = ""
+    for kind, value in _NAME_ID_RX.findall(name or ""):
+        kind = kind.lower()
+        if kind.startswith("imdb") and not imdb:
+            imdb = clean_imdb(value)
+        elif kind.startswith("tmdb") and not tmdb:
+            tmdb = clean_tmdb(value)
+        elif kind.startswith("tvdb") and not tvdb:
+            tvdb = value if value.isdigit() else ""
+    return imdb, tmdb, tvdb
 
 
 def title_year(name: str) -> tuple[str, str]:
@@ -152,6 +163,8 @@ class EpisodeRef:
     season: int
     episode: int
     tmdb: str = ""
+    imdb: str = ""  # v2.3: IMDb-Kennung der Serie (oder einer Folge – TMDb löst sie zur Serie auf)
+    tvdb: str = ""
 
 
 def episode_ref(path: str) -> EpisodeRef | None:
@@ -166,11 +179,13 @@ def episode_ref(path: str) -> EpisodeRef | None:
     season, episode = int(m.group(1)), int(m.group(2))
     parent = os.path.basename(folder)
     grand = os.path.basename(os.path.dirname(folder))
-    series_dir = grand if _SEASON_DIR_RX.match(parent.strip()) else ""
-    tmdb = ""
-    for d in (parent, grand):
-        _imdb, t_id = ids_from_name(d)
-        tmdb = tmdb or t_id
+    series_dir = grand if _SEASON_DIR_RX.match(_NAME_ID_RX.sub("", parent).strip()) else ""  # v2.3: auch „Season 01 [ID]“
+    tmdb = imdb = tvdb = ""
+    # v2.3: Serienordner zuerst, dann Staffelordner, dann die Folge selbst (wie Jellyfin)
+    names = [grand, parent] if series_dir else [parent, grand]
+    for d in names + [stem]:
+        i_id, t_id, v_id = all_ids_from_name(d)
+        tmdb, imdb, tvdb = tmdb or t_id, imdb or i_id, tvdb or v_id
     prefix = stem[:m.start()]
     if series_dir:
         title, year = title_year(series_dir)
@@ -182,7 +197,7 @@ def episode_ref(path: str) -> EpisodeRef | None:
                 year = p_year
     else:
         title, year = title_year(parent)
-    return EpisodeRef(title, year, season, episode, tmdb)
+    return EpisodeRef(title, year, season, episode, tmdb, imdb, tvdb)
 
 
 # --- HTTP --------------------------------------------------------------------------------------------------
@@ -245,9 +260,23 @@ class Tmdb:
         self._get("/configuration")
 
     def find_imdb(self, imdb: str, tv: bool = False) -> str:
-        data = self._get(f"/find/{imdb}", external_source="imdb_id")
-        results = data.get("tv_results" if tv else "movie_results") or []
-        return str(results[0]["id"]) if results else ""
+        return self.find_external(imdb, "imdb_id", tv)
+
+    def find_external(self, ident: str, source: str, tv: bool = False) -> str:
+        """TMDb-Nummer zu einer IMDb- oder TVDB-Kennung (v2.3). Bei Serien darf es auch die Kennung
+        einer Folge sein – dann zählt die Serie, zu der sie gehört."""
+        data = self._get(f"/find/{ident}", external_source=source)
+        if not tv:
+            results = data.get("movie_results") or []
+            return str(results[0]["id"]) if results else ""
+        results = data.get("tv_results") or []
+        if results:
+            return str(results[0]["id"])
+        for key in ("tv_episode_results", "tv_season_results"):
+            for r in data.get(key) or []:
+                if r.get("show_id"):
+                    return str(r["show_id"])
+        return ""
 
     def movie(self, tmdb: str, with_poster: bool = True) -> Movie:
         data = self._get(f"/movie/{tmdb}", language=self.lang,
@@ -379,9 +408,11 @@ class Tmdb:
             m.poster = self.image(m.poster_url)
         return m
 
-    def load(self, imdb: str = "", tmdb: str = "", qid: str = "") -> Movie | None:
+    def load(self, imdb: str = "", tmdb: str = "", qid: str = "", tvdb: str = "") -> Movie | None:
         if not tmdb and imdb:
             tmdb = self.find_imdb(imdb)
+        if not tmdb and tvdb:
+            tmdb = self.find_external(tvdb, "tvdb_id")
         if not tmdb:
             return None
         return self.movie(tmdb)
@@ -493,7 +524,7 @@ class Wikidata:
             m.genres = sorted(m.genres, key=lambda g: -weight.get((qid, g), 0))[:cls.MAX_GENRES]
         return out
 
-    def load(self, imdb: str = "", tmdb: str = "", qid: str = "") -> Movie | None:
+    def load(self, imdb: str = "", tmdb: str = "", qid: str = "", tvdb: str = "") -> Movie | None:
         if qid:
             where = f"VALUES ?item {{ wd:{qid} }}"
         elif imdb:

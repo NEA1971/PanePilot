@@ -202,6 +202,9 @@ class KeyFilter(QObject):
 class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWindow):
     def __init__(self) -> None:
         super().__init__()
+        from . import wheelguard
+
+        wheelguard.install()  # v2.3: Mausrad verstellt nichts versehentlich
         self.settings = Settings()
         self.keymap = KeyMap()
         self.icons = IconProvider()
@@ -2092,7 +2095,7 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         updatecheck.check(self, manual=True)
 
     def auto_update_check(self) -> None:
-        """Beim Start: einmal täglich nach Updates suchen, wenn eingeschaltet (v1.2)."""
+        """Beim Start nach Updates suchen: einmal täglich oder bei jedem Start, wenn eingeschaltet (v1.2, v2.3)."""
         from . import updatecheck
 
         if updatecheck.due_today(self.settings):

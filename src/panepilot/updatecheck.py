@@ -73,10 +73,28 @@ def fetch_latest() -> Release:
     return parse_release(netutil.get_json(API_LATEST))
 
 
+NEVER, DAILY, START = "never", "daily", "start"  # v2.3: wie oft automatisch suchen
+
+
+def check_mode(settings) -> str:
+    if not settings.get("update_check"):
+        return NEVER
+    return START if settings.get("update_interval") == START else DAILY
+
+
+def set_check_mode(settings, mode: str) -> None:
+    settings.set("update_check", mode in (DAILY, START))
+    if mode in (DAILY, START):
+        settings.set("update_interval", mode)
+
+
 def due_today(settings, today: dt.date | None = None) -> bool:
-    """Automatische Prüfung: nur wenn eingeschaltet und heute noch nicht geprüft."""
+    """Automatische Prüfung: eingeschaltet und – bei „einmal am Tag“ – heute noch nicht geprüft."""
     today = today or dt.date.today()
-    return bool(settings.get("update_check")) and settings.get("update_last_check") != today.isoformat()
+    mode = check_mode(settings)
+    if mode == START:
+        return True
+    return mode == DAILY and settings.get("update_last_check") != today.isoformat()
 
 
 def download_folder() -> str:
@@ -290,9 +308,13 @@ def offer_old_file_removal(window) -> None:
     window.settings.set("update_old_file", None)  # nur einmal fragen
     if not os.path.isfile(old) or os.path.abspath(old) == os.path.abspath(current):
         return
-    if confirm(window, t("update.title"), t("update.remove_old", name=os.path.basename(old),
-                                             folder=os.path.dirname(old)),
-               yes_key="update.remove_old_yes", no_key="update.remove_old_keep", default_yes=False):
+    policy = window.settings.get("update_old_policy")  # v2.3: ask / trash / keep
+    if policy == "keep":
+        return
+    if policy == "trash" or confirm(window, t("update.title"), t("update.remove_old", name=os.path.basename(old),
+                                                                  folder=os.path.dirname(old)),
+                                    yes_key="update.remove_old_yes", no_key="update.remove_old_keep",
+                                    default_yes=False):
         from .fileops import move_to_trash
 
         try:
