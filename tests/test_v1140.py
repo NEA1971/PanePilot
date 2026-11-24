@@ -290,12 +290,15 @@ def test_add_subtitles_mkv_and_track_dialog(window, tmp_path, monkeypatch, qtbot
         return QDialog.DialogCode.Accepted
 
     monkeypatch.setattr(TrackDialog, "exec", add)
+    asked = []  # v2.6, L-3612: danach wird gefragt, was mit den Untertiteldateien geschieht
+    monkeypatch.setattr(type(window), "_ask_subs_dispose", lambda self, paths, title: asked.append(paths) or "keep")
     pane.meta_view.select_items([it for it in pane.meta_model.items if it.record.name == "Film.mkv"])
     window.meta_convert(cv.TRACKS)
     new = folder / "Film-Kopie.mkv"
     assert new.exists()
     subs = [tr for tr in mt.read(str(new)).tracks if tr.kind == "subtitles"]
     assert [(tr.lang, tr.forced) for tr in subs][-1] == ("ger", True)
+    assert asked and (folder / "Film.ger.forced.srt").exists()
     window.meta_close()
 
 
