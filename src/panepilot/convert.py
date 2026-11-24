@@ -35,6 +35,8 @@ FUNCTIONS = {
     "num": "$num(%track%,2)",
     "left": "$left(%title%,10)",
     "right": "$right(%title%,10)",
+    "mid": "$mid(%title%,5,12)",  # v2.5: ab Zeichen 5, 12 Zeichen (ohne Anzahl: bis zum Ende)
+    "len": "$len(%title%)",
     "upper": "$upper(%title%)",
     "lower": "$lower(%title%)",
     "caps": "$caps(%title%)",
@@ -149,6 +151,16 @@ def _call(name: str, args: list[str], get=lambda _n: "") -> str:
         need(2)
         n = _int(args[1], name)
         return args[0][-n:] if n > 0 else ""
+    if name == "mid":  # v2.5 (wie Mp3tag): $mid(Text,Start[,Anzahl]) – Start ab 1
+        need(2)
+        start = max(_int(args[1], name), 1) - 1
+        if len(args) > 2 and args[2].strip():
+            n = _int(args[2], name)
+            return args[0][start:start + n] if n > 0 else ""
+        return args[0][start:]
+    if name == "len":
+        need(1)
+        return str(len(args[0]))
     if name == "upper":
         need(1)
         return args[0].upper()

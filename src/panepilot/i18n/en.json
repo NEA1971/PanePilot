@@ -1124,11 +1124,11 @@
   "photo.preview": "Preview",
   "photo.preview_of": "Preview: {name}",
   "photo.no_preview": "no preview",
-  "photo.show_map": "Show on map",
+  "photo.show_map": "Open in browser",
   "photo.flash_on": "fired",
   "photo.flash_off": "did not fire",
   "photo.heic_hint": "PanePilot can only edit HEIC photos with the exiftool program – without it the fields are read-only. Install with: sudo apt install libimage-exiftool-perl",
-  "photo.raw_hint": "RAW files are read-only.",
+  "photo.raw_hint": "RAW file: changes are saved in an .xmp file next to it (e.g. IMG_1234.xmp) – the RAW file itself stays unchanged. Camera, exposure and GPS data cannot be changed.",
   "photo.switch_audio": "Music ({n})",
   "photo.switch_photo": "Photos ({n})",
   "photo.switch_discard": "There are unsaved changes. They will be lost when switching. Switch anyway?",
@@ -1707,5 +1707,12 @@
   "online.loose_no": "No, search as movies",
   "meta.bad_name": "This file name is not possible.",
   "meta.keep_ext": "The extension “{ext}” must stay – it cannot be changed here.",
-  "meta.name_exists": "“{name}” already exists in this folder."
+  "meta.name_exists": "“{name}” already exists in this folder.",
+  "meta.mkv_unfinished": "These MKV files were never finished (e.g. by an interrupted download or conversion). They still play, but their tags cannot be saved like this:\n\n{names}\n\nPanePilot can rebuild each file with ffmpeg without re-encoding. The original goes to the trash, then saving is tried again. Large files take a while and need room for a second copy for the time being.",
+  "meta.mkv_unfinished_noffmpeg": "These MKV files were never finished, so their tags cannot be saved:\n\n{names}\n\nTo repair them PanePilot needs the program ffmpeg (package “ffmpeg”).",
+  "meta.mkv_repair": "Rebuild and save",
+  "meta.mkv_repairing": "Rebuilding “{name}” …",
+  "meta.mkv_repair_failed": "“{name}” could not be rebuilt:\n{reason}\nThe original is unchanged.",
+  "map.attribution": "© OpenStreetMap contributors",
+  "map.title": "Map"
 }

@@ -1124,11 +1124,11 @@
   "photo.preview": "Aperçu",
   "photo.preview_of": "Aperçu : {name}",
   "photo.no_preview": "pas d’aperçu",
-  "photo.show_map": "Voir sur la carte",
+  "photo.show_map": "Ouvrir dans le navigateur",
   "photo.flash_on": "déclenché",
   "photo.flash_off": "non déclenché",
   "photo.heic_hint": "PanePilot ne peut modifier les photos HEIC qu’avec le programme exiftool – sans lui, les champs sont en lecture seule. Installation : sudo apt install libimage-exiftool-perl",
-  "photo.raw_hint": "Les fichiers RAW sont en lecture seule.",
+  "photo.raw_hint": "Fichier RAW : les modifications sont enregistrées dans un fichier .xmp à côté (p. ex. IMG_1234.xmp) – le fichier RAW lui-même reste inchangé. Les données d’appareil, d’exposition et GPS ne peuvent pas être modifiées.",
   "photo.switch_audio": "Musique ({n})",
   "photo.switch_photo": "Photos ({n})",
   "photo.switch_discard": "Des modifications ne sont pas enregistrées. Elles seront perdues. Basculer quand même ?",
@@ -1707,5 +1707,12 @@
   "online.loose_no": "Non, rechercher comme films",
   "meta.bad_name": "Ce nom de fichier n’est pas possible.",
   "meta.keep_ext": "L’extension « {ext} » doit rester – elle ne peut pas être modifiée ici.",
-  "meta.name_exists": "« {name} » existe déjà dans ce dossier."
+  "meta.name_exists": "« {name} » existe déjà dans ce dossier.",
+  "meta.mkv_unfinished": "Ces fichiers MKV n’ont jamais été terminés (p. ex. téléchargement ou conversion interrompu). Ils se lisent, mais leurs étiquettes ne peuvent pas être enregistrées ainsi :\n\n{names}\n\nPanePilot peut reconstruire chaque fichier avec ffmpeg sans réencodage. L’original va à la corbeille, puis l’enregistrement est relancé. Les gros fichiers prennent un moment et demandent provisoirement la place d’une seconde copie.",
+  "meta.mkv_unfinished_noffmpeg": "Ces fichiers MKV n’ont jamais été terminés, leurs étiquettes ne peuvent donc pas être enregistrées :\n\n{names}\n\nPour les réparer, PanePilot a besoin du programme ffmpeg (paquet « ffmpeg »).",
+  "meta.mkv_repair": "Reconstruire et enregistrer",
+  "meta.mkv_repairing": "Reconstruction de « {name} » …",
+  "meta.mkv_repair_failed": "Impossible de reconstruire « {name} » :\n{reason}\nL’original est inchangé.",
+  "map.attribution": "© contributeurs d’OpenStreetMap",
+  "map.title": "Carte"
 }

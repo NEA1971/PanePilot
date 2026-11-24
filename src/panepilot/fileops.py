@@ -225,10 +225,16 @@ class OperationEngine:
                 if self._cancelled():
                     break
                 try:
+                    side = self._sidecars(src)  # v2.5: .xmp-Begleitdateien von RAW-Fotos mit
                     if self.kind == TRASH:
                         self._trash(src)
                     else:
                         _remove_any(src)
+                    for sc in side:
+                        if self.kind == TRASH:
+                            self._trash(sc)
+                        else:
+                            _remove_any(sc)
                 except OSError as exc:
                     self._error(src, _reason(exc))
                 self._advance(1, os.path.basename(src))
@@ -242,6 +248,7 @@ class OperationEngine:
                 final = self._transfer(src, duplicate_name(src), False, top_level=True)
                 if final:
                     self.result.created.append(os.path.basename(final))
+                    self._follow(src, final, False)
             return self.result
 
         valid = []
@@ -258,7 +265,23 @@ class OperationEngine:
             final = self._transfer(src, dst, self.kind == MOVE, top_level=True)
             if final:
                 self.result.created.append(os.path.basename(final))
+                self._follow(src, final, self.kind == MOVE)
         return self.result
+
+    # --- v2.5: XMP-Begleitdateien von RAW-Fotos wandern mit (L-3504) ------------------------------------
+    def _sidecars(self, src: str) -> list[str]:
+        from . import sidecar
+
+        listed = {os.path.normcase(s) for s in self.sources}
+        return [sc for sc in sidecar.find(src) if os.path.normcase(sc) not in listed]
+
+    def _follow(self, src: str, final: str, move: bool) -> None:
+        from . import sidecar
+
+        for sc in self._sidecars(src):
+            if self._cancelled():
+                return
+            self._transfer(sc, sidecar.renamed(sc, src, final), move, top_level=True)
 
     # --- Archive ----------------------------------------------------------------------
     def _archive_ctx(self):

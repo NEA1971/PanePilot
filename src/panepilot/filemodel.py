@@ -604,6 +604,9 @@ class FileListModel(QAbstractTableModel):
         except OSError as exc:
             self.rename_failed.emit(t("error.rename_failed", name=e.name, reason=exc.strerror or str(exc)))
             return False
+        from . import sidecar
+
+        sidecar.follow_rename(e.path, new_path)  # v2.5: .xmp der RAW-Datei mit umbenennen
         e.name = new_name
         e.path = new_path
         self.dataChanged.emit(index, index)

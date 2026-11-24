@@ -729,7 +729,7 @@ def _mutagen_snapshot(path: str, with_pictures: bool) -> tuple:
 def restore(path: str, snap: tuple) -> TagRecord:
     """Schreibt einen Schnappschuss zurück; Bilder bleiben unangetastet, wenn sie nicht darin sind."""
     kind = snap[0]
-    if kind == "photo":
+    if kind in ("photo", "xmp"):  # „xmp“: Begleitdatei einer RAW-Datei (v2.5)
         from . import phototags
 
         return phototags.restore(path, snap)

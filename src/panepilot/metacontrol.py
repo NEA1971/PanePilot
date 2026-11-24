@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 
+from PySide6.QtCore import QTimer
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QApplication, QDialog, QFileDialog, QMessageBox
 
@@ -315,6 +316,51 @@ class MetaWizardMixin:
         jobs = [SaveJob(it.record, dict(it.pending), it.pending_pictures, it.pending_name) for it in items]
         self._meta_run_jobs(jobs, True, after)
 
+    def _meta_offer_repair(self, paths: list[str], after=None) -> None:
+        """v2.5: MKV-Datei nie fertig geschrieben (Segment-Größe 0) – neu aufbauen und noch einmal speichern."""
+        from . import tags as tg
+        from . import videotags
+        from .archivecontrol import run_with_progress
+        from .dialogs import confirm, show_error, show_info
+        from .fileops import move_to_trash
+
+        names = "\n".join(f"• {os.path.basename(p)}" for p in paths)
+        if videotags.ffmpeg() is None:
+            show_info(self, t("meta.title"), t("meta.mkv_unfinished_noffmpeg", names=names))
+            return
+        if not confirm(self, t("meta.title"), t("meta.mkv_unfinished", names=names),
+                       yes_key="meta.mkv_repair", no_key="button.cancel"):
+            return
+        pane = self._meta_pane()
+        by_path = {it.record.path: it for it in pane.meta_model.items}
+        repaired = 0
+        for path in paths:
+            new, error, cancelled = run_with_progress(
+                self, t("meta.title"), t("meta.mkv_repairing", name=os.path.basename(path)),
+                lambda progress, cancel, p=path: videotags.repair_mkv(p, progress, cancel))
+            if cancelled:
+                break
+            if error is not None:
+                show_error(self, t("meta.title"), t("meta.mkv_repair_failed", name=os.path.basename(path),
+                                                     reason=str(error)))
+                continue
+            try:
+                move_to_trash(path)
+                os.rename(new, path)
+            except OSError as exc:
+                show_error(self, t("meta.title"), t("meta.mkv_repair_failed", name=os.path.basename(path),
+                                                     reason=exc.strerror or str(exc)))
+                if not os.path.exists(path) and os.path.exists(new):
+                    os.rename(new, path)
+                continue
+            it = by_path.get(path)
+            if it is not None:
+                it.record = tg.read_file(path)  # Vormerkungen bleiben, das Speichern folgt gleich
+            repaired += 1
+        pane.meta_model.rows_changed()
+        if repaired:
+            self.meta_save(after)
+
     def meta_undo(self) -> None:
         if self.meta_mode is None or not self.meta_mode.get("undo") or self.meta_mode.get("save") is not None:
             return
@@ -328,6 +374,7 @@ class MetaWizardMixin:
         pane = self._meta_pane()
         by_path = {it.record.path: it for it in pane.meta_model.items}
         errors: list[tuple[str, str]] = []
+        error_paths: list[str] = []
         undo_jobs: list = []
         done: list[str] = []
         thread = MetaSaveThread(jobs, self)
@@ -353,6 +400,7 @@ class MetaWizardMixin:
 
         def failed(path, reason):
             errors.append((os.path.basename(path), reason))
+            error_paths.append(path)
 
         def progress(n, total):
             pane.summary.setText(t("meta.saving", done=n, total=total))
@@ -369,6 +417,15 @@ class MetaWizardMixin:
             pane.show_selection(pane.meta_view.selected_items())
             self._meta_update_state()
             if errors:
+                from . import videotags
+
+                broken = [p for p in error_paths if videotags.is_unfinished_error(p)] if saving else []
+                if broken:  # v2.5: unvollständig abgeschlossene MKV – anbieten, mit ffmpeg neu aufzubauen
+                    rest = [e for e, p in zip(errors, error_paths) if p not in broken]
+                    if rest:
+                        ErrorListDialog(self, t("meta.title"), t("meta.save_errors"), rest).exec()
+                    QTimer.singleShot(0, lambda b=broken: self._meta_offer_repair(b, after))
+                    return
                 ErrorListDialog(self, t("meta.title"), t("meta.save_errors"), errors).exec()
             elif after:
                 after()

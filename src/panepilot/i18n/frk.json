@@ -1124,11 +1124,11 @@
   "photo.preview": "Vorschaubild",
   "photo.preview_of": "Vorschau: {name}",
   "photo.no_preview": "ka Vorschau",
-  "photo.show_map": "Auf der Kardn zeing",
+  "photo.show_map": "Im Browser aufmachn",
   "photo.flash_on": "ausglösd",
   "photo.flash_off": "ned ausglösd",
   "photo.heic_hint": "HEIC-Fodos kann PanePilot bloß mid’m Brogramm exiftool bearbeidn – ohne is alles bloß zum Lesn. Neimachn mid: sudo apt install libimage-exiftool-perl",
-  "photo.raw_hint": "RAW-Dadein wern bloß glesn.",
+  "photo.raw_hint": "RAW-Datei: Änderungen kumma in a .xmp-Datei danebn (z. B. IMG_1234.xmp) – die RAW-Datei selber bleibt, wie’s is. Kamera, Belichtung und GPS konnst ned ändern.",
   "photo.switch_audio": "Musig ({n})",
   "photo.switch_photo": "Fodos ({n})",
   "photo.switch_discard": "Es gibd no ned gschbeicherde Änderunga. Beim Umschaldn sin di weg. Drotzdem umschaldn?",
@@ -1707,5 +1707,12 @@
   "online.loose_no": "Na, als Filme suchn",
   "meta.bad_name": "Der Dateiname geht ned.",
   "meta.keep_ext": "Die Endung „{ext}“ muss bleibn – die konnst do ned ändern.",
-  "meta.name_exists": "„{name}“ gibt’s in dem Ordner scho."
+  "meta.name_exists": "„{name}“ gibt’s in dem Ordner scho.",
+  "meta.mkv_unfinished": "Die MKV-Dateien san nie fertig gschriebn worn (z. B. Download oder Umwandlung abgebrochn). Abspieln geht, aber die Tags konnst so ned speichern:\n\n{names}\n\nPanePilot konn jede Datei mit ffmpeg ohne Neukodiern neu aufbaun. Des Original kummt in Papierkorb, dann werd nomal gspeichert. Bei großn Dateien dauert’s a weng und braucht kurz Platz für a zweite Kopie.",
+  "meta.mkv_unfinished_noffmpeg": "Die MKV-Dateien san nie fertig gschriebn worn, drum gehn die Tags ned zum Speichern:\n\n{names}\n\nZum Reparieren braucht PanePilot ffmpeg (Paket „ffmpeg“).",
+  "meta.mkv_repair": "Neu aufbaun und speichern",
+  "meta.mkv_repairing": "„{name}“ werd neu aufbaut …",
+  "meta.mkv_repair_failed": "„{name}“ hod si ned neu aufbaun lassn:\n{reason}\nDes Original is unverändert.",
+  "map.attribution": "© OpenStreetMap-Mitwirkende",
+  "map.title": "Kartn"
 }

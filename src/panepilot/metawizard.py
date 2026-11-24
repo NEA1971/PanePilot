@@ -824,6 +824,9 @@ class MetaSaveThread(QThread):
             if os.path.exists(target):
                 raise FileExistsError(t("rename.err_exists_now"))
             os.rename(path, target)
+            from . import sidecar
+
+            sidecar.follow_rename(path, target)  # v2.5: .xmp der RAW-Datei mit umbenennen
             undo = UndoJob(target, path, snap)
             rec = tg.read_file(target)
         return rec, undo
@@ -834,6 +837,9 @@ class MetaSaveThread(QThread):
             if os.path.exists(job.old_path):
                 raise FileExistsError(t("rename.err_exists_now"))
             os.rename(path, job.old_path)
+            from . import sidecar
+
+            sidecar.follow_rename(path, job.old_path)
         return tg.restore(job.old_path, job.snap), None
 
     def run(self) -> None:
@@ -1368,6 +1374,7 @@ class MetaPane(ToolPane):
         self.cover.setParent(None)
         self.boxes, self.rows = {}, {}
         self.map_link = None
+        self.map_view = None
         for key in self.layout_keys:
             if key == COVER:
                 self.cover.setParent(self.fields_host)
@@ -1402,6 +1409,12 @@ class MetaPane(ToolPane):
                 lay.addLayout(line)
             else:
                 lay.addWidget(box)
+            if key == "gpslat":  # v2.5: kleine Karte mit den markierten Fotos (L-3506)
+                from .mapview import MapView
+
+                self.map_view = MapView(row)
+                self.map_view.hide()
+                lay.addWidget(self.map_view)
             row.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             row.customContextMenuRequested.connect(lambda pos, k=key, r=row: self._layout_menu(pos, k, r))
             self.fields_layout.addWidget(row)
@@ -1477,6 +1490,13 @@ class MetaPane(ToolPane):
 
             url = map_url(items[-1].record) if len(items) == 1 else None
             self.map_link.setText(f'<a href="{url}">{t("photo.show_map")}</a>' if url else "")
+        if getattr(self, "map_view", None) is not None:
+            from .phototags import position
+
+            points = [(*pos, it.display_name) for it in items if (pos := position(it.record)) is not None]
+            self.map_view.setVisible(bool(points))
+            if points:
+                self.map_view.set_points(points)
         self.wav_hint.setVisible(any(it.record.codec == "WAV" for it in items))
         hint = ""
         if mp.is_photo_mode() and items:

@@ -16,6 +16,10 @@ def isolated_config(tmp_path, monkeypatch):
     monkeypatch.setenv("PANEPILOT_CONFIG_DIR", str(cfg))
     (tmp_path / "data").mkdir()
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))  # v2.5: Kartenkacheln
+    from panepilot import mapview
+
+    monkeypatch.setattr(mapview.TileLoader, "enabled", False)  # Tests laden nichts aus dem Netz
     # Keine echten Laufwerke des Testrechners verwenden
     (tmp_path / "fstab").write_text("")
     (tmp_path / "mounts").write_text("")

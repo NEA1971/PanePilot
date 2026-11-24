@@ -1124,11 +1124,11 @@
   "photo.preview": "Vorschaubild",
   "photo.preview_of": "Vorschau: {name}",
   "photo.no_preview": "geene Vorschau",
-  "photo.show_map": "Uff dor Garte zeichn",
+  "photo.show_map": "Im Brauser uffmachn",
   "photo.flash_on": "ausgelöst",
   "photo.flash_off": "ni ausgelöst",
   "photo.heic_hint": "HEIC-Fodos gann PanePilot bloß mit’m Brogramm exiftool bearbeitn – ohne gann mor nur lesn. Installiern mit: sudo apt install libimage-exiftool-perl",
-  "photo.raw_hint": "RAW-Dadein wern bloß gelesn.",
+  "photo.raw_hint": "RAW-Dadei: Ändorungn gommn in e .xmp-Dadei danebn (z. B. IMG_1234.xmp) – de RAW-Dadei selbor bleibt, wie se is. Gamera, Belichdung un GPS gannsde ni ändorn.",
   "photo.switch_audio": "Musik ({n})",
   "photo.switch_photo": "Fodos ({n})",
   "photo.switch_discard": "Es gibt noch ni geschbeichorte Ändorungn. Beim Umschaltn sin die weg. Trotzdem umschaltn?",
@@ -1707,5 +1707,12 @@
   "online.loose_no": "Nee, als Filme suchn",
   "meta.bad_name": "Dor Dadeinam gehd ni.",
   "meta.keep_ext": "De Endung „{ext}“ muss bleibn – die gannsde hier ni ändorn.",
-  "meta.name_exists": "„{name}“ gibt’s in dem Ordnor schon."
+  "meta.name_exists": "„{name}“ gibt’s in dem Ordnor schon.",
+  "meta.mkv_unfinished": "Die MKV-Dadein sin nie fertsch geschriebn wordn (z. B. Download oder Umwandlung abgebrochn). Abspieln gehd, aber de Tags gannsde so ni speichorn:\n\n{names}\n\nPanePilot gann jede Dadei mit ffmpeg ohne Neugodiern neu uffbaun. S Original gommt in Babierkorb, dann wird nochema gespeichort. Bei großn Dadein dauerts e bissl und brauchd kurz Blatz für e zweede Gobie.",
+  "meta.mkv_unfinished_noffmpeg": "Die MKV-Dadein sin nie fertsch geschriebn wordn, drum gehn de Tags ni zu speichorn:\n\n{names}\n\nZum Repariern brauchd PanePilot ffmpeg (Bageet „ffmpeg“).",
+  "meta.mkv_repair": "Neu uffbaun und speichorn",
+  "meta.mkv_repairing": "„{name}“ wird neu uffgebaut …",
+  "meta.mkv_repair_failed": "„{name}“ ließ sich ni neu uffbaun:\n{reason}\nS Original is unvorändert.",
+  "map.attribution": "© OpenStreetMap-Mitwirkende",
+  "map.title": "Garde"
 }

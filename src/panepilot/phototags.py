@@ -5,7 +5,7 @@ Einheitliche Sicht wie bei der Musik (tags.TagRecord): feste Feldnamen (FIELDS) 
 damit andere Programme es finden. Kamera- und Belichtungsdaten sowie GPS lassen sich nur entfernen.
 
 HEIC/HEIF kann exiv2 nicht schreiben; ist exiftool installiert, schreibt PanePilot HEIC damit.
-RAW-Dateien werden nur gelesen.
+RAW-Dateien bleiben unverändert: Änderungen landen in einer XMP-Begleitdatei daneben (v2.5, siehe sidecar.py).
 """
 
 from __future__ import annotations
@@ -109,7 +109,7 @@ def exiftool() -> str | None:
 
 def writable(path: str) -> bool:
     if is_raw(path):
-        return False
+        return True  # v2.5: über die .xmp-Begleitdatei
     if is_heif(path):
         return exiftool() is not None
     return True
@@ -267,9 +267,17 @@ def read_file(path: str):
         rec.error = str(exc) or type(exc).__name__
         return rec
     rec.width, rec.height = w, h
+    side: dict = {}
+    if is_raw(path):  # v2.5: die .xmp-Begleitdatei geht vor (wie digiKam, darktable, Lightroom)
+        from . import sidecar
+
+        for sc in sidecar.find(path)[:1]:
+            side = _read_sidecar(sc)
+        xmp = {**xmp, **side}
     merged = {**exif, **iptc, **xmp}
     for name, keys in READ_KEYS.items():
-        for key in keys:
+        ordered = [k for k in keys if k in side] + [k for k in keys if k not in side]
+        for key in ordered:
             value = _text(merged.get(key))
             if value:
                 rec.fields[name] = _display(name, value, exif)
@@ -282,6 +290,8 @@ def read_file(path: str):
             rec.labels[k] = key[len(CUSTOM_PREFIX):]
     if not writable(path):
         rec.readonly = set(FIELDS) | {k for k in rec.fields if k.startswith(tg.EXTRA)} | {"*"}
+    elif is_raw(path):
+        rec.readonly = set(REMOVE_ONLY)  # Kamera, Belichtung, GPS stehen in der RAW-Datei – bleiben, wie sie sind
     else:
         rec.removable = set(REMOVE_ONLY)
         if is_heif(path):  # exiftool kennt den eigenen XMP-Bereich nicht
@@ -305,6 +315,18 @@ def _read_raw(path: str):
     if size == (0, 0) or size[0] <= 0:
         size = _qt_size(path)
     return exif, iptc, xmp, size
+
+
+def _read_sidecar(path: str) -> dict:
+    try:
+        pyexiv2 = _pyexiv2()
+        img = pyexiv2.Image(path)
+        try:
+            return _safe(img.read_xmp)
+        finally:
+            img.close()
+    except Exception:  # noqa: BLE001 – kaputte Begleitdatei: wie keine
+        return {}
 
 
 def _safe(fn) -> dict:
@@ -383,9 +405,25 @@ def write_file(rec, changes: dict):
     if not writable(rec.path):
         raise OSError("read-only format")
     raw = _raw_changes(rec, changes)
-    if raw:
+    if raw and is_raw(rec.path):
+        _write_sidecar(rec.path, raw)
+    elif raw:
         write_raw(rec.path, raw)
     return read_file(rec.path)
+
+
+def _write_sidecar(path: str, raw: dict) -> None:
+    """RAW (v2.5): nur die XMP-Schlüssel, in die Begleitdatei; die RAW-Datei bleibt unberührt."""
+    from . import sidecar
+
+    xmp = {k: v for k, v in raw.items() if k.startswith("Xmp.")}
+    if not xmp:
+        return
+    existing = sidecar.find(path)
+    if not existing and all(v is None for v in xmp.values()):
+        return  # nichts zu löschen
+    target = sidecar.ensure(path)
+    write_raw(target, xmp)
 
 
 def write_raw(path: str, raw: dict) -> None:
@@ -480,6 +518,15 @@ def _write_exiftool(path: str, raw: dict) -> None:
 # --- Rückgängig ------------------------------------------------------------------------------------------
 def snapshot(path: str) -> tuple:
     """Alle von PanePilot verwalteten Rohwerte (klein, ohne Bilddaten)."""
+    if is_raw(path):  # v2.5: der Inhalt der Begleitdatei (oder dass es keine gab)
+        from . import sidecar
+
+        found = sidecar.find(path)
+        data = None
+        if found:
+            with open(found[0], "rb") as fh:
+                data = fh.read()
+        return ("xmp", data, found[0] if found else None)
     exif, iptc, xmp, _size = _read_raw(path)
     merged = {**exif, **iptc, **xmp}
     keep = {k: merged[k] for k in MANAGED if k in merged}
@@ -490,6 +537,19 @@ def snapshot(path: str) -> tuple:
 
 
 def restore(path: str, snap: tuple):
+    if snap and snap[0] == "xmp":
+        from . import sidecar
+
+        _kind, data, where = snap
+        if data is None:
+            for sc in sidecar.find(path):
+                os.unlink(sc)
+        else:
+            found = sidecar.find(path)
+            target = found[0] if found else sidecar.write_path(path)
+            with open(target, "wb") as fh:
+                fh.write(data)
+        return read_file(path)
     _kind, keep, _p = snap
     exif, iptc, xmp, _size = _read_raw(path)
     now = {**exif, **iptc, **xmp}
@@ -574,11 +634,22 @@ def _pil_to_qimage(im):
     return q.copy()
 
 
-def map_url(rec) -> str | None:
-    """Link zu OpenStreetMap, wenn das Foto eine Position hat."""
+def position(rec) -> tuple[float, float] | None:
+    """(Breite, Länge) des Fotos/Videos oder None (v2.5, für die Karte)."""
     try:
         lat = float(rec.fields.get("gpslat", ""))
         lon = float(rec.fields.get("gpslon", ""))
-    except ValueError:
+    except (ValueError, TypeError):
         return None
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180) or (lat == 0 and lon == 0):
+        return None
+    return lat, lon
+
+
+def map_url(rec) -> str | None:
+    """Link zu OpenStreetMap, wenn das Foto eine Position hat."""
+    pos = position(rec)
+    if pos is None:
+        return None
+    lat, lon = pos
     return f"https://www.openstreetmap.org/?mlat={lat:.6f}&mlon={lon:.6f}#map=16/{lat:.6f}/{lon:.6f}"

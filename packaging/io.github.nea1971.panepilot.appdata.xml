@@ -52,6 +52,9 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="2.5.0" date="2026-11-24">
+      <description><p>RAW metadata via XMP sidecars, a map for photos, repair of unfinished MKV files, more text functions.</p></description>
+    </release>
     <release version="2.4.0" date="2026-11-22">
       <description><p>Meta wizard: edit cells by double-click, episodes without S01E01, list of applied films.</p></description>
     </release>

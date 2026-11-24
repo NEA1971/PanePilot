@@ -100,7 +100,8 @@ def test_raw_and_heic_read_only(tmp_path, monkeypatch):
 
     raw = make_photo(tmp_path / "IMG_3.dng")
     it = MetaItem(tg.read_file(str(raw)))
-    assert it.record.codec == "RAW (DNG)" and it.readonly("title") and it.readonly("x:Xmp.panepilot.Ort")
+    # v2.5: RAW über die .xmp-Begleitdatei bearbeitbar, Kamera/GPS bleiben unveränderlich
+    assert it.record.codec == "RAW (DNG)" and not it.readonly("title") and it.readonly("make")
     assert it.record.fields["make"] == "Xiaomi"
     heif = pytest.importorskip("pillow_heif")
     heif.register_heif_opener()

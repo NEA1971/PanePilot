@@ -1077,3 +1077,84 @@ def format_fps(fps: float) -> str:
         return ""
     text = f"{fps:.3f}".rstrip("0").rstrip(".")
     return f"{text} fps"
+
+
+# --- v2.5: unvollständig abgeschlossene MKV-Dateien reparieren (Meldung vom 22.11.2026) ---------------------
+def _ebml_vint(data: bytes, pos: int, keep_marker: bool = False) -> tuple[int, int]:
+    first = data[pos]
+    length = 1
+    mask = 0x80
+    while length <= 8 and not first & mask:
+        mask >>= 1
+        length += 1
+    if length > 8 or pos + length > len(data):
+        raise ValueError("vint")
+    value = first if keep_marker else first & (mask - 1)
+    for b in data[pos + 1:pos + length]:
+        value = (value << 8) | b
+    return value, pos + length
+
+
+def mkv_unfinished(path: str) -> bool:
+    """True, wenn der Segment-Bereich die Größe 0 angibt – die Datei wurde nie fertig geschrieben."""
+    try:
+        with open(path, "rb") as fh:
+            data = fh.read(4096)
+        ebml_id, pos = _ebml_vint(data, 0, keep_marker=True)
+        if ebml_id != 0x1A45DFA3:
+            return False
+        size, pos = _ebml_vint(data, pos)
+        pos += size
+        seg_id, pos = _ebml_vint(data, pos, keep_marker=True)
+        if seg_id != 0x18538067:
+            return False
+        seg_size, _pos = _ebml_vint(data, pos)
+        return seg_size == 0 and os.path.getsize(path) > pos + 64
+    except (OSError, ValueError, IndexError):
+        return False
+
+
+def is_unfinished_error(path: str) -> bool:
+    """Ist der Speicherfehler einer MKV-Datei darauf zurückzuführen, dass sie nie fertig geschrieben wurde?"""
+    return os.path.splitext(path)[1].lower() in (".mkv", ".mka", ".mks", ".webm") and mkv_unfinished(path)
+
+
+def repair_mkv(path: str, progress=lambda part: None, cancelled=lambda: False) -> str:
+    """Baut die Datei mit „ffmpeg -c copy“ neu auf (ohne Neukodieren) und liefert den Pfad der neuen Datei
+    (im selben Ordner, versteckt). Das Original bleibt unverändert; ersetzen macht der Aufrufer."""
+    import subprocess
+    import time
+    import uuid
+
+    tool = ffmpeg()
+    if tool is None:
+        raise OSError("ffmpeg")
+    folder, name = os.path.split(path)
+    ext = os.path.splitext(name)[1]
+    target = os.path.join(folder, f".panepilot-repariert-{uuid.uuid4().hex[:8]}{ext}")
+    total = max(os.path.getsize(path), 1)
+    cmd = [tool, "-nostdin", "-v", "error", "-y", "-i", path, "-map", "0", "-c", "copy", target]
+    proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    try:
+        while proc.poll() is None:
+            if cancelled():
+                proc.kill()
+                proc.wait()
+                raise InterruptedError()
+            try:
+                progress(min(os.path.getsize(target) / total, 0.99))
+            except OSError:
+                pass
+            time.sleep(0.2)
+        err = (proc.stderr.read() or b"").decode("utf-8", "replace") if proc.stderr else ""
+        if proc.returncode != 0 or not os.path.exists(target) or os.path.getsize(target) < total * 0.5:
+            lines = [ln for ln in err.splitlines() if ln.strip()]
+            raise OSError(lines[-1] if lines else f"ffmpeg ({proc.returncode})")
+    except BaseException:
+        try:
+            os.unlink(target)
+        except OSError:
+            pass
+        raise
+    progress(1.0)
+    return target

@@ -390,6 +390,12 @@ class PropertiesDialog(QDialog):
                 image(t("photo.preview"), QPixmap.fromImage(img))
         url = ph.map_url(rec) if kind not in (mp.AUDIO, mp.DOC) else None
         if url:
+            from .mapview import MapView  # v2.5: Karte direkt im Fenster (L-3507)
+
+            pos = ph.position(rec)
+            view = MapView(below, 220)
+            view.set_points([(pos[0], pos[1], rec.name)])
+            form.addRow(t("map.title"), view)
             link = QLabel(f'<a href="{url}">{t("photo.show_map")}</a>', below)
             link.setOpenExternalLinks(True)
             form.addRow("", link)

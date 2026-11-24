@@ -259,6 +259,9 @@ def perform(folder: str, pairs: list[tuple[str, str]]) -> tuple[list[tuple[str, 
                 raise FileExistsError(17, "exists")
             os.rename(os.path.join(folder, tmp), target)
             done.append((old, new))
+            from . import sidecar
+
+            sidecar.follow_rename(os.path.join(folder, old), target, skip={o for o, _n in pairs})  # v2.5
         except OSError as exc:
             reason = "exists" if isinstance(exc, FileExistsError) else (exc.strerror or str(exc))
             errors.append((old, reason))

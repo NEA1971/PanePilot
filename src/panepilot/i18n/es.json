@@ -1124,11 +1124,11 @@
   "photo.preview": "Vista previa",
   "photo.preview_of": "Vista previa: {name}",
   "photo.no_preview": "sin vista previa",
-  "photo.show_map": "Ver en el mapa",
+  "photo.show_map": "Abrir en el navegador",
   "photo.flash_on": "disparado",
   "photo.flash_off": "no disparado",
   "photo.heic_hint": "PanePilot solo puede editar fotos HEIC con el programa exiftool; sin él, los campos son de solo lectura. Instalar con: sudo apt install libimage-exiftool-perl",
-  "photo.raw_hint": "Los archivos RAW son de solo lectura.",
+  "photo.raw_hint": "Archivo RAW: los cambios se guardan en un archivo .xmp al lado (p. ej. IMG_1234.xmp); el archivo RAW no se modifica. Los datos de cámara, exposición y GPS no se pueden cambiar.",
   "photo.switch_audio": "Música ({n})",
   "photo.switch_photo": "Fotos ({n})",
   "photo.switch_discard": "Hay cambios sin guardar. Se perderán al cambiar. ¿Cambiar de todos modos?",
@@ -1707,5 +1707,12 @@
   "online.loose_no": "No, buscar como películas",
   "meta.bad_name": "Este nombre de archivo no es posible.",
   "meta.keep_ext": "La extensión «{ext}» debe mantenerse; aquí no se puede cambiar.",
-  "meta.name_exists": "«{name}» ya existe en esta carpeta."
+  "meta.name_exists": "«{name}» ya existe en esta carpeta.",
+  "meta.mkv_unfinished": "Estos archivos MKV nunca se terminaron de escribir (p. ej. por una descarga o conversión interrumpida). Se reproducen, pero así no se pueden guardar sus etiquetas:\n\n{names}\n\nPanePilot puede reconstruir cada archivo con ffmpeg sin recodificar. El original va a la papelera y después se vuelve a guardar. Los archivos grandes tardan un poco y necesitan espacio temporal para una segunda copia.",
+  "meta.mkv_unfinished_noffmpeg": "Estos archivos MKV nunca se terminaron de escribir, por eso no se pueden guardar sus etiquetas:\n\n{names}\n\nPara repararlos PanePilot necesita el programa ffmpeg (paquete «ffmpeg»).",
+  "meta.mkv_repair": "Reconstruir y guardar",
+  "meta.mkv_repairing": "Reconstruyendo «{name}» …",
+  "meta.mkv_repair_failed": "No se pudo reconstruir «{name}»:\n{reason}\nEl original no ha cambiado.",
+  "map.attribution": "© colaboradores de OpenStreetMap",
+  "map.title": "Mapa"
 }
