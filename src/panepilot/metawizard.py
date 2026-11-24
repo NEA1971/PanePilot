@@ -55,6 +55,7 @@ INFO_COLUMNS = mp.AUDIO_INFO  # Musik; im Foto-Modus mp.info_columns()
 DEFAULT_COLUMNS = mp.AUDIO_COLUMNS  # F-910
 DEFAULT_SIDEBAR = mp.AUDIO_SIDEBAR  # F-920
 COVER = "cover"
+MAP = "map"  # v2.5.1: Karte als eigenes Feld der Seitenleiste (Foto/Video)
 MAX_VALUES = 50  # F-921
 CHANGED_COLOR = QColor("#2E7D32")
 ERROR_COLOR = QColor("#D32F2F")
@@ -68,6 +69,8 @@ def column_title(col: str) -> str:
         return tg.label_of(col)
     if col.startswith("i:"):
         return t(f"meta.info.{col[2:]}")
+    if col == MAP:
+        return t("map.title")
     if col == COVER:
         if mp.is_video_mode():
             return t("video.poster")
@@ -1358,7 +1361,8 @@ class MetaPane(ToolPane):
 
     # Aufbau
     def set_layout(self, keys: list[str]) -> None:
-        keys = [k for k in keys if k == COVER or k in mp.fields() or k.startswith(tg.EXTRA)]
+        has_map = mp.is_photo_mode() or mp.is_video_mode()
+        keys = [k for k in keys if k == COVER or (k == MAP and has_map) or k in mp.fields() or k.startswith(tg.EXTRA)]
         if not keys:
             keys = mp.default_sidebar()
         model = getattr(self, "meta_model", None)
@@ -1386,7 +1390,9 @@ class MetaPane(ToolPane):
             lay = QVBoxLayout(row)
             lay.setContentsMargins(0, 2, 0, 2)
             lay.setSpacing(1)
-            if key == "gpslat":  # Link zur Karte (L-433)
+            if key == MAP:  # v2.5.1: eigenes Feld „Karte“ mit dem Link „Im Browser öffnen“ (L-433)
+                from .mapview import MapView
+
                 head = QHBoxLayout()
                 head.addWidget(QLabel(column_title(key), row))
                 head.addStretch(1)
@@ -1394,8 +1400,14 @@ class MetaPane(ToolPane):
                 self.map_link.setOpenExternalLinks(True)
                 head.addWidget(self.map_link)
                 lay.addLayout(head)
-            else:
-                lay.addWidget(QLabel(column_title(key), row))
+                self.map_view = MapView(row)
+                lay.addWidget(self.map_view)
+                self.map_row = row
+                row.hide()
+                self.fields_layout.addWidget(row)
+                self.rows[key] = row
+                continue
+            lay.addWidget(QLabel(column_title(key), row))
             box = FieldBox(key, row)
             box.committed.connect(self.field_committed)
             if key in ("lyrics", "comment", "description"):  # F-980: langer Text
@@ -1409,12 +1421,6 @@ class MetaPane(ToolPane):
                 lay.addLayout(line)
             else:
                 lay.addWidget(box)
-            if key == "gpslat":  # v2.5: kleine Karte mit den markierten Fotos (L-3506)
-                from .mapview import MapView
-
-                self.map_view = MapView(row)
-                self.map_view.hide()
-                lay.addWidget(self.map_view)
             row.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             row.customContextMenuRequested.connect(lambda pos, k=key, r=row: self._layout_menu(pos, k, r))
             self.fields_layout.addWidget(row)
@@ -1435,7 +1441,7 @@ class MetaPane(ToolPane):
             menu.addAction(t("meta.field_remove", name=column_title(key))).triggered.connect(lambda: self._remove(key))
             menu.addSeparator()
         add = menu.addMenu(t("meta.field_add"))
-        for k in (*mp.fields(), COVER):
+        for k in (*mp.fields(), COVER, *((MAP,) if mp.is_photo_mode() or mp.is_video_mode() else ())):
             if k not in self.layout_keys:
                 add.addAction(column_title(k)).triggered.connect(lambda _c=False, kk=k: self._add(kk))
         extra = getattr(self, "extra_keys", {})
@@ -1485,7 +1491,7 @@ class MetaPane(ToolPane):
                 fronts = [_front(p) for p in covers]
                 mixed = len({f.data if f else None for f in fronts}) > 1
                 self.cover.show_pictures(covers[0] if covers and not mixed else [], mixed, enabled)
-        if getattr(self, "map_link", None) is not None and "gpslat" in self.boxes:
+        if getattr(self, "map_link", None) is not None:
             from .phototags import map_url
 
             url = map_url(items[-1].record) if len(items) == 1 else None
@@ -1494,7 +1500,7 @@ class MetaPane(ToolPane):
             from .phototags import position
 
             points = [(*pos, it.display_name) for it in items if (pos := position(it.record)) is not None]
-            self.map_view.setVisible(bool(points))
+            self.map_row.setVisible(bool(points))
             if points:
                 self.map_view.set_points(points)
         self.wav_hint.setVisible(any(it.record.codec == "WAV" for it in items))

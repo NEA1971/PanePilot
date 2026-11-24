@@ -52,6 +52,9 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="2.5.1" date="2026-11-24">
+      <description><p>Map: finer mouse-wheel zoom and its own sidebar field.</p></description>
+    </release>
     <release version="2.5.0" date="2026-11-24">
       <description><p>RAW metadata via XMP sidecars, a map for photos, repair of unfinished MKV files, more text functions.</p></description>
     </release>

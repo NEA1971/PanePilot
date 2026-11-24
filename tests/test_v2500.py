@@ -257,7 +257,7 @@ def test_map_wheel_zooms_not_page(window):  # noqa: F811
     ev = QWheelEvent(pos, QPointF(view.mapToGlobal(pos.toPoint())), QPoint(0, 0), QPoint(0, 120),
                      Qt.MouseButton.NoButton, Qt.KeyboardModifier.NoModifier, Qt.ScrollPhase.NoScrollPhase, False)
     QApplication.sendEvent(view, ev)
-    assert view.zoom == before + 1 and area.verticalScrollBar().value() == 0 and ev.isAccepted()
+    assert view.zoom == before + 0.25 and area.verticalScrollBar().value() == 0 and ev.isAccepted()
     area.close()
 
 
@@ -271,6 +271,24 @@ def test_map_in_sidebar(window, tmp_path, qtbot):  # noqa: F811
     pane.show_selection([items["a.jpg"]])
     assert pane.map_view is not None
     if True:
-        assert not pane.map_view.isHidden() and len(pane.map_view.points) == 1
+        assert not pane.map_row.isHidden() and len(pane.map_view.points) == 1
+        assert "map" in pane.layout_keys and pane.layout_keys.index("map") > pane.layout_keys.index("gpsalt")
         pane.show_selection([items["b.jpg"]])
-        assert pane.map_view.isHidden()
+        assert pane.map_row.isHidden()
+
+
+def test_map_field_migration_and_fine_zoom(window, tmp_path, qtbot):  # noqa: F811
+    from test_v093 import _open
+
+    from panepilot import mapview as mv
+
+    window.settings.set("meta_photo_sidebar", ["title", "gpslat", "gpslon", "rating"])
+    make_photo(tmp_path / "a.jpg")
+    pane = _open(window, qtbot, tmp_path)
+    assert pane.layout_keys == ["title", "gpslat", "gpslon", "map", "rating"]  # einmalig ergänzt
+    view = mv.MapView(None, 200)
+    view.resize(300, 200)
+    view.set_points([(48.1, 11.5, "a")])
+    view.zoom = 15.5
+    view.grab()  # Zeichnen mit Zwischenstufe
+    assert view._tile_zoom() == 15

@@ -26,6 +26,7 @@ from .i18n import t
 TILE = 256
 MIN_ZOOM, MAX_ZOOM = 2, 18
 FIT_MAX_ZOOM = 16
+WHEEL_STEP = 0.25  # v2.5.1: ein Rad-Schritt = ¼ Zoomstufe (vorher eine ganze – zu sprunghaft)
 TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 MAX_AGE = 30 * 24 * 3600
 ATTRIBUTION_URL = "https://www.openstreetmap.org/copyright"
@@ -218,8 +219,11 @@ class MapView(QWidget):
 
     def _tile_loaded(self, z: int, x: int, y: int) -> None:
         self._tiles.pop((z, x, y), None)
-        if z == self.zoom:
+        if z == self._tile_zoom():
             self.update()
+
+    def _tile_zoom(self) -> int:
+        return max(MIN_ZOOM, min(MAX_ZOOM, int(math.floor(self.zoom + 1e-9))))
 
     # --- Zeichnen ---
     def _origin(self) -> tuple[float, float]:
@@ -234,16 +238,18 @@ class MapView(QWidget):
     def paintEvent(self, _event) -> None:
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         p.fillRect(self.rect(), QColor("#e5e3df"))
         ox, oy = self._origin()
-        z = int(self.zoom)
-        x0, y0 = int(math.floor(ox / TILE)), int(math.floor(oy / TILE))
-        x1, y1 = int(math.floor((ox + self.width()) / TILE)), int(math.floor((oy + self.height()) / TILE))
+        z = self._tile_zoom()
+        size = TILE * 2 ** (self.zoom - z)  # Kacheln der ganzen Stufe, stufenlos vergrößert
+        x0, y0 = int(math.floor(ox / size)), int(math.floor(oy / size))
+        x1, y1 = int(math.floor((ox + self.width()) / size)), int(math.floor((oy + self.height()) / size))
         for tx in range(x0, x1 + 1):
             for ty in range(y0, y1 + 1):
                 img = self._tile(z, tx, ty)
                 if img is not None:
-                    p.drawImage(QPointF(tx * TILE - ox, ty * TILE - oy), img)
+                    p.drawImage(QRectF(tx * size - ox, ty * size - oy, size + 0.5, size + 0.5), img)
         for lat, lon, _label in self.points:
             self._pin(p, self.screen_pos(lat, lon))
         self._attribution(p)
@@ -283,9 +289,9 @@ class MapView(QWidget):
     def wheelEvent(self, event) -> None:
         steps = event.angleDelta().y() / 120
         if not steps:
-            event.ignore()
+            event.accept()
             return
-        new = max(MIN_ZOOM, min(MAX_ZOOM, int(self.zoom + (1 if steps > 0 else -1))))
+        new = max(float(MIN_ZOOM), min(float(MAX_ZOOM), self.zoom + steps * WHEEL_STEP))
         if new != self.zoom:
             # um den Mauszeiger herum zoomen
             pos = event.position()

@@ -79,9 +79,9 @@ def default_columns() -> list[str]:
 AUDIO_SIDEBAR = ["title", "artist", "album", "year", "track", "genre", "comment", "albumartist", "composer",
                  "disc", "cover"]
 PHOTO_SIDEBAR = ["cover", "title", "description", "keywords", "rating", "datetaken", "author", "copyright",
-                 "make", "model", "lens", "exposure", "aperture", "iso", "focal", "gpslat", "gpslon", "gpsalt"]
+                 "make", "model", "lens", "exposure", "aperture", "iso", "focal", "gpslat", "gpslon", "gpsalt", "map"]
 VIDEO_SIDEBAR = ["cover", "title", "description", "author", "genre", "year", "copyright", "datetaken", "gpslat",
-                 "gpslon", "gpsalt"]
+                 "gpslon", "gpsalt", "map"]  # „map“: Karte als eigenes Feld (v2.5.1)
 DOC_SIDEBAR = ["cover", "title", "subject", "author", "keywords", "description", "category", "language",
                "created", "modified", "pages"]  # weitere Angaben per Rechtsklick (wie bei Videos)
 

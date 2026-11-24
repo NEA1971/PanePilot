@@ -141,7 +141,15 @@ class MetaWizardMixin:
         pane.meta_model.custom_fields = [n for n in (self.settings.get(mp.setting("meta_custom_fields")) or [])
                                          if isinstance(n, str)]
         pane.extra_keys = pane.meta_model.extra_keys()
-        pane.set_layout(self.settings.get(mp.setting("meta_sidebar")) or [])
+        keys = list(self.settings.get(mp.setting("meta_sidebar")) or [])
+        flag = mp.setting("meta_map_added")
+        if keys and (mp.is_photo_mode() or mp.is_video_mode()) and not self.settings.get(flag):
+            # v2.5.1: gespeicherte Anordnung bekommt einmalig das neue Feld „Karte“ (hinter den GPS-Feldern)
+            gps = [i for i, k in enumerate(keys) if k in ("gpslat", "gpslon", "gpsalt")]
+            if "map" not in keys and gps:  # nur wer die GPS-Felder in der Seitenleiste hat
+                keys.insert(gps[-1] + 1, "map")
+            self.settings.set(flag, True)
+        pane.set_layout(keys)
         pane.meta_view.restore_layout(self.settings.get(mp.setting("meta_layout")) or {})
         pane.apply_profile_buttons()
         pane.show_selection([])
