@@ -50,7 +50,10 @@ CLIP_MENU_ONLY = ("clip_path", "clip_name", "clip_stem", "clip_folder", "clip_ur
 ARCHIVE_LEGACY = ("compress", "extract_here", "extract_subfolder", "extract_to", "archive_open")
 # v2.2: die Reiter-Funktionen stecken im Knopf „Reiter“
 TABS_LEGACY = ("tab_new", "tab_close", "tab_next", "tab_prev", "tab_lock", "tab_to_other", "open_in_tab")
-EXCLUDED = set(NOT_ASSIGNABLE) | set(VIEW_LEGACY) | set(CLIP_MENU_ONLY) | set(ARCHIVE_LEGACY) | set(TABS_LEGACY)
+# v2.6: Trennlinie nur im Rechtsklick-Menü der Favoritenleiste (kein Knopf ohne Absprache)
+FAV_MENU_ONLY = ("fav_separator",)
+EXCLUDED = (set(NOT_ASSIGNABLE) | set(VIEW_LEGACY) | set(CLIP_MENU_ONLY) | set(ARCHIVE_LEGACY) | set(TABS_LEGACY)
+            | set(FAV_MENU_ONLY))
 
 
 def available_actions() -> list[str]:

@@ -21,6 +21,7 @@ Die Einstellungen öffnet man über **Datei ▸ Einstellungen ▸ Einstellungen 
 
 ## Meta-Wizard
 - **ReplayGain**: Ziel-Lautheit, Standard −18 LUFS.
+- **Untertitel**: Zugang zu OpenSubtitles und was mit heruntergeladenen Untertiteln nach dem Einbinden geschieht: im Ordner belassen (Vorgabe), in den Papierkorb oder endgültig löschen.
 
 ## Weitere Anpassungen direkt im Fenster
 - **Symbolleiste**: Rechtsklick ▸ „Symbolleiste anpassen“, dort auch Abstände und „Ab hier rechtsbündig“.

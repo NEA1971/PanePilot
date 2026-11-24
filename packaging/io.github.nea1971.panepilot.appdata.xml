@@ -52,6 +52,9 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="2.6.0" date="2026-11-24">
+      <description><p>Separators in the favourites, subtitle files after embedding, sorting by track columns, changing the order of tracks.</p></description>
+    </release>
     <release version="2.5.1" date="2026-11-24">
       <description><p>Map: finer mouse-wheel zoom and its own sidebar field.</p></description>
     </release>

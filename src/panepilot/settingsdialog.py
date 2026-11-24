@@ -641,7 +641,7 @@ class SettingsDialog(QDialog):
 
     # --- Untertitel (OpenSubtitles) (v1.14, L-1400) -----------------------------------------
     def _subs_section(self) -> QWidget:
-        from PySide6.QtWidgets import QLineEdit
+        from PySide6.QtWidgets import QButtonGroup, QLineEdit, QRadioButton
 
         from . import opensubs as os_
         from . import servers as sv
@@ -674,6 +674,22 @@ class SettingsDialog(QDialog):
         row.addStretch(1)
         lay.addLayout(row)
         lay.addWidget(self._hint(t("settings.os_hint"), w))
+        # v2.6, L-3610: heruntergeladene Untertitel nach dem Einbinden
+        after = QWidget(w)
+        al = QVBoxLayout(after)
+        al.setContentsMargins(0, 8, 0, 0)
+        al.addWidget(QLabel(t("settings.subs_after"), after))
+        self.subs_after: dict[str, QRadioButton] = {}
+        group = QButtonGroup(after)
+        mode = self.window.settings.get("subs_after_embed")
+        mode = mode if mode in ("keep", "trash", "delete") else "keep"
+        for key in ("keep", "trash", "delete"):
+            b = QRadioButton(t(f"settings.subs_after_{key}"), after)
+            b.setChecked(key == mode)
+            group.addButton(b)
+            al.addWidget(b)
+            self.subs_after[key] = b
+        lay.addWidget(after)
         if not sv.keyring_available():
             lay.addWidget(self._hint(t("settings.tmdb_no_keyring"), w))
         return w
@@ -1159,6 +1175,7 @@ class SettingsDialog(QDialog):
         if self.os_password.text() != os_.load_secret(os_.PASSWORD_KIND):
             os_.store_secret(os_.PASSWORD_KIND, self.os_password.text())
         s.set("opensubs_user", self.os_user.text().strip())
+        s.set("subs_after_embed", next(k for k, b in self.subs_after.items() if b.isChecked()))
         s.set("opensubs_languages", ", ".join(os_.parse_languages(self.os_langs.text())) or os_.DEFAULT_LANGUAGES)
         # Spaltenprofile schreiben
         for name in self._deleted:

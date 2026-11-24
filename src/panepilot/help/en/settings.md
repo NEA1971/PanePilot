@@ -21,6 +21,7 @@ Open the settings via **File ▸ Settings ▸ Settings …** or the gear button.
 
 ## Meta wizard
 - **ReplayGain**: target loudness (standard −18 LUFS).
+- **Subtitles**: OpenSubtitles access and what happens to downloaded subtitles after embedding: leave them in the folder (default), move them to the trash or delete them permanently.
 
 ## More customising directly in the window
 - **Toolbar**: right-click ▸ “Customise toolbar”, including gaps and “right-aligned from here”.

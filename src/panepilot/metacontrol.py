@@ -1064,18 +1064,19 @@ class MetaWizardMixin:
         edits, missing = dlg.edits()
         removals, notes = dlg.removals()
         additions = dlg.additions()  # v1.14, L-1410
+        orders = dlg.orders()  # v2.6, L-3630
         missing += notes
-        if not edits and not removals and not additions:
+        if not edits and not removals and not additions and not orders:
             return
         by_path = {f.path: f for f in files}
-        rebuild = set(removals) | set(additions)
+        rebuild = set(removals) | set(additions) | set(orders)
         in_place = {p: e for p, e in edits.items() if p not in rebuild}
         text = ""
         if in_place:
             text = t("tracks.confirm", files=len(in_place), tracks=sum(len(v) for v in in_place.values()))
         if rebuild:  # L-1300: neue Datei „…-Kopie“, Original bleibt
             size = sum(os.path.getsize(p) for p in rebuild if os.path.exists(p))
-            if additions:
+            if additions or orders:
                 key = "tracks.rebuild_note_replace" if dlg.replace_wanted() else "tracks.rebuild_note"
             else:
                 key = "tracks.remove_note_replace" if dlg.replace_wanted() else "tracks.remove_note"  # v1.13.2
@@ -1101,10 +1102,11 @@ class MetaWizardMixin:
             return
         jobs = {p: (e, []) for p, e in in_place.items()}
         for p in rebuild:
-            jobs[p] = (edits.get(p, []), removals.get(p, []), additions.get(p, []))
+            jobs[p] = (edits.get(p, []), removals.get(p, []), additions.get(p, []), None, orders.get(p))
+        done: list[str] = []
         errs, recs, cancelled, created = self._write_tracks(jobs, by_path, title,
                                                             export=bool(removals) and dlg.export_wanted(),
-                                                            replace=dlg.replace_wanted())
+                                                            replace=dlg.replace_wanted(), done=done)
         for it in targets:
             rec = recs.get(it.record.path)
             if rec is not None and not rec.error:
@@ -1123,6 +1125,29 @@ class MetaWizardMixin:
             msg += " " + t("tracks.created", names=", ".join(new_videos[:3]) + (" …" if len(new_videos) > 3 else ""))
         self._meta_pane().summary.setText(msg + (" " + t("tracks.cancelled") if cancelled else ""))
         self._meta_refresh()
+        own = sorted({a.path for p in done for a in additions.get(p, []) if os.path.isfile(a.path)})
+        if own:  # v2.6, L-3612: eigene Untertiteldateien – fragen, was damit geschieht
+            self._subs_dispose(own, self._ask_subs_dispose(own, title))
+
+    def _ask_subs_dispose(self, paths: list[str], title: str) -> str:
+        """„keep“, „trash“ oder „delete“ (L-3612); eine Frage für alle Dateien."""
+        names = "\n".join(os.path.basename(p) for p in paths[:10]) + ("\n…" if len(paths) > 10 else "")
+        text = t("subs.dispose_question", n=len(paths), names=names)
+        clicked = _msgbox(self, QMessageBox.Icon.Question, title, text, [
+            ("subs.dispose_keep", QMessageBox.ButtonRole.RejectRole, True),
+            ("subs.dispose_trash", QMessageBox.ButtonRole.AcceptRole, False),
+            ("subs.dispose_delete", QMessageBox.ButtonRole.DestructiveRole, False),
+        ])
+        return {"subs.dispose_trash": "trash", "subs.dispose_delete": "delete"}.get(clicked, "keep")
+
+    def _subs_dispose(self, paths: list[str], mode: str) -> None:
+        """Untertiteldateien nach dem Einbinden in den Papierkorb bzw. endgültig löschen (L-3610, L-3612)."""
+        paths = [p for p in paths if os.path.isfile(p)]
+        if not paths or mode not in ("trash", "delete"):
+            return
+        from .fileops import DELETE, TRASH
+
+        self.ops.start(TRASH if mode == "trash" else DELETE, paths)
 
     def meta_subtitles(self) -> None:
         """Untertitel von OpenSubtitles suchen und herunterladen (v1.14, L-1400 ff.)."""
@@ -1237,7 +1262,12 @@ class MetaWizardMixin:
             by_path = {f.path: f for f in files}
             jobs_w = {p: ([], [], a) for p, a in adds.items() if p in by_path}
             if jobs_w:
-                w_errs, recs, cancelled, created = self._write_tracks(jobs_w, by_path, title, replace=replace)
+                done: list[str] = []
+                w_errs, recs, cancelled, created = self._write_tracks(jobs_w, by_path, title, replace=replace,
+                                                                      done=done)
+                mode = self.settings.get("subs_after_embed")  # v2.6, L-3610/L-3611
+                if mode in ("trash", "delete"):
+                    self._subs_dispose(sorted({a.path for p in done for a in adds[p]}), mode)
                 errs += [f"{n}: {e}" for n, e in w_errs]
                 for it in items:
                     rec = recs.get(it.record.path)
@@ -1469,10 +1499,12 @@ class MetaWizardMixin:
             show_info(self, title, t("tracks.exported", n=len(made)) + "\n\n" +
                       "\n".join(os.path.basename(p) for p in made[:20]))
 
-    def _write_tracks(self, jobs: dict, by_path: dict, title: str, export: bool = False, replace: bool = False):
+    def _write_tracks(self, jobs: dict, by_path: dict, title: str, export: bool = False, replace: bool = False,
+                      done: list | None = None):
         """Schreibt im Hintergrund mit Fortschritt; Neupacken lässt sich abbrechen (L-1203, L-1302).
 
-        jobs: {Pfad: (Änderungen, zu entfernende Spuren)}."""
+        jobs: {Pfad: (Änderungen, zu entfernende Spuren[, Untertitel dazu[, Kapitel[, Reihenfolge]]])}.
+        done (v2.6): bekommt die Pfade, bei denen das Schreiben geklappt hat."""
         import threading
 
         from PySide6.QtCore import QEventLoop, Qt, QThread, Signal
@@ -1504,6 +1536,7 @@ class MetaWizardMixin:
                     changes, gone, *rest = jobs[path]
                     adds = rest[0] if rest else []  # v1.14: Untertiteldateien dazu
                     chapters = rest[1] if len(rest) > 1 else None  # v1.15: neue Kapitel
+                    order = rest[2] if len(rest) > 2 else None  # v2.6: neue Reihenfolge der Spuren
                     report = (lambda x, i=i, n=name: self.step.emit(i, len(paths), x, n))
                     try:
                         if chapters is not None and f.fmt == "mkv" and not gone and not adds:
@@ -1511,17 +1544,21 @@ class MetaWizardMixin:
 
                             chp.write_mkv(path, chapters)  # L-1508: MKV direkt in der Datei
                             self.recs[path] = tg.read_file(path)
+                            if done is not None:
+                                done.append(path)
                             continue
-                        if gone or adds or chapters is not None:
+                        if gone or adds or chapters is not None or order:
                             subs = [tr for tr in gone if tr.kind == mt.SUBS]
                             if export and subs:  # L-1320: vorher sichern
                                 self.created += vr.export_subtitles(f, subs)
                             new = vr.remove_tracks(f, gone, changes, report, cancel, replace=replace, add=adds,
-                                                   chapters=chapters)
+                                                   chapters=chapters, order=order)
                             if replace:
                                 self.recs[path] = tg.read_file(path)
                             else:
                                 self.created.append(new)
+                            if done is not None:
+                                done.append(path)
                             continue
                         if f.fmt == "mp4":
                             m4.write(f, changes, report, cancel)
@@ -1534,6 +1571,8 @@ class MetaWizardMixin:
                         self.errs.append((name, str(exc)))
                         continue
                     self.recs[path] = tg.read_file(path)
+                    if done is not None:
+                        done.append(path)
 
         dlg = QProgressDialog(t("tracks.writing"), t("button.cancel"), 0, 1000, self)
         dlg.setWindowTitle(title)

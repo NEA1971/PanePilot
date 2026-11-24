@@ -87,7 +87,27 @@ class TrackDialog(QDialog):
             self._fill(r, row)
         self.table.resizeColumnsToContents()
         self.table.setColumnWidth(COL_LANG, max(self.table.columnWidth(COL_LANG), 190))
-        lay.addWidget(self.table, 1)
+        # v2.6, L-3630: Reihenfolge ändern – ▲/▼ rechts neben der Tabelle, Strg+↑/Strg+↓
+        mid = QHBoxLayout()
+        mid.addWidget(self.table, 1)
+        side = QVBoxLayout()
+        self.btn_up = QPushButton("▲", self)
+        self.btn_down = QPushButton("▼", self)
+        for btn, key, step in ((self.btn_up, "tracks.move_up", -1), (self.btn_down, "tracks.move_down", 1)):
+            btn.setToolTip(t(key))
+            btn.setFixedWidth(36)
+            btn.clicked.connect(lambda _c=False, d=step: self.move_selected(d))
+            side.addWidget(btn)
+        side.addStretch(1)
+        mid.addLayout(side)
+        lay.addLayout(mid, 1)
+        from PySide6.QtGui import QKeySequence, QShortcut
+
+        QShortcut(QKeySequence("Ctrl+Up"), self, lambda: self.move_selected(-1))
+        QShortcut(QKeySequence("Ctrl+Down"), self, lambda: self.move_selected(1))
+        self.table.installEventFilter(self)  # Strg+↑/↓ auch dann, wenn die Tabelle die Taste zuerst bekommt
+        self.table.itemSelectionChanged.connect(self._update_move_buttons)
+        self._update_move_buttons()
         bar = QHBoxLayout()
         self.btn_suggest = QPushButton(t("tracks.suggest"), self)
         self.btn_suggest.setToolTip(t("tracks.suggest_tip"))
@@ -218,6 +238,102 @@ class TrackDialog(QDialog):
             self.table.setCellWidget(r, COL_REMOVE, holder)
             w["remove"] = box
         self.widgets.append(w)
+
+    # --- Reihenfolge (v2.6, L-3630) -------------------------------------------------------------
+    def eventFilter(self, obj, event) -> bool:
+        from PySide6.QtCore import QEvent
+
+        if obj is self.table and event.type() == QEvent.Type.KeyPress and \
+                event.modifiers() == Qt.KeyboardModifier.ControlModifier and \
+                event.key() in (Qt.Key.Key_Up, Qt.Key.Key_Down):
+            self.move_selected(-1 if event.key() == Qt.Key.Key_Up else 1)
+            return True
+        return super().eventFilter(obj, event)
+
+    def _current_row(self) -> int:
+        rows = {i.row() for i in self.table.selectedIndexes()}
+        if len(rows) == 1:
+            return rows.pop()
+        return self.table.currentRow() if not rows else -1
+
+    def _can_move(self, r: int, step: int) -> bool:
+        target = r + step
+        if r < 0 or not 0 <= target < len(self.rows):
+            return False
+        kind = self.rows[r].kind
+        return kind != mt.VIDEO and self.rows[target].kind == kind  # nur innerhalb der eigenen Art
+
+    def _update_move_buttons(self) -> None:
+        r = self._current_row()
+        self.btn_up.setEnabled(self._can_move(r, -1))
+        self.btn_down.setEnabled(self._can_move(r, 1))
+
+    def _snapshot(self, r: int) -> dict:
+        w = self.widgets[r]
+        snap: dict = {"name": w["name"].text()}
+        combo = w.get("lang")
+        if combo is not None:
+            snap["lang"] = (combo.currentIndex(), combo.currentText())
+        for key in ("default", "forced", "remove"):
+            box = w.get(key)
+            if box is not None:
+                snap[key] = (box.isTristate(), box.checkState())
+        return snap
+
+    def _restore(self, r: int, snap: dict) -> None:
+        w = self.widgets[r]
+        w["name"].setText(snap["name"])
+        combo = w.get("lang")
+        if combo is not None and "lang" in snap:
+            index, text = snap["lang"]
+            combo.setCurrentIndex(index)
+            if combo.currentText() != text:
+                combo.setEditText(text)
+        for key in ("default", "forced", "remove"):
+            box = w.get(key)
+            if box is not None and key in snap:
+                tristate, state = snap[key]
+                box.setTristate(tristate)
+                box.setCheckState(state)
+
+    def move_selected(self, step: int) -> bool:
+        r = self._current_row()
+        if not self._can_move(r, step):
+            return False
+        target = r + step
+        snaps = [self._snapshot(i) for i in range(len(self.rows))]
+        self.rows[r], self.rows[target] = self.rows[target], self.rows[r]
+        snaps[r], snaps[target] = snaps[target], snaps[r]
+        widths = [self.table.columnWidth(c) for c in range(self.table.columnCount())]
+        self.table.setRowCount(0)
+        self.table.setRowCount(len(self.rows))
+        self.widgets = []
+        for i, row in enumerate(self.rows):
+            self._fill(i, row)
+            self._restore(i, snaps[i])
+        for c, width in enumerate(widths):
+            self.table.setColumnWidth(c, width)
+        self.table.selectRow(target)
+        self.table.setCurrentCell(target, COL_TRACK)
+        self._update_move_buttons()
+        return True
+
+    def orders(self) -> dict[str, list]:
+        """{Datei: [Spuren in neuer Reihenfolge]} – nur Dateien, bei denen sich etwas verschiebt (L-3630)."""
+        out: dict[str, list] = {}
+        for f in self.files:
+            changed = False
+            order = [tr for tr in f.tracks if tr.kind == mt.VIDEO]
+            for kind in (mt.AUDIO, mt.SUBS):
+                wanted = [tr for row in self.rows if row.kind == kind
+                          for tr in [f.find(kind, row.index)] if tr is not None]
+                rest = [tr for tr in f.tracks if tr.kind == kind and all(tr is not w for w in wanted)]
+                if [tr.index for tr in wanted] != sorted(tr.index for tr in wanted):
+                    changed = True
+                order += wanted + rest
+            if changed:
+                out[f.path] = order
+        return out
 
     def _mp4_only(self, row: Row) -> bool:
         fmt = {id(tr): f.fmt for f in self.files for tr in f.tracks}

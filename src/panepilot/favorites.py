@@ -8,6 +8,7 @@ Auf-/Zuklappzustand je Ansicht getrennt bleibt.
 Eintragsarten:
 * ``group`` – Favoritenordner (nur zur Gliederung, beliebig verschachtelbar)
 * ``link``  – Verknüpfung zu einem echten Ordner oder einer Datei
+* ``separator`` – Trennlinie, optional mit Namen (v2.6, L-3600 ff.)
 """
 
 from __future__ import annotations
@@ -16,9 +17,10 @@ import json
 import os
 import uuid
 
-from PySide6.QtCore import QAbstractItemModel, QByteArray, QMimeData, QModelIndex, Qt, Signal
-from PySide6.QtGui import QColor, QDrag, QPalette
-from PySide6.QtWidgets import QAbstractItemView, QApplication, QTreeView
+from PySide6.QtCore import QAbstractItemModel, QByteArray, QMimeData, QModelIndex, QPoint, QSize, Qt, Signal
+from PySide6.QtGui import QColor, QDrag, QFontMetrics, QPalette, QPen
+from PySide6.QtWidgets import (QAbstractItemView, QApplication, QStyle, QStyledItemDelegate, QStyleOptionViewItem,
+                               QTreeView)
 
 from .config import FAVORITES_FILE, load_json, save_json
 from .i18n import t
@@ -41,6 +43,8 @@ FAV_COLORS: tuple[tuple[str, str], ...] = (
 )
 COLOR_HEX = dict(FAV_COLORS)
 STYLE_FLAGS = ("bold", "italic", "underline", "strike")
+ALIGNMENTS = ("left", "center", "right")  # v2.6: Ausrichtung des Namens einer Trennlinie (L-3602)
+SEPARATOR = "separator"
 
 
 class FavNode:
@@ -59,6 +63,10 @@ class FavNode:
     def is_group(self) -> bool:
         return self.kind == "group"
 
+    @property
+    def is_separator(self) -> bool:
+        return self.kind == SEPARATOR
+
     def row(self) -> int:
         return self.parent.children.index(self) if self.parent else 0
 
@@ -76,7 +84,7 @@ class FavNode:
             d["style"] = dict(self.style)
         if self.is_group:
             d["children"] = [c.to_dict() for c in self.children]
-        else:
+        elif not self.is_separator:
             d["path"] = self.path
         return d
 
@@ -85,7 +93,7 @@ class FavNode:
         if not isinstance(d, dict):
             return None
         kind = d.get("type")
-        if kind not in ("group", "link"):
+        if kind not in ("group", "link", SEPARATOR):
             return None
         node = cls(kind, str(d.get("name") or ""), str(d.get("path") or ""), d.get("id") or None)
         if kind == "link" and not node.path:
@@ -108,6 +116,8 @@ def clean_style(raw) -> dict:
                 style[flag] = True
         if raw.get("color") in COLOR_HEX:
             style["color"] = raw["color"]
+        if raw.get("align") in ("left", "right"):  # zentriert ist die Vorgabe (L-3603)
+            style["align"] = raw["align"]
     return style
 
 
@@ -202,6 +212,10 @@ class FavoritesModel(QAbstractItemModel):
     def add_group(self, name: str, parent: FavNode | None = None, row: int = -1) -> FavNode:
         return self.insert_node(FavNode("group", name), parent or self._root, row)
 
+    def add_separator(self, parent: FavNode | None = None, row: int = -1) -> FavNode:
+        """Neue Trennlinie ohne Namen, zentriert (L-3603)."""
+        return self.insert_node(FavNode(SEPARATOR, ""), parent or self._root, row)
+
     def remove_node(self, node: FavNode) -> None:
         if node is self._root or node.parent is None:
             return
@@ -260,7 +274,7 @@ class FavoritesModel(QAbstractItemModel):
 
     def link_state(self, node: FavNode) -> str:
         """'ok', 'unmounted' (liegt in nicht eingebundener Freigabe) oder 'broken'."""
-        if node.is_group:
+        if node.kind != "link":
             return "ok"
         mounts = self._icons.mounts
         if mounts is not None:
@@ -275,9 +289,9 @@ class FavoritesModel(QAbstractItemModel):
     def update_node(self, node: FavNode, name: str, path: str, style: dict) -> None:
         if node is self._root:
             return
-        if name.strip():
+        if name.strip() or node.is_separator:  # Trennlinien dürfen namenlos sein (L-3602)
             node.name = name.strip()
-        if not node.is_group and path.strip():
+        if node.kind == "link" and path.strip():
             node.path = os.path.abspath(os.path.expanduser(path.strip()))
         node.style = clean_style(style)
         idx = self.index_for(node)
@@ -322,6 +336,8 @@ class FavoritesModel(QAbstractItemModel):
         node: FavNode = index.internalPointer()
         if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
             return node.name
+        if node.is_separator and role in (Qt.ItemDataRole.DecorationRole, Qt.ItemDataRole.ToolTipRole):
+            return None
         if role == Qt.ItemDataRole.DecorationRole:
             if node.is_group:
                 return self._icons.favorite_group()
@@ -342,7 +358,7 @@ class FavoritesModel(QAbstractItemModel):
                 return t("favorites.unmounted_tooltip", path=node.path)
             return node.path
         if role == Qt.ItemDataRole.ForegroundRole:
-            if not node.is_group and self.link_state(node) == "broken":
+            if node.kind == "link" and self.link_state(node) == "broken":
                 # Defekter Link: grau – eine eigene Farbe tritt zurück (F-224)
                 return QApplication.palette().color(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text)
             color = node.style.get("color")
@@ -350,7 +366,7 @@ class FavoritesModel(QAbstractItemModel):
                 return QColor(COLOR_HEX[color])
             return None
         if role == Qt.ItemDataRole.FontRole:
-            if not node.style:
+            if not any(node.style.get(f) for f in STYLE_FLAGS):
                 return None
             font = QApplication.font()
             font.setBold(bool(node.style.get("bold")))
@@ -476,6 +492,9 @@ class FavoritesView(QTreeView):
         self.setAnimated(False)
         self._press_index = None
         self._dragging = False
+        self._text_right = -1
+        self.setItemDelegate(FavoriteDelegate(self))
+        model.dataChanged.connect(lambda *_a: self.viewport().update())  # Linienlänge folgt den Namen
 
     @property
     def fav_model(self) -> FavoritesModel:
@@ -484,6 +503,53 @@ class FavoritesView(QTreeView):
     def focusInEvent(self, event) -> None:
         super().focusInEvent(event)
         self.focus_entered.emit()
+
+    # --- Trennlinien (v2.6, L-3604) -------------------------------------------------------------
+    def paintEvent(self, event) -> None:
+        self._text_right = self._compute_text_right()
+        super().paintEvent(event)
+
+    def text_rect(self, idx: QModelIndex, with_icon: bool = True):
+        """Textbereich einer Zeile, wie ihn der Stil zeichnet – bei Trennlinien so, als hätten sie ein Symbol."""
+        opt = QStyleOptionViewItem()
+        self.initViewItemOption(opt)
+        delegate = self.itemDelegate()
+        delegate.initStyleOption(opt, idx)
+        opt.rect = self.visualRect(idx)
+        if with_icon:
+            size = self.iconSize()
+            if not size.isValid() or size.width() <= 0:
+                extent = self.style().pixelMetric(QStyle.PixelMetric.PM_SmallIconSize, None, self)
+                size = QSize(extent, extent)
+            opt.features |= QStyleOptionViewItem.ViewItemFeature.HasDecoration
+            opt.decorationSize = size
+        return self.style().subElementRect(QStyle.SubElement.SE_ItemViewItemText, opt, self)
+
+    def _compute_text_right(self) -> int:
+        """Rechtes Ende des Favoriten, der am weitesten rechts endet (nur sichtbare Zeilen)."""
+        model = self.fav_model
+        right = -1
+        stack = [QModelIndex()]
+        while stack:
+            parent = stack.pop()
+            for r in range(model.rowCount(parent)):
+                idx = model.index(r, 0, parent)
+                node = model.node(idx)
+                if node.is_group and self.isExpanded(idx):
+                    stack.append(idx)
+                if node.is_separator:
+                    continue
+                font = idx.data(Qt.ItemDataRole.FontRole) or self.font()
+                rect = self.text_rect(idx)
+                width = QFontMetrics(font).horizontalAdvance(node.name)
+                right = max(right, rect.left() + width + 4)
+        return right
+
+    def separator_bounds(self, idx: QModelIndex) -> tuple[int, int]:
+        left = self.text_rect(idx).left()
+        right = self._text_right if self._text_right > 0 else self.viewport().width() - 8
+        right = min(right, self.viewport().width() - 4)
+        return left, max(right, left + 24)
 
     # --- Auswahl ----------------------------------------------------------------------
     def selected_node(self) -> FavNode | None:
@@ -541,6 +607,8 @@ class FavoritesView(QTreeView):
 
     def activate(self, idx: QModelIndex) -> None:
         node = self.fav_model.node(idx)
+        if node.is_separator:  # L-3601: eine Trennlinie öffnet nichts
+            return
         if node.is_group:
             self.setExpanded(idx, not self.isExpanded(idx))
         else:
@@ -616,3 +684,57 @@ class FavoritesView(QTreeView):
         # Qt darf die Quelle nach einem "Move" nicht löschen – das Modell hat bereits verschoben.
         if internal:
             event.setDropAction(Qt.DropAction.CopyAction)
+
+
+class FavoriteDelegate(QStyledItemDelegate):
+    """Zeichnet Trennlinien selbst (L-3604–L-3606); alle anderen Einträge wie gewohnt."""
+
+    GAP = 6
+
+    def paint(self, painter, option, index) -> None:
+        node = index.data(NodeRole)
+        view = self.parent()
+        if node is None or not node.is_separator or not isinstance(view, FavoritesView):
+            super().paint(painter, option, index)
+            return
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+        opt.text = ""
+        style = view.style()
+        style.drawPrimitive(QStyle.PrimitiveElement.PE_PanelItemViewItem, opt, painter, view)
+        left, right = view.separator_bounds(index)
+        color_key = node.style.get("color")
+        if color_key in COLOR_HEX:
+            color = QColor(COLOR_HEX[color_key])
+        elif option.state & QStyle.StateFlag.State_Selected:
+            color = option.palette.color(QPalette.ColorRole.HighlightedText)  # lesbar auf der Markierung
+        else:
+            color = QColor("#808080")  # L-3606: grau
+        y = option.rect.center().y()
+        painter.save()
+        painter.setPen(QPen(color, 1))
+        name = node.name
+        if not name:
+            painter.drawLine(QPoint(left, y), QPoint(right, y))
+            painter.restore()
+            return
+        font = index.data(Qt.ItemDataRole.FontRole) or view.font()
+        painter.setFont(font)
+        fm = QFontMetrics(font)
+        avail = max(right - left, 0)
+        text = fm.elidedText(name, Qt.TextElideMode.ElideRight, avail)
+        width = fm.horizontalAdvance(text)
+        align = node.style.get("align") or "center"
+        if align == "left":
+            x = left
+        elif align == "right":
+            x = right - width
+        else:
+            x = left + (avail - width) // 2
+        top = option.rect.top() + (option.rect.height() - fm.height()) // 2
+        painter.drawText(x, top + fm.ascent(), text)
+        if x - self.GAP > left:
+            painter.drawLine(QPoint(left, y), QPoint(x - self.GAP, y))
+        if x + width + self.GAP < right:
+            painter.drawLine(QPoint(x + width + self.GAP, y), QPoint(right, y))
+        painter.restore()

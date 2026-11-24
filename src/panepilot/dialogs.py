@@ -416,12 +416,26 @@ class FavoriteEditDialog(QDialog):
         current = node.style.get("color")
         idx = self.color_combo.findData(current) if current else 0
         self.color_combo.setCurrentIndex(max(idx, 0))
+        self.align_combo = None
+        separator = getattr(node, "is_separator", False)
+        if separator:  # v2.6, L-3602: Trennlinie – Name optional, Ausrichtung
+            self.setWindowTitle(t("title.fav_separator_edit"))
+            self.name_edit.setPlaceholderText(t("fav_edit.separator_no_name"))
+            self.align_combo = QComboBox(self)
+            for key in ("left", "center", "right"):
+                self.align_combo.addItem(t(f"fav_edit.align_{key}"), key)
+            self.align_combo.setCurrentIndex(max(self.align_combo.findData(node.style.get("align") or "center"), 0))
 
         form = QFormLayout()
         form.addRow(t("fav_edit.name"), self.name_edit)
-        form.addRow(t("fav_edit.link"), self.path_edit)
+        if not separator:
+            form.addRow(t("fav_edit.link"), self.path_edit)
+        else:
+            self.path_edit.hide()
         form.addRow(t("fav_edit.font"), style_row)
         form.addRow(t("fav_edit.color"), self.color_combo)
+        if self.align_combo is not None:
+            form.addRow(t("fav_edit.align"), self.align_combo)
         layout = QVBoxLayout(self)
         layout.addLayout(form)
         layout.addWidget(_buttons(self))
@@ -431,6 +445,8 @@ class FavoriteEditDialog(QDialog):
         color = self.color_combo.currentData()
         if color:
             style["color"] = color
+        if self.align_combo is not None and self.align_combo.currentData() != "center":
+            style["align"] = self.align_combo.currentData()
         return self.name_edit.text().strip(), self.path_edit.text().strip(), style
 
 

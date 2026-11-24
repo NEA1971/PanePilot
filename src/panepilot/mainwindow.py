@@ -1211,7 +1211,7 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
             m.addSeparator() if aid is None else m.addAction(a[aid])
 
         m = mb.addMenu(t("menu.favorites"))
-        for aid in ("add_favorite", "fav_new_group", None, "fav_edit", "fav_rename", "fav_delete"):
+        for aid in ("add_favorite", "fav_new_group", "fav_separator", None, "fav_edit", "fav_rename", "fav_delete"):
             m.addSeparator() if aid is None else m.addAction(a[aid])
 
         m = mb.addMenu(t("menu.help"))
@@ -2214,6 +2214,20 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         node = view.fav_model.add_group(name, parent, row)
         view.select_node(node)
 
+    def do_fav_separator(self) -> None:
+        """v2.6, L-3600: Trennlinie direkt unter dem markierten Eintrag, sonst am Ende der obersten Ebene."""
+        view = self._focused_favorites_view()
+        if view is None:
+            show_error(self, t("title.favorite"), t("favorites.no_sidebar"))
+            return
+        model = view.fav_model
+        node = view.selected_node()
+        if node is None or node.parent is None:
+            parent, row = model.root, len(model.root.children)
+        else:
+            parent, row = node.parent, node.row() + 1
+        view.select_node(model.add_separator(parent, row))
+
     def do_fav_open(self) -> None:
         view = self._focused_favorites_view()
         if view is not None:
@@ -2228,6 +2242,9 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         if dlg.exec() != dlg.DialogCode.Accepted:
             return
         name, path, style = dlg.values()
+        if node.is_separator:
+            view.fav_model.update_node(node, name, "", style)
+            return
         if not node.is_group and path:
             full = os.path.abspath(os.path.expanduser(path))
             if not os.path.exists(full) and self.mounts.needs_mount(full) is None:
@@ -2245,7 +2262,9 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         node = view.selected_node() if view else None
         if node is None:
             return
-        if node.is_group and node.children:
+        if node.is_separator:
+            text = t("dialog.fav_delete_separator")
+        elif node.is_group and node.children:
             text = t("dialog.fav_delete_group", name=node.name, n=len(node.children))
         elif node.is_group:
             text = t("dialog.fav_delete_empty_group", name=node.name)
@@ -2662,13 +2681,18 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         view.setFocus()
         menu = QMenu(self)
         a = self.qactions
-        items = (("fav_open", None, "fav_edit", "fav_rename", "fav_new_group", "fav_delete")
-                 if idx.isValid() else ("fav_new_group",))
+        node = view.fav_model.node(idx) if idx.isValid() else None
+        if node is not None and node.is_separator:
+            items = ("fav_edit", None, "fav_separator", "fav_new_group", None, "fav_delete")
+        elif node is not None:
+            items = ("fav_open", None, "fav_edit", "fav_rename", "fav_new_group", "fav_separator", "fav_delete")
+        else:
+            items = ("fav_new_group", "fav_separator")
         for aid in items:
             menu.addSeparator() if aid is None else menu.addAction(a[aid])
         if idx.isValid():
             node = view.fav_model.node(idx)
-            if not node.is_group and self.mounts.entry_for_mount_point(node.path):
+            if node.kind == "link" and self.mounts.entry_for_mount_point(node.path):
                 self._mount_actions(menu, node.path)
         self._sidebar_switch_actions(menu, side, MODE_FAVORITES)
         menu.exec(view.viewport().mapToGlobal(pos))

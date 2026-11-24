@@ -362,9 +362,10 @@ def add_problem(files: mt.FileTracks, adds: list[SubAdd]) -> str:
 
 
 def remove_tracks(files: mt.FileTracks, remove: list[mt.MkvTrack], edits, progress=None, cancel=None,
-                  replace: bool = False, add: list[SubAdd] | None = None, chapters=None) -> str:
+                  replace: bool = False, add: list[SubAdd] | None = None, chapters=None, order=None) -> str:
     """Neue Datei ohne die Spuren (und mit neuen Untertiteln, v1.14); liefert ihren Pfad.
 
+    order (v2.6, L-3630): gewünschte Reihenfolge der Spuren (Liste aus files.tracks); Video bleibt zuerst.
     Das Original bleibt (L-1300), außer bei replace."""
     add = list(add or [])
     problem = add_problem(files, add)
@@ -373,6 +374,8 @@ def remove_tracks(files: mt.FileTracks, remove: list[mt.MkvTrack], edits, progre
     if any(tr.kind == mt.VIDEO for tr in remove):
         raise OSError(t("remux.no_video_removal"))
     keep, values = plan_removal(files, remove, edits)
+    if order:
+        keep = ordered(keep, order)
     if not any(tr.kind == mt.AUDIO for tr in keep) and any(tr.kind == mt.AUDIO for tr in files.tracks):
         raise OSError(t("remux.last_audio"))  # L-1311
     final = files.path if replace else copy_name(files.path)  # v1.13.2: auf Wunsch Original ersetzen
@@ -380,7 +383,7 @@ def remove_tracks(files: mt.FileTracks, remove: list[mt.MkvTrack], edits, progre
     duration = files.duration or _duration(files.path)
     try:
         if files.fmt == "mkv":
-            _remove_mkv(files, keep, values, tmp, progress, cancel, add)
+            _remove_mkv(files, keep, values, tmp, progress, cancel, add, reorder=bool(order))
         else:
             _remove_mp4(files, keep, values, tmp, duration, progress, cancel, add, chapters)
         _check(tmp, len(keep) + len(add), _reference(files.path))
@@ -391,12 +394,23 @@ def remove_tracks(files: mt.FileTracks, remove: list[mt.MkvTrack], edits, progre
     return final
 
 
+def ordered(keep: list[mt.MkvTrack], order: list[mt.MkvTrack]) -> list[mt.MkvTrack]:
+    """Behaltene Spuren in der gewünschten Reihenfolge: Video zuerst, dann Ton, dann Untertitel (L-3630)."""
+    pos = {id(tr): i for i, tr in enumerate(order)}
+    kinds = {k: i for i, k in enumerate(mt.KINDS)}
+    first = {id(tr): i for i, tr in enumerate(keep)}
+    return sorted(keep, key=lambda tr: (kinds.get(tr.kind, 9), pos.get(id(tr), len(pos) + first[id(tr)])))
+
+
 def _ids(tracks, kind) -> str:
     return ",".join(str(tr.stream) for tr in tracks if tr.kind == kind)
 
 
-def _remove_mkv(files, keep, values, tmp, progress, cancel, add=()) -> None:
+def _remove_mkv(files, keep, values, tmp, progress, cancel, add=(), reorder: bool = False) -> None:
     args = [_tool("mkvmerge"), "--gui-mode", "-o", tmp]
+    if reorder:  # v2.6, L-3630: Quelle 0 = Video, 1 … = hinzugefügte Untertitel
+        args += ["--track-order", ",".join([f"0:{tr.stream}" for tr in keep] +
+                                           [f"{n}:0" for n in range(1, len(add) + 1)])]
     for kind, opt, none in ((mt.AUDIO, "--audio-tracks", "--no-audio"),
                             (mt.SUBS, "--subtitle-tracks", "--no-subtitles")):
         ids = _ids(keep, kind)

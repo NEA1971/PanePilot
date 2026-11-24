@@ -269,6 +269,8 @@ class MetaModel(QAbstractTableModel):
             return _natural(rec.name)
         if col == COL_PATH:
             return _natural(item.folder() + "/" + rec.name)
+        if col.startswith("i:"):  # v2.6, L-3620: Spuren, Codecs, Format nach dem angezeigten Text
+            return _natural(self.text(item, col))
         return _natural(item.value(col))
 
     def data(self, index, role=Qt.ItemDataRole.DisplayRole):
