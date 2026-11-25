@@ -127,12 +127,13 @@ def test_settings_terminal(qapp):  # noqa: F811  L-4024
         calls = []
         import panepilot.util as util
 
-        orig = util._start_detached
+        orig, orig_c = util._start_detached, util.start_console
         util._start_detached = lambda prog, args, wd: calls.append((prog, args)) or True
+        util.start_console = util._start_detached  # v3.0.1: Windows startet mit eigenem Konsolenfenster
         try:
             w.do_open_terminal(os.getcwd())
         finally:
-            util._start_detached = orig
+            util._start_detached, util.start_console = orig, orig_c
         assert calls == [("mein-terminal", [os.getcwd()])]
     finally:
         w.close()
