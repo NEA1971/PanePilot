@@ -218,7 +218,9 @@ def test_win_terminal_console(tmp_path):
     from panepilot import util
 
     marker = tmp_path / "ok.txt"
-    assert util.start_console("cmd.exe", ["/C", f"echo ok> \"{marker}\""], str(tmp_path))
+    bat = tmp_path / "w.bat"
+    bat.write_text("@echo ok> ok.txt\r\n")
+    assert util.start_console("cmd.exe", ["/C", str(bat)], str(tmp_path))  # Arbeitsordner = tmp_path
     for _ in range(50):
         if marker.exists():
             break
