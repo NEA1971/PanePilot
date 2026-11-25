@@ -34,7 +34,7 @@ from .foldertree import FolderTreeView
 from .filepanel import FilePanel, FileView, IconView, ParentBar
 from .filemodel import COLUMN_COUNT
 from .fileops import COMPRESS, COPY, DELETE, DUPLICATE, EXTRACT, MOVE, PURGE, RESTORE, TRASH
-from .trash import TRASH_URI, Trash, is_trash_uri
+from .trash import TRASH_URI, Trash, is_trash_uri, make_trash  # noqa: F401
 from .i18n import t
 from .icons import IconProvider, app_icon
 from .operations import OperationController
@@ -232,7 +232,10 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         self.setStyleSheet(STYLE)
         self.mounts = MountManager(self)
         self.icons.mounts = self.mounts
-        self.trash = Trash(self._trash_mount_points, self._trash_network_mount_points)
+        self.trash = make_trash(self._trash_mount_points, self._trash_network_mount_points)  # v3.0: Windows
+        from . import filemodel as _fm
+
+        _fm.SHOW_PROTECTED = bool(self.settings.get("show_protected_system"))  # v3.0 (L-4022)
         self._trash_full = None
         self._network_trash_full = False
         self.fav_sets = FavoriteSets(self.icons, parent=self)
@@ -1158,7 +1161,8 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         a = self.qactions
 
         m = mb.addMenu(t("menu.file"))
-        for aid in ("open", "edit_text", "open_with_other", "open_terminal", "server_manager", None, "new_folder",
+        for aid in ("open", "edit_text", "open_with_other", "open_terminal", "server_manager",
+                    *(("net_drive_connect", "net_drive_disconnect") if IS_WINDOWS else ()), None, "new_folder",
                     "new_textfile",
                     "rename", "duplicate", "multi_rename", "rename_undo", None, "search", "find_duplicates", "checksums", "dir_list",
                     "properties", "change_date", None, "compare_folders", "compare_files", "sync_folders",
@@ -1420,11 +1424,37 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
             return None
         return panel.current_path
 
+    def do_net_drive_connect(self) -> None:
+        """v3.0 (L-4013): Windows-Fenster „Netzlaufwerk verbinden“, danach die Laufwerke neu einlesen."""
+        from . import winsys
+
+        if winsys.connect_network_drive(int(self.winId())):
+            self._rebuild_drive_trees()
+
+    def do_net_drive_disconnect(self) -> None:
+        from . import winsys
+
+        if winsys.disconnect_network_drive(int(self.winId())):
+            self._rebuild_drive_trees()
+
+    def _rebuild_drive_trees(self) -> None:
+        for tree in self._trees():
+            tree.tree_model.build()
+
+    def apply_protected_setting(self) -> None:
+        """v3.0 (L-4022): geschützte Systemdateien ein-/ausblenden (nur Windows)."""
+        from . import filemodel
+
+        filemodel.SHOW_PROTECTED = bool(self.settings.get("show_protected_system"))
+        for sd in self.sides.values():
+            sd.panel.refresh()
+
     def do_open_terminal(self, folder: str | None = None) -> None:
         from . import util
 
         folder = folder or self._plain_folder() or str(Path.home())
-        if not util.open_terminal(folder):
+        if not util.open_terminal(folder, self.settings.get("terminal") or "auto",
+                                  self.settings.get("terminal_custom") or ""):  # v3.0 (L-4024)
             show_error(self, t("action.open_terminal"), t("error.no_terminal"))
 
     # --- Ordner vergleichen / synchronisieren (v1.16) --------------------------------------------------
@@ -1569,6 +1599,12 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         files = files if files is not None else self._selected_files()
         if not files:
             return
+        if IS_WINDOWS:  # v3.0 (L-4011): Windows-Fenster „Öffnen mit“
+            from . import winsys
+
+            if not winsys.open_as_dialog(files[0]):
+                show_error(self, t("title.open_with"), t("error.open_failed", path=files[0]))
+            return
         mime = desktop_apps.mime_of(files[0])
         label = os.path.basename(files[0]) if len(files) == 1 else t("dialog.n_items", n=len(files))
         dlg = OpenWithDialog(self, desktop_apps.all_apps(), label)
@@ -1591,10 +1627,17 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         if not files:
             return
         sub = menu.addMenu(t("menu.open_with"))
-        if IS_WINDOWS:
-            sub.setEnabled(False)  # Windows-Vorschau: noch nicht umgesetzt
-            return
-        for app in desktop_apps.apps_for(desktop_apps.mime_of(files[0]))[:15]:
+        if IS_WINDOWS:  # v3.0 (L-4011): registrierte Programme aus der Registry
+            from . import winsys
+
+            apps = winsys.apps_for(files[0])
+            for app in apps:
+                act = sub.addAction(app.qicon(), app.name)
+                act.triggered.connect(lambda _c=False, a=app, f=files: winsys.launch(a, f) or show_error(
+                    self, t("title.open"), t("error.launch_failed", app=a.name)))
+        else:
+            apps = desktop_apps.apps_for(desktop_apps.mime_of(files[0]))[:15]
+        for app in ([] if IS_WINDOWS else apps):
             act = sub.addAction(app.qicon(), app.name)
             act.triggered.connect(lambda _c=False, a=app, f=files: self._launch_app(a, f))
         if sub.actions():
@@ -2869,6 +2912,10 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
             self._mount_actions(menu, path if self.mounts.entry_for_mount_point(path) else None)
         elif idx.isValid() and view.disk_of(idx) is not None:
             self._disk_actions(menu, view.disk_of(idx), separator=False)
+        if IS_WINDOWS:  # v3.0 (L-4013)
+            menu.addSeparator()
+            menu.addAction(self.qactions["net_drive_connect"])
+            menu.addAction(self.qactions["net_drive_disconnect"])
         self._sidebar_switch_actions(menu, side, MODE_TREE)
         menu.exec(view.viewport().mapToGlobal(pos))
 
@@ -3258,8 +3305,60 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         if with_copy:  # Pfeil am Knopf „Kopieren“: oben das normale Kopieren (v1.23.1)
             menu.addAction(self.qactions["clip_copy"])
             menu.addSeparator()
-        for aid in self.CLIP_ACTIONS:
+        for aid in self.CLIP_ACTIONS + (self.CLIP_ACTIONS_WINDOWS if IS_WINDOWS else ()):
             menu.addSeparator() if aid is None else menu.addAction(self.qactions[aid])
+
+    CLIP_ACTIONS_WINDOWS = (None, "clip_folder_short", "clip_path_short", "clip_name_short", None, "clip_folder_web",
+                            "clip_path_web", None, "clip_folder_unc", "clip_path_unc", "clip_path_unc_web")
+
+    def _clip_folder_path(self) -> str:
+        panel = self.active
+        return "" if panel.in_trash or panel.in_remote or panel.in_archive else panel.current_path
+
+    def _clip_local(self) -> list[str]:
+        return [e.path for e in self._clip_entries() if not e.remote and "://" not in e.path]
+
+    def do_clip_folder_short(self) -> None:
+        from . import winsys
+
+        folder = self._clip_folder_path()
+        self._clip_text(winsys.short_path(folder) if folder else "")
+
+    def do_clip_path_short(self) -> None:
+        from . import winsys
+
+        self._clip_text("\n".join(winsys.short_path(p) for p in self._clip_local()))
+
+    def do_clip_name_short(self) -> None:
+        from . import winsys
+
+        self._clip_text("\n".join(os.path.basename(winsys.short_path(p)) for p in self._clip_local()))
+
+    def do_clip_folder_web(self) -> None:
+        from . import winsys
+
+        self._clip_text(winsys.web_path(self._clip_folder_path()))
+
+    def do_clip_path_web(self) -> None:
+        from . import winsys
+
+        self._clip_text("\n".join(winsys.web_path(p) for p in self._clip_local()))
+
+    def do_clip_folder_unc(self) -> None:
+        from . import winsys
+
+        folder = self._clip_folder_path()
+        self._clip_text(winsys.unc_path(folder) if folder else "")
+
+    def do_clip_path_unc(self) -> None:
+        from . import winsys
+
+        self._clip_text("\n".join(winsys.unc_path(p) for p in self._clip_local()))
+
+    def do_clip_path_unc_web(self) -> None:
+        from . import winsys
+
+        self._clip_text("\n".join(winsys.web_path(winsys.unc_path(p)) for p in self._clip_local()))
 
     def _clip_text(self, text: str) -> None:
         if text:

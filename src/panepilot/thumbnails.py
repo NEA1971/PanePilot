@@ -31,7 +31,9 @@ def bucket(size: int) -> int:
 
 
 def cache_root() -> str:
-    base = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache")
+    from .util import cache_base
+
+    base = cache_base()
     return os.path.join(base, "thumbnails")
 
 

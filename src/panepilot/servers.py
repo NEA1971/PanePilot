@@ -157,9 +157,17 @@ def _with_collection(fn):
             pass
 
 
+def _windows() -> bool:
+    import sys
+
+    return sys.platform.startswith("win")
+
+
 def keyring_available() -> bool:
     if os.environ.get("PANEPILOT_NO_KEYRING"):
         return False
+    if _windows():  # v3.0 (L-4023): Windows-Anmeldeinformationsverwaltung
+        return True
     if _Keyring.available is None:
         try:
             _with_collection(lambda col: None)
@@ -177,6 +185,10 @@ def store_secret(server_id: str, secret: str, label: str, kind: str = "password"
     """Passwort speichern; False, wenn kein Schlüsselbund verfügbar ist."""
     if not keyring_available():
         return False
+    if _windows():
+        from . import winsys
+
+        return winsys.cred_write(winsys.cred_target(SECRET_APP, server_id, kind), secret, f"PanePilot: {label}")
     try:
         _with_collection(lambda col: col.create_item(f"PanePilot: {label}", _attrs(server_id, kind),
                                                      secret.encode("utf-8"), replace=True))
@@ -188,6 +200,10 @@ def store_secret(server_id: str, secret: str, label: str, kind: str = "password"
 def load_secret(server_id: str, kind: str = "password") -> str | None:
     if not keyring_available():
         return None
+    if _windows():
+        from . import winsys
+
+        return winsys.cred_read(winsys.cred_target(SECRET_APP, server_id, kind))
 
     def find(col):
         for item in col.search_items(_attrs(server_id, kind)):
@@ -201,6 +217,12 @@ def load_secret(server_id: str, kind: str = "password") -> str | None:
 
 def delete_secret(server_id: str) -> None:
     if not keyring_available():
+        return
+    if _windows():
+        from . import winsys
+
+        for kind in ("password", "passphrase"):
+            winsys.cred_delete(winsys.cred_target(SECRET_APP, server_id, kind))
         return
 
     def remove(col):

@@ -1,4 +1,4 @@
-"""Plattform-Weichen. Linux ist die Hauptplattform; Windows ist derzeit eine Vorschau.
+"""Plattform-Weichen (Linux und – seit v3.0 – Windows).
 
 Funktionen, die (noch) nur unter Linux umgesetzt sind, werden unter Windows
 ausgegraut statt versteckt, damit sichtbar bleibt, was später kommt.
@@ -14,7 +14,7 @@ IS_LINUX = sys.platform.startswith("linux")
 IS_WINDOWS = sys.platform.startswith("win")
 
 # Aktionen, die unter Windows (Vorschau) noch nicht umgesetzt sind
-WINDOWS_DISABLED_ACTIONS = {"open_with_other", "open_trash", "trash_restore", "trash_purge", "trash_empty"}
+WINDOWS_DISABLED_ACTIONS: set[str] = set()  # v3.0: Papierkorb und „Öffnen mit“ gibt es jetzt auch unter Windows
 
 
 def windows_drives() -> list[str]:

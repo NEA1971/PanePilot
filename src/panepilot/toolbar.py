@@ -45,7 +45,9 @@ MENU_ACTIONS = HISTORY_ACTIONS + ("filter_toggle", "view_mode", "clip_copy", "ar
 # Nicht in der Symbolleiste: an eine Ansicht gebundene Aktionen; v1.23: die Ansichten stecken im Knopf „Ansicht“
 VIEW_LEGACY = ("toggle_icon_view", "icons_small", "icons_medium", "icons_large")
 # v1.23.1: die Zwischenablage-Einträge stecken nur im Pfeil-Menü des Knopfs „Kopieren“, keine eigenen Knöpfe
-CLIP_MENU_ONLY = ("clip_path", "clip_name", "clip_stem", "clip_folder", "clip_url", "clip_details")
+CLIP_MENU_ONLY = ("clip_path", "clip_name", "clip_stem", "clip_folder", "clip_url", "clip_details",
+                  "clip_folder_short", "clip_path_short", "clip_name_short", "clip_folder_web", "clip_path_web",
+                  "clip_folder_unc", "clip_path_unc", "clip_path_unc_web")
 # v2.2 (L-3202): Packen/Entpacken stecken im Knopf „Archiv“
 ARCHIVE_LEGACY = ("compress", "extract_here", "extract_subfolder", "extract_to", "archive_open")
 # v2.2: die Reiter-Funktionen stecken im Knopf „Reiter“
@@ -54,7 +56,7 @@ TABS_LEGACY = ("tab_new", "tab_close", "tab_next", "tab_prev", "tab_lock", "tab_
 FAV_MENU_ONLY = ("fav_separator",)
 # v2.7: nur Menü/Rechtsklick/Tasten – kein Knopf ohne Absprache (einziger neuer Knopf: „Schnellansicht“)
 NO_BUTTON_27 = ("select_add", "select_remove", "select_invert", "select_same_ext", "folder_size", "folder_sizes_all",
-                "compare_files", "change_date")
+                "compare_files", "change_date", "net_drive_connect", "net_drive_disconnect")
 EXCLUDED = (set(NOT_ASSIGNABLE) | set(VIEW_LEGACY) | set(CLIP_MENU_ONLY) | set(ARCHIVE_LEGACY) | set(TABS_LEGACY)
             | set(FAV_MENU_ONLY) | set(NO_BUTTON_27))
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import stat
 from pathlib import Path
 from dataclasses import dataclass
@@ -27,15 +28,36 @@ from .util import format_size
 # Die Nummern sind fest (gespeicherte Spaltenzustände bauen darauf auf);
 # Reihenfolge und Sichtbarkeit regelt der Spaltenkopf der Ansicht.
 (COL_NAME, COL_SIZE, COL_DATE, COL_TYPE, COL_EXT, COL_PERM_NUM, COL_PERM_STR, COL_OWNER, COL_GROUP, COL_NAME_STEM,
- COL_CREATED) = range(11)
+ COL_CREATED, COL_ATTRS) = range(12)
 COLUMN_KEYS = ("column.name", "column.size", "column.date", "column.type", "column.ext",
                "column.perm_num", "column.perm_str", "column.owner", "column.group", "column.name_stem",
-               "column.created")
+               "column.created", "column.attrs")
 COLUMN_COUNT = len(COLUMN_KEYS)
-DEFAULT_HIDDEN = (COL_EXT, COL_PERM_NUM, COL_PERM_STR, COL_OWNER, COL_GROUP, COL_NAME_STEM, COL_CREATED)
+DEFAULT_HIDDEN = (COL_EXT, COL_PERM_NUM, COL_PERM_STR, COL_OWNER, COL_GROUP, COL_NAME_STEM, COL_CREATED, COL_ATTRS)
+LINUX_ONLY_COLUMNS = (COL_PERM_NUM, COL_PERM_STR, COL_OWNER, COL_GROUP)
+WINDOWS_ONLY_COLUMNS = (COL_ATTRS,)  # v3.0 (L-4020): Windows-Attribute statt Rechte/Besitzer/Gruppe
 # Reihenfolge im Spaltenmenü (F-511, F-520)
 MENU_ORDER = (COL_NAME, COL_NAME_STEM, COL_EXT, COL_SIZE, COL_CREATED, COL_DATE, COL_TYPE,
-              COL_PERM_NUM, COL_PERM_STR, COL_OWNER, COL_GROUP)
+              COL_PERM_NUM, COL_PERM_STR, COL_OWNER, COL_GROUP, COL_ATTRS)
+IS_WINDOWS = sys.platform.startswith("win")
+SHOW_PROTECTED = False  # v3.0 (L-4022): geschützte Systemdateien anzeigen (Einstellung, vom Hauptfenster gesetzt)
+
+
+def hidden_state(name: str, attrs: int) -> tuple[bool, bool]:
+    """(versteckt, geschützte Systemdatei) – unter Windows auch nach Attribut (L-4021, L-4022)."""
+    hidden = name.startswith(".")
+    protected = False
+    if IS_WINDOWS and attrs:
+        hidden = hidden or bool(attrs & 0x2)
+        protected = bool(attrs & 0x2) and bool(attrs & 0x4)
+    return hidden, protected
+
+
+def visible(name: str, attrs: int, show_hidden: bool) -> bool:
+    hidden, protected = hidden_state(name, attrs)
+    if protected:
+        return show_hidden and SHOW_PROTECTED
+    return show_hidden or not hidden
 NAME_COLUMNS = (COL_NAME, COL_NAME_STEM)
 # Im Papierkorb zeigen zwei Spalten etwas anderes an
 TRASH_HEADER_KEYS = {COL_DATE: "column.deleted", COL_TYPE: "column.origin"}
@@ -112,6 +134,7 @@ class Entry:
     btime: float | None = None  # Erstellungszeit, wird erst bei Bedarf ermittelt (-1 = unbekannt)
     remote: bool = False  # Eintrag auf einem Server (v1.3); path ist dann die Adresse (sftp://…/pfad)
     dir_size: int = -1  # v2.7 (L-3720): berechnete Ordnergröße, -1 = nicht berechnet
+    attrs: int = 0  # v3.0: Windows-Dateiattribute (st_file_attributes)
 
     def birth_time(self) -> float:
         """Erstellungszeit in Sekunden oder -1, wenn das Dateisystem sie nicht liefert (F-513)."""
@@ -139,7 +162,7 @@ def scan_directory(path: str, show_hidden: bool, icons: IconProvider | None) -> 
     with os.scandir(path) as it:
         for de in it:
             hidden = de.name.startswith(".")
-            if hidden and not show_hidden:
+            if hidden and not show_hidden and not IS_WINDOWS:
                 continue
             try:
                 is_link = de.is_symlink()
@@ -152,6 +175,11 @@ def scan_directory(path: str, show_hidden: bool, icons: IconProvider | None) -> 
                     is_dir = False
             except OSError:
                 continue
+            attrs = int(getattr(st, "st_file_attributes", 0) or 0)
+            if IS_WINDOWS:
+                if not visible(de.name, attrs, show_hidden):
+                    continue
+                hidden = hidden_state(de.name, attrs)[0]
             entry = Entry(
                 name=de.name,
                 path=de.path,
@@ -163,6 +191,7 @@ def scan_directory(path: str, show_hidden: bool, icons: IconProvider | None) -> 
                 mode=st.st_mode,
                 uid=st.st_uid,
                 gid=st.st_gid,
+                attrs=attrs,
             )
             if is_dir:
                 entry.type_text = t("type.folder")
@@ -185,8 +214,10 @@ def entry_from_path(path: str, icons: IconProvider | None) -> Entry | None:
             is_dir = False
     except OSError:
         return None
+    attrs = int(getattr(st, "st_file_attributes", 0) or 0)
     entry = Entry(name=name, path=path, is_dir=is_dir, size=0 if is_dir else st.st_size, mtime=st.st_mtime,
-                  is_link=is_link, hidden=name.startswith("."), mode=st.st_mode, uid=st.st_uid, gid=st.st_gid)
+                  is_link=is_link, hidden=hidden_state(name, attrs)[0], mode=st.st_mode, uid=st.st_uid,
+                  gid=st.st_gid, attrs=attrs)
     if is_dir:
         entry.type_text = t("type.folder")
     elif icons is not None:
@@ -432,6 +463,8 @@ class FileListModel(QAbstractTableModel):
             key = lambda e: (owner_name(e.uid).casefold(), name_key(e))  # noqa: E731
         elif col == COL_GROUP:
             key = lambda e: (group_name(e.gid).casefold(), name_key(e))  # noqa: E731
+        elif col == COL_ATTRS:
+            key = lambda e: (e.attrs & 0x27, name_key(e))  # noqa: E731
         else:
             key = name_key
         if self._dirs_first:
@@ -535,6 +568,10 @@ class FileListModel(QAbstractTableModel):
                 return group_name(e.gid)
             if col == COL_NAME_STEM:
                 return stem_of(e.name, e.is_dir)
+            if col == COL_ATTRS:
+                from .winsys import attr_text
+
+                return attr_text(e.attrs)
             if col == COL_CREATED:
                 if self.trash_mode:
                     return ""
@@ -550,7 +587,7 @@ class FileListModel(QAbstractTableModel):
             if e.is_dir:
                 return self._icons.folder() if self.trash_mode or e.remote else self._icons.dir_icon(e.path)
             return self._icons.for_file(e.name if self.trash_mode or e.remote else e.path)
-        elif role == Qt.ItemDataRole.FontRole and col in (COL_PERM_NUM, COL_PERM_STR):
+        elif role == Qt.ItemDataRole.FontRole and col in (COL_PERM_NUM, COL_PERM_STR, COL_ATTRS):
             from PySide6.QtGui import QFontDatabase
 
             return QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)

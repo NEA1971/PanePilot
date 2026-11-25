@@ -51,6 +51,8 @@ ACTION_DEFS: tuple[ActionDef, ...] = (
     ActionDef("open_terminal", "action.open_terminal", (), "window"),  # v1.1
     ActionDef("dir_list", "action.dir_list", (), "window"),  # v1.1
     ActionDef("server_manager", "action.server_manager", (), "window"),  # v1.3
+    ActionDef("net_drive_connect", "action.net_drive_connect", (), "window"),  # v3.0 (L-4013), nur Windows
+    ActionDef("net_drive_disconnect", "action.net_drive_disconnect", (), "window"),
     ActionDef("edit_text", "action.edit_text", (), "window"),
     ActionDef("open_with_other", "action.open_with_other", (), "window"),
     ActionDef("rename", "action.rename", (), "window"),
@@ -99,6 +101,15 @@ ACTION_DEFS: tuple[ActionDef, ...] = (
     ActionDef("clip_folder", "action.clip_folder", (), "list"),
     ActionDef("clip_url", "action.clip_url", (), "list"),
     ActionDef("clip_details", "action.clip_details", (), "list"),
+    # v3.0 (L-4030): nur unter Windows im Menü – Kurzform (8.3), „Web“ (/), UNC
+    ActionDef("clip_folder_short", "action.clip_folder_short", (), "list"),
+    ActionDef("clip_path_short", "action.clip_path_short", (), "list"),
+    ActionDef("clip_name_short", "action.clip_name_short", (), "list"),
+    ActionDef("clip_folder_web", "action.clip_folder_web", (), "list"),
+    ActionDef("clip_path_web", "action.clip_path_web", (), "list"),
+    ActionDef("clip_folder_unc", "action.clip_folder_unc", (), "list"),
+    ActionDef("clip_path_unc", "action.clip_path_unc", (), "list"),
+    ActionDef("clip_path_unc_web", "action.clip_path_unc_web", (), "list"),
     # Navigation
     ActionDef("go_up", "action.go_up", ("Backspace",), "list"),
     ActionDef("back", "action.back", ("Alt+Left",), "window"),

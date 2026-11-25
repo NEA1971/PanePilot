@@ -1,0 +1,49 @@
+name: Windows
+
+# v3.0: Windows-Tests und Probe-Bau (Setup + ZIP) bei jeder Änderung; die fertigen Dateien
+# hängt der Release-Workflow an das Release an.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "packaging/windows/**"
+      - "packaging/launcher.py"
+      - "requirements*.txt"
+      - ".github/workflows/windows.yml"
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python-Pakete
+        run: python -m pip install -r requirements-dev.txt
+      - name: Inno Setup
+        run: choco install innosetup -y --no-progress
+      - name: Windows-Tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+          PANEPILOT_CONFIG_DIR: ${{ runner.temp }}\pp-tests
+        run: python -m pytest -q tests/test_v3000.py -p no:cacheprovider
+      - name: Bauen (Programm, ZIP, Setup)
+        shell: pwsh
+        run: pwsh packaging/windows/build.ps1
+      - name: Setup still installieren, starten, deinstallieren
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+          PANEPILOT_CONFIG_DIR: ${{ runner.temp }}\pp-smoke
+        run: pwsh packaging/windows/smoke.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: |
+            dist/*.zip
+            dist/*-setup.exe
+          retention-days: 7

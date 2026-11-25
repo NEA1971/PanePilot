@@ -434,7 +434,13 @@ class PropertiesDialog(QDialog):
         self.setWindowTitle(t("props.title", name=name) if len(paths) == 1 else t("props.title_many", n=len(paths)))
         self.tabs = QTabWidget(self)
         self.tabs.addTab(self._info_tab(), t("props.tab_info"))
-        self.tabs.addTab(self._perm_tab(), t("props.tab_perm"))
+        import sys as _sys
+
+        self.windows = _sys.platform.startswith("win")
+        if self.windows:  # v3.0 (L-4020): Windows-Attribute statt Linux-Rechte
+            self.tabs.addTab(self._attr_tab(), t("props.tab_attrs"))
+        else:
+            self.tabs.addTab(self._perm_tab(), t("props.tab_perm"))
         self.edit_in_meta = False  # „Im Meta-Wizard bearbeiten“ gewählt (F-950)
         meta, has_meta = self._meta_tab()
         self.tabs.addTab(meta, t("props.tab_meta"))
@@ -445,7 +451,7 @@ class PropertiesDialog(QDialog):
         self.apply_button = box.addButton(t("props.apply"), QDialogButtonBox.ButtonRole.ApplyRole)
         close = box.addButton(t("button.close"), QDialogButtonBox.ButtonRole.RejectRole)
         close.setDefault(True)
-        self.apply_button.clicked.connect(self.apply_permissions)
+        self.apply_button.clicked.connect(self.apply_attributes if self.windows else self.apply_permissions)
         box.rejected.connect(self.reject)
         layout = QVBoxLayout(self)
         layout.addWidget(self.tabs)
@@ -517,6 +523,61 @@ class PropertiesDialog(QDialog):
         self.count_label.setText(t("props.counts", files=files, dirs=dirs))
 
     # --- Berechtigungen ----------------------------------------------------------------
+    # --- Windows-Attribute (v3.0, L-4020) ------------------------------------------------------------------
+    def _attr_tab(self) -> QWidget:
+        from . import winsys
+
+        w = QWidget(self)
+        lay = QVBoxLayout(w)
+        self.attr_boxes: dict[int, QCheckBox] = {}
+        values = [winsys.get_attrs(p) for p in self.paths]
+        for bit, key in ((winsys.READONLY, "props.attr_readonly"), (winsys.HIDDEN, "props.attr_hidden"),
+                         (winsys.ARCHIVE, "props.attr_archive"), (winsys.SYSTEM, "props.attr_system")):
+            box = QCheckBox(t(key), w)
+            on = [bool(v & bit) for v in values]
+            if all(on):
+                box.setCheckState(Qt.CheckState.Checked)
+            elif any(on):
+                box.setTristate(True)
+                box.setCheckState(Qt.CheckState.PartiallyChecked)
+            box.setEnabled(not self.read_only)
+            box.stateChanged.connect(lambda *_a: self._attrs_changed())
+            self.attr_boxes[bit] = box
+            lay.addWidget(box)
+        self._attr_start = {bit: b.checkState() for bit, b in self.attr_boxes.items()}
+        hint = QLabel(t("props.attr_hint"), w)
+        hint.setWordWrap(True)
+        hint.setEnabled(False)
+        lay.addWidget(hint)
+        lay.addStretch(1)
+        return w
+
+    def _attrs_changed(self) -> None:
+        changed = any(b.checkState() != self._attr_start[bit] for bit, b in self.attr_boxes.items())
+        self.apply_button.setEnabled(not self.read_only and changed)
+
+    def apply_attributes(self) -> None:
+        from . import winsys
+
+        errors = []
+        for p in self.paths:
+            value = winsys.get_attrs(p)
+            for bit, box in self.attr_boxes.items():
+                state = box.checkState()
+                if state == Qt.CheckState.PartiallyChecked:
+                    continue  # gemischt: bleibt je Datei, wie es ist
+                value = value | bit if state == Qt.CheckState.Checked else value & ~bit
+            try:
+                winsys.set_attrs(p, value)
+            except OSError as exc:
+                errors.append(f"{os.path.basename(p)}: {exc.strerror or exc}")
+        self._attr_start = {bit: b.checkState() for bit, b in self.attr_boxes.items()}
+        self.apply_button.setEnabled(False)
+        if errors:
+            from .dialogs import show_error
+
+            show_error(self, t("props.tab_attrs"), "\n".join(errors[:10]))
+
     def _perm_tab(self) -> QWidget:
         w = QWidget(self)
         form = QFormLayout(w)

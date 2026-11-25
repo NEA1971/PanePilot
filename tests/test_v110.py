@@ -68,7 +68,7 @@ def test_open_terminal_action_uses_current_folder(window, tmp_path, monkeypatch)
     from panepilot import util
 
     calls = []
-    monkeypatch.setattr(util, "open_terminal", lambda f: calls.append(f) or True)
+    monkeypatch.setattr(util, "open_terminal", lambda f, *a: calls.append(f) or True)
     window.active.navigate(str(tmp_path))
     QApplication.processEvents()
     window.trigger("open_terminal")

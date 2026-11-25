@@ -6,10 +6,12 @@ import os
 import sys
 
 APPIMAGE, DEB, RPM, SOURCE, FROZEN = "appimage", "deb", "rpm", "source", "frozen"
+WINSETUP, WINZIP = "winsetup", "winzip"  # v3.0 (L-4001/L-4002): Windows-Setup bzw. portables ZIP
 
 
 def package_format() -> str | None:
-    """„deb“ bzw. „rpm“, wenn PanePilot aus einem Paket läuft (Markierung /opt/panepilot/PACKAGE)."""
+    """„deb“/„rpm“ bzw. „winsetup“/„winzip“, wenn PanePilot aus einem Paket läuft (Datei PACKAGE neben dem
+    Programm, z. B. /opt/panepilot/PACKAGE)."""
     if not getattr(sys, "frozen", False) or os.environ.get("APPIMAGE"):
         return None
     marker = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "PACKAGE")
@@ -18,7 +20,7 @@ def package_format() -> str | None:
             kind = fh.read().strip()
     except OSError:
         return None
-    return kind if kind in (DEB, RPM) else None
+    return kind if kind in (DEB, RPM, WINSETUP, WINZIP) else None
 
 
 def kind() -> str:

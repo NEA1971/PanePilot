@@ -13,6 +13,7 @@ Jeder Papierkorb hat ``files/`` (die gelöschten Dateien) und ``info/`` (je eine
 from __future__ import annotations
 
 import configparser
+import ntpath
 import os
 import stat
 from dataclasses import dataclass
@@ -161,3 +162,92 @@ class Trash:
             if item.file_path == file_path:
                 return item
         return None
+
+
+class WindowsTrash:
+    """v3.0 (L-4010): Windows-Papierkorb – liest ``X:\\$Recycle.Bin\\<SID>`` direkt.
+
+    Zu jeder gelöschten Datei gibt es ``$R…`` (Inhalt) und ``$I…`` (ursprünglicher Pfad, Größe, Zeitpunkt).
+    Wiederherstellen und endgültiges Löschen laufen wie unter Linux über ``file_path``/``info_path``.
+    """
+
+    def __init__(self, sid: str | None = None, dirs_provider=None) -> None:
+        self._sid = sid
+        self._dirs = dirs_provider
+
+    def files_dirs(self, network: bool = True, local: bool = True) -> list[str]:
+        if not local:
+            return []
+        if self._dirs is not None:
+            return list(self._dirs())
+        from . import winsys
+
+        if self._sid is None:
+            self._sid = winsys.user_sid()
+        return winsys.recycle_dirs(self._sid)
+
+    def locations(self, network: bool = True, local: bool = True) -> list[tuple[str, str]]:
+        return [(d, ntpath.splitdrive(d)[0] + "\\") for d in self.files_dirs(network, local)]
+
+    def _pairs(self):
+        for folder in self.files_dirs():
+            try:
+                names = os.listdir(folder)
+            except OSError:
+                continue
+            for name in names:
+                if not name.upper().startswith("$R"):
+                    continue
+                yield folder, name, os.path.join(folder, "$I" + name[2:])
+
+    def is_empty(self, network: bool = True, local: bool = True) -> bool:
+        if not local:
+            return True
+        return not any(True for _ in self._pairs())
+
+    def items(self) -> list[TrashItem]:
+        from . import winsys
+
+        result = []
+        for folder, name, info_path in self._pairs():
+            fpath = os.path.join(folder, name)
+            try:
+                st = os.lstat(fpath)
+            except OSError:
+                continue
+            info = None
+            try:
+                with open(info_path, "rb") as fh:
+                    info = winsys.parse_recycle_info(fh.read(4096))
+            except OSError:
+                pass
+            if info is None:
+                original, when, size = ntpath.join(ntpath.splitdrive(folder)[0] + "\\", name), st.st_mtime, st.st_size
+            else:
+                original, when, size = info.original, info.deleted, info.size
+            is_dir = stat.S_ISDIR(st.st_mode)
+            result.append(TrashItem(
+                name=ntpath.basename(original.rstrip("\\/")) or name,
+                file_path=fpath,
+                info_path=info_path,
+                original_path=original,
+                deleted=when or st.st_mtime,
+                is_dir=is_dir,
+                size=0 if is_dir else size,
+                mode=st.st_mode,
+            ))
+        return result
+
+    def item_for(self, file_path: str) -> TrashItem | None:
+        for item in self.items():
+            if item.file_path == file_path:
+                return item
+        return None
+
+
+def make_trash(mount_points_provider=None, network_mounts_provider=None):
+    import sys
+
+    if sys.platform.startswith("win"):
+        return WindowsTrash()
+    return Trash(mount_points_provider, network_mounts_provider)

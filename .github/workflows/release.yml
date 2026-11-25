@@ -18,6 +18,9 @@ permissions:
 jobs:
   appimage:
     runs-on: ubuntu-22.04
+    outputs:
+      skip: ${{ steps.ver.outputs.skip }}
+      tag: ${{ steps.ver.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -112,3 +115,34 @@ jobs:
             --title "PanePilot $TAG" \
             --notes-file "docs/releases/$TAG.md" \
             $(case "$TAG" in v0.*) echo --prerelease ;; *) echo --latest ;; esac)
+
+  # v3.0 (L-4003): Windows-Setup und portables ZIP an dasselbe Release hängen
+  windows:
+    needs: appimage
+    if: needs.appimage.outputs.skip == 'false'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python-Pakete
+        run: python -m pip install -r requirements-dev.txt
+      - name: Inno Setup
+        run: choco install innosetup -y --no-progress
+      - name: Bauen (Programm, ZIP, Setup)
+        shell: pwsh
+        run: pwsh packaging/windows/build.ps1
+      - name: Probe (installieren, starten, deinstallieren)
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+          PANEPILOT_CONFIG_DIR: ${{ runner.temp }}\pp-smoke
+        run: pwsh packaging/windows/smoke.ps1
+      - name: An das Release hängen
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ needs.appimage.outputs.tag }}"
+          gh release upload $tag (Get-ChildItem dist\*-windows-x64.zip).FullName (Get-ChildItem dist\*-windows-x64-setup.exe).FullName --clobber --repo $env:GITHUB_REPOSITORY

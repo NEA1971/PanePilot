@@ -1809,7 +1809,6 @@ class FilePanel(QWidget):
     def _header_menu(self, pos) -> None:
         from PySide6.QtWidgets import QMenu
 
-        from .filemodel import COL_GROUP, COL_OWNER, COL_PERM_NUM, COL_PERM_STR
         from .platform import IS_WINDOWS
 
         menu = QMenu(self)
@@ -1817,12 +1816,15 @@ class FilePanel(QWidget):
         # Ausnahme Windows-Vorschau: Linux-Rechte-Spalten sind dort ohne Aussage.
         from .filemodel import MENU_ORDER
 
+        from .filemodel import LINUX_ONLY_COLUMNS, WINDOWS_ONLY_COLUMNS
+
         for col in MENU_ORDER:
+            # v3.0 (L-4020): unter Windows Attribute statt Rechte/Besitzer/Gruppe – und umgekehrt
+            if col in (LINUX_ONLY_COLUMNS if IS_WINDOWS else WINDOWS_ONLY_COLUMNS):
+                continue
             act = menu.addAction(t(COLUMN_KEYS[col]))
             act.setCheckable(True)
             act.setChecked(self.column_visible(col))
-            if IS_WINDOWS and col in (COL_PERM_NUM, COL_PERM_STR, COL_OWNER, COL_GROUP):
-                act.setEnabled(False)
             act.toggled.connect(lambda on, c=col: (self.set_column_visible(c, on), self._columns_touched()))
         # Ausrichtung der Spalte unter dem Mauszeiger (F-843)
         col = self.view.header().logicalIndexAt(pos)

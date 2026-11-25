@@ -143,6 +143,11 @@ class SectionPage(QWidget):
         self.nav.blockSignals(False)
 
 
+TERMINAL_LABELS = {"auto": "settings.terminal_auto", "gnome-terminal": "settings.terminal_gnome_terminal",
+                   "konsole": "settings.terminal_konsole", "wt": "settings.terminal_wt",
+                   "powershell": "settings.terminal_powershell", "cmd": "settings.terminal_cmd",
+                   "custom": "settings.terminal_custom"}  # v3.0 (L-4024)
+
 # Schalter im Bereich „Darstellung“ – dieselben Aktionen wie im Menü „Ansicht“ (v0.9.10)
 DISPLAY_TOGGLES = ("toggle_buttonbar", "toggle_fkeybar", "toggle_toolbar", "toggle_hidden", "toggle_single")
 
@@ -164,12 +169,17 @@ class SettingsDialog(QDialog):
         page.add_section(t("settings.sec_display"), self._display_section())
         page.add_section(t("settings.sec_updates"), self._updates_section())
         page.add_section(t("settings.sec_servers"), self._servers_section())
+        page.add_section(t("settings.sec_terminal"), self._terminal_section())  # v3.0 (L-4024)
         # Reiter „Dateiansicht“: Größeneinheit, Spalten
         page = self._page("view", t("settings.tab_view"))
         page.add_section(t("settings.sec_size"), self._size_section())
         page.add_section(t("settings.sec_columns"), self._columns_tab())
         page.add_section(t("settings.sec_tabs"), self._tabs_section())  # v2.1
         page.add_section(t("settings.sec_archives"), self._archives_section())  # v2.2
+        import sys as _sys
+
+        if _sys.platform.startswith("win"):  # v3.0 (L-4022)
+            page.add_section(t("settings.sec_system_files"), self._system_files_section())
         # Reiter „Meta-Wizard“: ReplayGain
         page = self._page("meta", t("settings.tab_meta"))
         page.add_section(t("settings.sec_replaygain"), self._replaygain_section())
@@ -229,6 +239,50 @@ class SettingsDialog(QDialog):
         self.tabs_always.setChecked(bool(self.window.settings.get("tabs_always")))
         lay.addWidget(self.tabs_always)
         lay.addWidget(self._hint(t("settings.tabs_hint"), w))
+        return w
+
+    # --- Terminal (v3.0, L-4024) ----------------------------------------------------------------------
+    def _terminal_section(self) -> QWidget:
+        from PySide6.QtWidgets import QButtonGroup, QLineEdit, QRadioButton
+
+        from . import util
+
+        w = QWidget(self)
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        current = self.window.settings.get("terminal") or "auto"
+        choices = util.terminal_choices()
+        if current not in choices:
+            current = "auto"
+        group = QButtonGroup(w)
+        self.terminal_choice: dict[str, QRadioButton] = {}
+        for key in choices:
+            label = TERMINAL_LABELS.get(key, "settings.terminal_custom")
+            if key == "auto" and choices == util.TERMINAL_CHOICES_WINDOWS:
+                label = "settings.terminal_auto_win"
+            b = QRadioButton(t(label), w)
+            b.setChecked(key == current)
+            group.addButton(b)
+            lay.addWidget(b)
+            self.terminal_choice[key] = b
+        self.terminal_custom = QLineEdit(self.window.settings.get("terminal_custom") or "", w)
+        self.terminal_custom.setPlaceholderText(t("settings.terminal_custom_placeholder"))
+        self.terminal_custom.setEnabled(current == "custom")
+        self.terminal_choice["custom"].toggled.connect(self.terminal_custom.setEnabled)
+        lay.addWidget(self.terminal_custom)
+        lay.addWidget(self._hint(t("settings.terminal_hint"), w))
+        return w
+
+    def _system_files_section(self) -> QWidget:
+        from PySide6.QtWidgets import QCheckBox
+
+        w = QWidget(self)
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        self.show_protected = QCheckBox(t("settings.show_protected"), w)
+        self.show_protected.setChecked(bool(self.window.settings.get("show_protected_system")))
+        lay.addWidget(self.show_protected)
+        lay.addWidget(self._hint(t("settings.show_protected_hint"), w))
         return w
 
     # --- Archive (v2.2, L-3206) ------------------------------------------------------------------------
@@ -1159,6 +1213,13 @@ class SettingsDialog(QDialog):
         updatecheck.set_check_mode(s, next(k for k, b in self.update_mode.items() if b.isChecked()))
         s.set("update_old_policy", next(k for k, b in self.update_old.items() if b.isChecked()))
         self.window.set_tabs_always(self.tabs_always.isChecked())  # v2.2: auch der Knopf „Reiter“
+        s.set("terminal", next(k for k, b in self.terminal_choice.items() if b.isChecked()))  # v3.0
+        s.set("terminal_custom", self.terminal_custom.text().strip())
+        if hasattr(self, "show_protected"):
+            on = self.show_protected.isChecked()
+            if on != bool(s.get("show_protected_system")):
+                s.set("show_protected_system", on)
+                self.window.apply_protected_setting()
         archive_open = "app" if self.archive_app.isChecked() else "panepilot"
         s.set("archive_open", archive_open)
         for side in self.window.sides.values():

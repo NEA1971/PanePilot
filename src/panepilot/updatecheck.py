@@ -60,7 +60,8 @@ def parse_release(data: dict) -> Release:
     packages = {}
     for a in assets:
         name = str(a.get("name", ""))
-        for fmt, suffix in (("deb", "amd64.deb"), ("rpm", "x86_64.rpm")):
+        for fmt, suffix in (("deb", "amd64.deb"), ("rpm", "x86_64.rpm"),
+                            ("winsetup", "windows-x64-setup.exe"), ("winzip", "windows-x64.zip")):
             if name.endswith(suffix):
                 packages[fmt] = (name, a.get("browser_download_url"), int(a.get("size") or 0))
     return Release(version=version, notes=str(data.get("body") or ""), page=str(data.get("html_url") or RELEASES_URL),
@@ -252,6 +253,19 @@ def handle_release(window, release: Release, manual: bool) -> None:
     from . import installkind
 
     fmt = installkind.package_format()
+    if fmt in (installkind.WINSETUP, installkind.WINZIP):  # v3.0 (L-4005)
+        pkg = release.for_install()
+        if not os.path.exists(target) and not download_release(window, pkg, target):
+            return
+        if fmt == installkind.WINSETUP:
+            if confirm(window, t("update.title"), t("update.win_setup_ready", name=os.path.basename(target)),
+                       yes_key="update.win_setup_start", no_key="donate.later"):
+                run_windows_setup(window, target)
+            return
+        util.open_with_default_app(os.path.dirname(target))
+        show_info(window, t("update.title"), t("update.win_zip_ready", name=os.path.basename(target),
+                                                  folder=os.path.dirname(target)))
+        return
     if fmt:  # v2.0 (L-3004): Paket laden und mit der Software-Installation öffnen
         pkg = release.for_install()
         if not os.path.exists(target) and not download_release(window, pkg, target):
@@ -321,6 +335,20 @@ def offer_old_file_removal(window) -> None:
             move_to_trash(old)
         except OSError as exc:
             show_error(window, t("update.title"), f"{old}: {exc.strerror or exc}")
+
+
+def run_windows_setup(window, path: str) -> None:
+    """Startet das heruntergeladene Windows-Setup und beendet PanePilot, damit es ersetzt werden kann."""
+    from PySide6.QtWidgets import QApplication
+
+    from . import util
+    from .dialogs import show_error
+
+    if util._start_detached(path, ["/SP-", "/CLOSEAPPLICATIONS"], os.path.dirname(path)):
+        window.close()
+        QApplication.quit()
+    else:
+        show_error(window, t("update.title"), t("error.launch_failed", app=os.path.basename(path)))
 
 
 def restart_into(window, path: str) -> None:

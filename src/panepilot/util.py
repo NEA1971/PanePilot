@@ -182,8 +182,43 @@ def terminal_command(folder: str) -> tuple[str, list[str]] | None:
     return None
 
 
-def open_terminal(folder: str) -> bool:
-    cmd = terminal_command(folder)
+# v3.0 (L-4024): Auswahl in den Einstellungen („terminal“, „terminal_custom“)
+TERMINAL_CHOICES_LINUX = ("auto", "gnome-terminal", "konsole", "custom")
+TERMINAL_CHOICES_WINDOWS = ("auto", "wt", "powershell", "cmd", "custom")
+
+
+def terminal_choices() -> tuple[str, ...]:
+    return TERMINAL_CHOICES_WINDOWS if sys.platform.startswith("win") else TERMINAL_CHOICES_LINUX
+
+
+def chosen_terminal(folder: str, choice: str = "auto", custom: str = "") -> tuple[str, list[str]] | None:
+    """Aufruf für die gewählte Einstellung; „custom“ ersetzt {folder} durch den Ordner."""
+    import shutil
+
+    if sys.platform.startswith("win"):
+        from . import winsys
+
+        cmd = winsys.terminal_command(choice if choice in TERMINAL_CHOICES_WINDOWS else "auto", folder, custom)
+        return (cmd[0], cmd[1:]) if cmd else None
+    if choice == "custom":
+        import shlex
+
+        try:
+            parts = [p.replace("{folder}", folder) for p in shlex.split(custom or "")]
+        except ValueError:
+            return None
+        return (parts[0], parts[1:]) if parts else None
+    if choice in ("gnome-terminal", "konsole"):
+        path = shutil.which(choice)
+        if path is None:
+            return None
+        flag = dict(TERMINALS)[choice]
+        return path, [flag.format(dir=folder)]
+    return terminal_command(folder)
+
+
+def open_terminal(folder: str, choice: str = "auto", custom: str = "") -> bool:
+    cmd = chosen_terminal(folder, choice, custom)
     if cmd is None:
         return False
     program, args = cmd
@@ -247,3 +282,12 @@ def _is_executable_program(path: str) -> bool:
     except OSError:
         return False
     return head == b"\x7fELF"
+
+
+def cache_base() -> str:
+    """Grundordner für Zwischenspeicher: $XDG_CACHE_HOME bzw. ~/.cache – unter Windows %LOCALAPPDATA% (v3.0)."""
+    if os.environ.get("XDG_CACHE_HOME"):
+        return os.environ["XDG_CACHE_HOME"]
+    if sys.platform.startswith("win") and os.environ.get("LOCALAPPDATA"):
+        return os.environ["LOCALAPPDATA"]
+    return os.path.join(os.path.expanduser("~"), ".cache")

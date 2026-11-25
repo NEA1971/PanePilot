@@ -194,6 +194,9 @@ class Settings:
         "update_last_check": "",  # Tag der letzten Prüfung (JJJJ-MM-TT)
         "update_interval": "daily",  # v2.3: bei eingeschalteter Prüfung „daily“ oder „start“ (bei jedem Start)
         "update_old_policy": "ask",  # v2.3: alte AppImage-Datei nach Update – ask / trash / keep
+        "terminal": "auto",  # v3.0 (L-4024): Terminal für „Terminal hier öffnen“
+        "terminal_custom": "",  # eigener Befehl, {folder} = Ordner
+        "show_protected_system": False,  # v3.0 (L-4022): geschützte Systemdateien (Windows)
         "subs_after_embed": "keep",  # v2.6: heruntergeladene Untertitel nach dem Einbinden – keep / trash / delete
         "update_skip": "",  # diese Version nicht mehr automatisch anbieten
         "meta_disc": {},  # Disc-Assistent: letzte Einstellungen

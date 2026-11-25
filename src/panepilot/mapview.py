@@ -69,7 +69,9 @@ def fit(points: list[tuple[float, float]], width: int, height: int, margin: int 
 
 # --- Kacheln --------------------------------------------------------------------------------------------
 def cache_dir() -> str:
-    base = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache")
+    from .util import cache_base
+
+    base = cache_base()
     return os.path.join(base, "PanePilot", "tiles")
 
 

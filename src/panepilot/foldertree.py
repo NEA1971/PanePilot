@@ -79,14 +79,25 @@ class FolderTreeModel(QStandardItemModel):
         self.home_item = self._dir_item(
             t("tree.home"), home, K_HOME, QIcon.fromTheme("user-home", style.standardIcon(QStyle.StandardPixmap.SP_DirHomeIcon))
         )
-        from .platform import IS_WINDOWS, windows_drives
+        from .platform import IS_WINDOWS
 
         drive_icon = QIcon.fromTheme("drive-harddisk", style.standardIcon(QStyle.StandardPixmap.SP_DriveHDIcon))
         self.root_item = self._dir_item(t("tree.filesystem"), "/", K_ROOT, drive_icon)
         self.root_items = [self.root_item]
         if IS_WINDOWS:
-            # Windows-Vorschau: je Laufwerksbuchstabe ein Eintrag statt „Dateisystem (/)“
-            self.root_items = [self._dir_item(d.rstrip("\\"), d, K_ROOT, drive_icon) for d in windows_drives()]
+            # v3.0 (L-4012): „Dieser PC“ mit allen Laufwerken (mit Bezeichnung, auch Netzlaufwerke)
+            from . import winsys
+
+            net_icon = QIcon.fromTheme("folder-remote", style.standardIcon(QStyle.StandardPixmap.SP_DriveNetIcon))
+            cd_icon = style.standardIcon(QStyle.StandardPixmap.SP_DriveCDIcon)
+            fd_icon = style.standardIcon(QStyle.StandardPixmap.SP_DriveFDIcon)
+            icons = {winsys.DRIVE_REMOTE: net_icon, winsys.DRIVE_CDROM: cd_icon, winsys.DRIVE_REMOVABLE: fd_icon}
+            self.root_items = []
+            for d in winsys.drives():
+                item = self._dir_item(d.title, d.root, K_ROOT, icons.get(d.kind, drive_icon))
+                if d.remote:
+                    item.setToolTip(d.remote)
+                self.root_items.append(item)
         self.network_item = self._section(
             t("tree.network"), K_NETWORK, QIcon.fromTheme("network-workgroup", style.standardIcon(QStyle.StandardPixmap.SP_DriveNetIcon))
         )
@@ -101,8 +112,11 @@ class FolderTreeModel(QStandardItemModel):
         self.trash_item.setEditable(False)
         self.trash_item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsDropEnabled)
         if IS_WINDOWS:
-            # Netzwerk, Laufwerke (nach Platten) und Papierkorb gibt es in der Vorschau noch nicht
-            for item in [self.home_item] + self.root_items:
+            self.this_pc_item = self._section(t("tree.this_pc"), K_DRIVES, QIcon.fromTheme(
+                "computer", style.standardIcon(QStyle.StandardPixmap.SP_ComputerIcon)))
+            for item in self.root_items:
+                self.this_pc_item.appendRow(item)
+            for item in (self.home_item, self.this_pc_item, self.trash_item):
                 self.appendRow(item)
             return
         for item in (self.home_item, self.root_item, self.network_item, self.drives_item, self.trash_item):
@@ -161,10 +175,16 @@ class FolderTreeModel(QStandardItemModel):
         try:
             with os.scandir(path) as it:
                 names = []
+                from . import filemodel
+
                 for de in it:
                     if de.name.startswith(".") and not self.show_hidden:
                         continue
                     try:
+                        if filemodel.IS_WINDOWS:  # v3.0 (L-4021/L-4022): Attribute „Versteckt“/„System“
+                            attrs = int(getattr(de.stat(follow_symlinks=False), "st_file_attributes", 0) or 0)
+                            if not filemodel.visible(de.name, attrs, self.show_hidden):
+                                continue
                         if de.is_dir(follow_symlinks=True):
                             names.append((de.name, de.path))
                     except OSError:
