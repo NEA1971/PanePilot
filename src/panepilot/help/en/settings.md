@@ -19,11 +19,15 @@ Open the settings via **File ▸ Settings ▸ Settings …** or the gear button.
 ## File view
 - **Size unit**: how file sizes are shown.
 - **System files** (Windows only): **Show protected system files** – files with both “Hidden” and “System” attributes (e.g. `NTUSER.DAT`, `pagefile.sys`) appear only with this, and only while hidden files are shown.
+- **Network** (Windows only): **Search the network in the folder tree** – lists the computers found under “Network”; off: only the servers you added yourself.
 - **Columns**: column profiles with visible columns and alignment; the default profile for the left and the right panel.
 
 ## Meta wizard
 - **ReplayGain**: target loudness (standard −18 LUFS).
 - **Subtitles**: OpenSubtitles access and what happens to downloaded subtitles after embedding: leave them in the folder (default), move them to the trash or delete them permanently.
+
+## Additional programs
+- For ffmpeg/ffprobe, exiftool, MKVToolNix and 7-Zip: found or missing, your own path with **Browse …** and a link to the download page. Which program is needed for what: [Additional programs](tools.md).
 
 ## More customising directly in the window
 - **Toolbar**: right-click ▸ “Customise toolbar”, including gaps and “right-aligned from here”.

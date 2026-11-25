@@ -1,4 +1,4 @@
 """PanePilot – Zwei-Fenster-Dateimanager."""
 
-__version__ = "3.0.1"
+__version__ = "3.1.0"
 APP_NAME = "PanePilot"

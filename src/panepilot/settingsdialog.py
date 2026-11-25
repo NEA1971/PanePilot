@@ -186,6 +186,9 @@ class SettingsDialog(QDialog):
         page.add_section(t("settings.sec_replaygain"), self._replaygain_section())
         page.add_section(t("settings.sec_online"), self._online_section())
         page.add_section(t("settings.sec_subs"), self._subs_section())  # v1.14, L-1400
+        # Reiter „Zusatzprogramme“ (v3.1, L-4111)
+        page = self._page("tools", t("settings.tab_tools"))
+        page.add_section(t("settings.sec_tools"), self._tools_section())
         box = QDialogButtonBox(self)
         box.addButton(t("button.ok"), QDialogButtonBox.ButtonRole.AcceptRole).setDefault(True)
         box.addButton(t("button.cancel"), QDialogButtonBox.ButtonRole.RejectRole)
@@ -228,6 +231,78 @@ class SettingsDialog(QDialog):
         label.setWordWrap(True)
         label.setEnabled(False)
         return label
+
+    # --- Zusatzprogramme (v3.1, L-4111) -------------------------------------------------------------------
+    TOOL_PURPOSE = {"ffmpeg": "settings.tools_ffmpeg", "exiftool": "settings.tools_exiftool",
+                    "mkvtoolnix": "settings.tools_mkvtoolnix", "7zip": "settings.tools_7zip"}
+
+    def _tools_section(self) -> QWidget:
+        from PySide6.QtWidgets import QGridLayout, QLineEdit, QPushButton
+
+        from . import tools
+
+        w = QWidget(self)
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.addWidget(self._hint(t("settings.tools_hint"), w))
+        own = self.window.settings.get("tool_paths") or {}
+        self.tool_edits: dict[str, QLineEdit] = {}
+        self.tool_status: dict[str, QLabel] = {}
+        for group, names, url in tools.GROUPS:
+            head = QLabel(f"<b>{t('settings.tools_name_' + group)}</b> – {t(self.TOOL_PURPOSE[group])} "
+                          f"<a href=\"{url}\">{t('settings.tools_download')}</a>", w)
+            head.setWordWrap(True)
+            head.setOpenExternalLinks(True)
+            lay.addWidget(head)
+            grid = QGridLayout()
+            grid.setColumnStretch(2, 1)
+            for row, name in enumerate(names):
+                grid.addWidget(QLabel(name, w), row, 0)
+                status = QLabel(w)
+                self.tool_status[name] = status
+                grid.addWidget(status, row, 1)
+                edit = QLineEdit(own.get(name, "") if isinstance(own, dict) else "", w)
+                edit.setPlaceholderText(t("settings.tools_own_path"))
+                edit.textChanged.connect(lambda _t, n=name: self._update_tool_status(n))
+                self.tool_edits[name] = edit
+                grid.addWidget(edit, row, 2)
+                btn = QPushButton(t("settings.tools_browse"), w)
+                btn.clicked.connect(lambda _c=False, n=name: self._browse_tool(n))
+                grid.addWidget(btn, row, 3)
+            lay.addLayout(grid)
+        for name in self.tool_edits:
+            self._update_tool_status(name)
+        return w
+
+    def _update_tool_status(self, name: str) -> None:
+        from . import tools
+
+        own = self.tool_edits[name].text().strip()
+        if own:
+            found = own if os.path.isfile(own) else None
+        else:
+            saved = dict(tools._overrides)
+            tools._overrides.pop(name, None)
+            try:
+                found = tools.find(name)
+            finally:
+                tools._overrides.clear()
+                tools._overrides.update(saved)
+        label = self.tool_status[name]
+        label.setText(t("settings.tools_found") if found else t("settings.tools_missing"))
+        label.setToolTip(found or "")
+        label.setStyleSheet("" if found else "color: #D00000;")
+
+    def _browse_tool(self, name: str) -> None:
+        from PySide6.QtWidgets import QFileDialog
+
+        import sys as _sys
+
+        filt = t("settings.tools_programs") + (" (*.exe)" if _sys.platform.startswith("win") else " (*)")
+        path, _ = QFileDialog.getOpenFileName(self, t("settings.tools_browse_title", name=name),
+                                              self.tool_edits[name].text().strip() or os.path.expanduser("~"), filt)
+        if path:
+            self.tool_edits[name].setText(os.path.normpath(path))
 
     # --- Reiter (v2.1, L-3101) --------------------------------------------------------------
     def _tabs_section(self) -> QWidget:
@@ -1238,6 +1313,11 @@ class SettingsDialog(QDialog):
 
                 s.set("net_browse", self.net_browse.isChecked())
                 netbrowse.instance().refresh()
+        from . import tools  # v3.1 (L-4111)
+
+        own_tools = {n: e.text().strip() for n, e in self.tool_edits.items() if e.text().strip()}
+        s.set("tool_paths", own_tools)
+        tools.configure(own_tools)
         archive_open = "app" if self.archive_app.isChecked() else "panepilot"
         s.set("archive_open", archive_open)
         for side in self.window.sides.values():

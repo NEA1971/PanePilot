@@ -52,6 +52,9 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="3.1.0" date="2026-11-25">
+      <description><p>Windows: import favorites from FreeCommander, video functions with automatically found helper programs, When-finished actions; new settings page for additional programs.</p></description>
+    </release>
     <release version="3.0.1" date="2026-11-25">
       <description><p>Windows fixes: trash button, terminal window; network shares in the path bar and folder tree; restoring backups from the other system.</p></description>
     </release>

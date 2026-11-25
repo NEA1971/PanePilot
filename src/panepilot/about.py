@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import platform
-import shutil
 import sys
 
 from PySide6.QtCore import Qt
@@ -12,6 +11,7 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QHBoxLayout, QLabel, QPlainTextEdit, QPushButton, QTabWidget,
                                QVBoxLayout, QWidget)
 
+from . import tools as _tools
 from . import __version__, donation, installkind
 from .i18n import t
 
@@ -54,7 +54,7 @@ def system_info(config_path: str) -> str:
 
     v = _versions()
     build = build_date() or t("about.dev_build")
-    ffmpeg = shutil.which("ffmpeg")
+    ffmpeg = _tools.find("ffmpeg")
     lines = [
         f"PanePilot {__version__} ({build})",
         f"{t('about.sys_os')}: {_os_name()} ({platform.machine()})",
@@ -162,7 +162,7 @@ class AboutDialog(QDialog):
     # --- Danksagungen ----------------------------------------------------------------------------
     def _credits_tab(self) -> QWidget:
         v = _versions()
-        ffmpeg = t("about.credit_ffmpeg_found") if shutil.which("ffmpeg") else t("about.credit_ffmpeg_missing")
+        ffmpeg = t("about.credit_ffmpeg_found") if _tools.find("ffmpeg") else t("about.credit_ffmpeg_missing")
         rows = [
             ("Qt / PySide6", f"{v['pyside']} (Qt {v['qt']})", "LGPL-3.0", "https://www.qt.io/qt-for-python",
              t("about.credit_qt")),
