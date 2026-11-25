@@ -222,7 +222,24 @@ def open_terminal(folder: str, choice: str = "auto", custom: str = "") -> bool:
     if cmd is None:
         return False
     program, args = cmd
+    if sys.platform.startswith("win"):  # v3.0.1 (L-4041): Konsolenprogramme brauchen ein eigenes Fenster
+        return start_console(program, args, folder)
     return _start_detached(program, args, folder)
+
+
+def start_console(program: str, args: list[str], workdir: str) -> bool:
+    """Windows: Programm in einem neuen Konsolenfenster starten (QProcess.startDetached gibt keins)."""
+    import subprocess
+
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("PYTHONHOME", "PYTHONPATH", "_MEIPASS2", "_PYI_APPLICATION_HOME_DIR", "_PYI_ARCHIVE_FILE",
+                        "_PYI_PARENT_PROCESS_LEVEL", "QT_PLUGIN_PATH", "QT_QPA_PLATFORM_PLUGIN_PATH")}
+    try:
+        subprocess.Popen([program, *args], cwd=workdir or None, env=env,
+                         creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0x10))
+    except OSError:
+        return False
+    return True
 
 
 APPIMAGE_VARS = ("APPIMAGE", "APPDIR", "ARGV0", "OWD", "APPIMAGE_EXTRACT_AND_RUN", "APPIMAGE_UUID")

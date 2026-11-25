@@ -30,6 +30,7 @@ K_HOME, K_ROOT, K_NETWORK, K_DRIVES, K_SERVER, K_DISK, K_MOUNT, K_DIR, K_PLACEHO
     "home", "root", "network", "drives", "server", "disk", "mount", "dir", "placeholder",
 )
 K_TRASH = "trash"
+K_NETSERVER, K_SHARE = "netserver", "share"  # v3.0.1 (L-4052): Windows-Netzwerk
 SECTION_KINDS = (K_NETWORK, K_DRIVES, K_SERVER, K_DISK)
 
 
@@ -116,12 +117,24 @@ class FolderTreeModel(QStandardItemModel):
                 "computer", style.standardIcon(QStyle.StandardPixmap.SP_ComputerIcon)))
             for item in self.root_items:
                 self.this_pc_item.appendRow(item)
-            for item in (self.home_item, self.this_pc_item, self.trash_item):
+            for item in (self.home_item, self.this_pc_item, self.network_item, self.trash_item):
                 self.appendRow(item)
+            self.rebuild_network()
             return
         for item in (self.home_item, self.root_item, self.network_item, self.drives_item, self.trash_item):
             self.appendRow(item)
         self.rebuild_mounts()
+
+    def rebuild_network(self) -> None:
+        """v3.0.1 (L-4052): Windows – gefundene und selbst eingetragene Server, jeder nur einmal."""
+        from . import netbrowse, winsys
+
+        self.network_item.removeRows(0, self.network_item.rowCount())
+        icon = QIcon.fromTheme("network-server", self._icons.network_folder(True))
+        for name, manual in netbrowse.instance().servers():
+            item = self._dir_item(name, winsys.server_path(name), K_NETSERVER, icon)
+            item.setData(manual, Qt.ItemDataRole.UserRole + 14)
+            self.network_item.appendRow(item)
 
     def set_trash_full(self, full: bool) -> None:
         from .bars import trash_icons
@@ -170,6 +183,9 @@ class FolderTreeModel(QStandardItemModel):
         path = item.data(PathRole)
         if not path or is_trash_uri(path):
             return
+        if item.data(KindRole) == K_NETSERVER:
+            self._load_shares(item, path)
+            return
         item.removeRows(0, item.rowCount())
         item.setData(True, LoadedRole)
         try:
@@ -194,6 +210,27 @@ class FolderTreeModel(QStandardItemModel):
         names.sort(key=lambda n: (n[0].casefold(), n[0]))
         for name, child_path in names:
             item.appendRow(self._dir_item(name, child_path))
+
+    def _load_shares(self, item: QStandardItem, path: str) -> None:
+        from . import winsys
+
+        server = winsys.server_of(path) or ""
+        try:
+            shares = winsys.list_shares(server)
+        except OSError as exc:
+            if not (winsys.needs_login(exc) and winsys.login(server)):
+                item.removeRows(0, item.rowCount())
+                item.setData(True, LoadedRole)
+                return
+            try:
+                shares = winsys.list_shares(server)
+            except OSError:
+                shares = []
+        item.removeRows(0, item.rowCount())
+        item.setData(True, LoadedRole)
+        icon = self._icons.network_folder(True)
+        for share in shares:
+            item.appendRow(self._dir_item(share, f"{path}\\{share}", K_SHARE, icon))
 
     @staticmethod
     def find_child(item: QStandardItem, name: str) -> QStandardItem | None:
@@ -244,6 +281,26 @@ class FolderTreeView(QTreeView):
         self._expand_sections()
         if mounts is not None:
             mounts.changed.connect(self._on_mounts_changed)
+        from .platform import IS_WINDOWS
+
+        if IS_WINDOWS:
+            from . import netbrowse
+
+            netbrowse.instance().changed.connect(self._on_network_changed)
+
+    def _on_network_changed(self) -> None:
+        expanded = self._expanded_paths()
+        self.tree_model.rebuild_network()
+        self.expand(self.tree_model.network_item.index())
+        self._restore_expanded(expanded)
+
+    def item_kind(self, index: QModelIndex) -> str | None:
+        item = self.item_at(index)
+        return item.data(KindRole) if item is not None else None
+
+    def is_manual_server(self, index: QModelIndex) -> bool:
+        item = self.item_at(index)
+        return bool(item is not None and item.data(Qt.ItemDataRole.UserRole + 14))
 
     def _expand_sections(self) -> None:
         model = self.tree_model

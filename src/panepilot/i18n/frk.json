@@ -1859,5 +1859,18 @@
   "action.net_drive_disconnect": "Netzlaufwerk trenna …",
   "update.win_setup_ready": "„{name}“ is runterglodn. Etz installiern? PanePilot wärd dafür zugmacht.",
   "update.win_setup_start": "Etz installiern",
-  "update.win_zip_ready": "„{name}“ liegt in „{folder}“. Zum Aktualisiern auspackn und die altn Dadein ersetzn."
+  "update.win_zip_ready": "„{name}“ liegt in „{folder}“. Zum Aktualisiern auspackn und die altn Dadein ersetzn.",
+  "button.no": "Na",
+  "type.share": "Freigab",
+  "error.no_terminal_win": "Des gwählte Terminal is net gfunna worn. Nimm unner Einstellunga → Allgemein → Terminal a anders (z. B. „Eingabeaufforderung“).",
+  "backup.foreign_question": "Die Sicherung kummt vo am annern Betriebssystem.\n\nNur die Einstellunga übernehma (ohne Favoritn, Ordner, Abgleiche und Server)?\n\nJa = nur Einstellunga · Na = alles übernehma",
+  "net.add_server": "Server dazutu …",
+  "net.add_server_title": "Server dazutu",
+  "net.add_server_label": "Nam oder Adress vom Server (z. B. nas oder 192.168.1.10):",
+  "net.remove_server": "Server wegtu",
+  "net.connect_share": "Als Netzlaufwerk verbinna …",
+  "net.refresh": "Netzwerk nochamol durchsucha",
+  "settings.sec_network": "Netzwerk",
+  "settings.net_browse": "Netzwerk im Ordnerbaum durchsucha",
+  "settings.net_browse_hint": "Zeigt unner „Netzwerk“ die Rechner, die Windows im Netz findt. Aus: nur die selber eingtragna Server (Rechtsklick auf „Netzwerk“ → „Server dazutu …“)."
 }

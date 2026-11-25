@@ -65,6 +65,20 @@ def confirm(parent, title: str, text: str, yes_key: str = "button.yes", default_
     return clicked == yes_key
 
 
+def ask_yes_no_cancel(parent, title: str, text: str) -> bool | None:
+    """Ja → True, Nein → False, Abbrechen → None (v3.0.1)."""
+    clicked = _msgbox(parent, QMessageBox.Icon.Question, title, text, [
+        ("button.yes", QMessageBox.ButtonRole.YesRole, True),
+        ("button.no", QMessageBox.ButtonRole.NoRole, False),
+        ("button.cancel", QMessageBox.ButtonRole.RejectRole, False),
+    ])
+    if clicked == "button.yes":
+        return True
+    if clicked == "button.no":
+        return False
+    return None
+
+
 def show_error(parent, title: str, text: str) -> None:
     _msgbox(parent, QMessageBox.Icon.Warning, title, text, [("button.ok", QMessageBox.ButtonRole.AcceptRole, True)])
 

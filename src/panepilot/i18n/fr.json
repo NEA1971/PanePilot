@@ -1859,5 +1859,18 @@
   "action.net_drive_disconnect": "Déconnecter un lecteur réseau …",
   "update.win_setup_ready": "« {name} » a été téléchargé. Installer maintenant ? PanePilot va se fermer pour cela.",
   "update.win_setup_start": "Installer maintenant",
-  "update.win_zip_ready": "« {name} » se trouve dans « {folder} ». Pour mettre à jour, décompressez-le et remplacez les anciens fichiers."
+  "update.win_zip_ready": "« {name} » se trouve dans « {folder} ». Pour mettre à jour, décompressez-le et remplacez les anciens fichiers.",
+  "button.no": "Non",
+  "type.share": "Partage réseau",
+  "error.no_terminal_win": "Le terminal choisi est introuvable. Choisis-en un autre sous Paramètres → Général → Terminal (p. ex. « Invite de commandes »).",
+  "backup.foreign_question": "Cette sauvegarde provient d’un autre système d’exploitation.\n\nAppliquer uniquement les paramètres (sans favoris, dossiers, synchronisations ni serveurs) ?\n\nOui = paramètres seulement · Non = tout restaurer",
+  "net.add_server": "Ajouter un serveur …",
+  "net.add_server_title": "Ajouter un serveur",
+  "net.add_server_label": "Nom ou adresse du serveur (p. ex. nas ou 192.168.1.10) :",
+  "net.remove_server": "Retirer le serveur",
+  "net.connect_share": "Connecter comme lecteur réseau …",
+  "net.refresh": "Rechercher à nouveau sur le réseau",
+  "settings.sec_network": "Réseau",
+  "settings.net_browse": "Rechercher le réseau dans l’arborescence",
+  "settings.net_browse_hint": "Affiche sous « Réseau » les ordinateurs que Windows trouve sur le réseau. Désactivé : seulement les serveurs ajoutés par toi (clic droit sur « Réseau » → « Ajouter un serveur … »)."
 }

@@ -1859,5 +1859,18 @@
   "action.net_drive_disconnect": "Disconnect network drive …",
   "update.win_setup_ready": "“{name}” has been downloaded. Install now? PanePilot will close for this.",
   "update.win_setup_start": "Install now",
-  "update.win_zip_ready": "“{name}” is in “{folder}”. To update, extract it and replace the old files."
+  "update.win_zip_ready": "“{name}” is in “{folder}”. To update, extract it and replace the old files.",
+  "button.no": "No",
+  "type.share": "Network share",
+  "error.no_terminal_win": "The selected terminal was not found. Choose another one under Settings → General → Terminal (e.g. “Command Prompt”).",
+  "backup.foreign_question": "This backup comes from another operating system.\n\nApply the settings only (without favorites, folders, sync profiles and servers)?\n\nYes = settings only · No = restore everything",
+  "net.add_server": "Add server …",
+  "net.add_server_title": "Add server",
+  "net.add_server_label": "Name or address of the server (e.g. nas or 192.168.1.10):",
+  "net.remove_server": "Remove server",
+  "net.connect_share": "Map as network drive …",
+  "net.refresh": "Search network again",
+  "settings.sec_network": "Network",
+  "settings.net_browse": "Search the network in the folder tree",
+  "settings.net_browse_hint": "Shows the computers Windows finds on the network under “Network”. Off: only the servers you added yourself (right-click “Network” → “Add server …”)."
 }

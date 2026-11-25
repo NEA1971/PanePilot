@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ctypes
 import os
+import re
 import struct
 import sys
 from dataclasses import dataclass, field
@@ -552,7 +553,7 @@ def terminal_command(choice: str, folder: str, custom: str = "") -> list[str] | 
         if not custom.strip():
             return None
         return [p.replace("{folder}", folder) for p in split_command(custom)]
-    wt = shutil.which("wt") or shutil.which("wt.exe")
+    wt = shutil.which("wt") or shutil.which("wt.exe") or _app_alias("wt.exe")
     pwsh = shutil.which("pwsh") or shutil.which("powershell") or "powershell.exe"
     if choice in ("auto", "wt") and wt:
         return [wt, "-d", folder]
@@ -563,5 +564,138 @@ def terminal_command(choice: str, folder: str, custom: str = "") -> list[str] | 
     return [pwsh, "-NoExit", "-Command", f"Set-Location -LiteralPath '{folder.replace(chr(39), chr(39) * 2)}'"]
 
 
+def _app_alias(name: str) -> str | None:
+    """Programme aus dem Store liegen als App-Alias unter %LOCALAPPDATA%\\Microsoft\\WindowsApps (v3.0.1)."""
+    base = os.environ.get("LOCALAPPDATA")
+    if not base:
+        return None
+    path = os.path.join(base, "Microsoft", "WindowsApps", name)
+    return path if os.path.lexists(path) else None  # App-Aliase sind Verweise: lexists statt exists
+
+
 def now_utc() -> datetime:
     return datetime.now(timezone.utc)
+
+
+# --- Netzwerk (v3.0.1, L-4050 ff.) --------------------------------------------------------------------------------
+LOGIN_ERRORS = {5, 86, 1244, 1326, 1327, 1330, 1331, 1907, 1909}  # Zugriff verweigert / Anmeldung nötig
+_SERVER_RE = re.compile(r"^[\\/]{2}([^\\/]+)[\\/]?$")
+_SHARE_RE = re.compile(r"^([\\/]{2}[^\\/]+[\\/][^\\/]+)")
+
+
+def server_of(path: str) -> str | None:
+    """'\\\\server' (ohne Freigabe) → 'server', sonst None."""
+    m = _SERVER_RE.match(path or "")
+    return m.group(1) if m else None
+
+
+def server_path(server: str) -> str:
+    return "\\\\" + server.strip("\\/ ")
+
+
+def share_root(path: str) -> str | None:
+    """'\\\\server\\share\\a\\b' → '\\\\server\\share' (mit Backslashes)."""
+    m = _SHARE_RE.match(path or "")
+    return m.group(1).replace("/", "\\") if m else None
+
+
+def is_share_root(path: str) -> bool:
+    root = share_root(path)
+    return root is not None and root.casefold() == path.rstrip("\\/").replace("/", "\\").casefold()
+
+
+def needs_login(exc: OSError) -> bool:
+    return getattr(exc, "winerror", None) in LOGIN_ERRORS or isinstance(exc, PermissionError)
+
+
+class _SHARE_INFO_1(ctypes.Structure):
+    _fields_ = [("netname", ctypes.c_wchar_p), ("type", ctypes.c_uint32), ("remark", ctypes.c_wchar_p)]
+
+
+def filter_shares(raw: list[tuple[str, int]]) -> list[str]:
+    """Nur Datei-Freigaben, keine versteckten/administrativen (…$)."""
+    out = []
+    for name, kind in raw:
+        if (kind & 0xFF) != 0 or kind & 0x80000000 or not name or name.endswith("$"):
+            continue
+        out.append(name)
+    return sorted(set(out), key=str.casefold)
+
+
+def list_shares(server: str) -> list[str]:
+    """Freigaben eines Servers (NetShareEnum). Wirft OSError (winerror gesetzt) bei Fehlern."""
+    if not IS_WINDOWS:
+        raise OSError(f"no shares on {server}")
+    netapi = ctypes.WinDLL("netapi32")
+    buf = ctypes.c_void_p()
+    read, total, resume = ctypes.c_uint32(), ctypes.c_uint32(), ctypes.c_uint32()
+    rc = netapi.NetShareEnum(ctypes.c_wchar_p(server_path(server)), 1, ctypes.byref(buf), 0xFFFFFFFF,
+                             ctypes.byref(read), ctypes.byref(total), ctypes.byref(resume))
+    try:
+        if rc not in (0, 234):  # 234 = ERROR_MORE_DATA
+            raise OSError(None, ctypes.FormatError(rc).strip(), server_path(server), rc)
+        items = ctypes.cast(buf, ctypes.POINTER(_SHARE_INFO_1))
+        raw = [(items[i].netname or "", int(items[i].type)) for i in range(read.value)]
+    finally:
+        if buf:
+            netapi.NetApiBufferFree(buf)
+    return filter_shares(raw)
+
+
+class _NETRESOURCE(ctypes.Structure):
+    _fields_ = [("dwScope", ctypes.c_uint32), ("dwType", ctypes.c_uint32), ("dwDisplayType", ctypes.c_uint32),
+                ("dwUsage", ctypes.c_uint32), ("lpLocalName", ctypes.c_wchar_p), ("lpRemoteName", ctypes.c_wchar_p),
+                ("lpComment", ctypes.c_wchar_p), ("lpProvider", ctypes.c_wchar_p)]
+
+
+class _CONNECTDLGSTRUCT(ctypes.Structure):
+    _fields_ = [("cbStructure", ctypes.c_uint32), ("hwndOwner", ctypes.c_void_p),
+                ("lpConnRes", ctypes.POINTER(_NETRESOURCE)), ("dwFlags", ctypes.c_uint32), ("dwDevNum", ctypes.c_uint32)]
+
+
+def login(remote: str, hwnd: int = 0) -> bool:
+    """L-4051: Windows-Anmeldefenster für eine Freigabe/einen Server (mit „Anmeldedaten speichern“)."""
+    if not IS_WINDOWS:
+        return False
+    res = _NETRESOURCE(dwType=0, lpRemoteName=remote if share_root(remote) else server_path(remote) + "\\IPC$")
+    flags = 0x08 | 0x10 | 0x1000  # CONNECT_INTERACTIVE | CONNECT_PROMPT | CONNECT_CMD_SAVECRED
+    rc = _wapi().mpr.WNetAddConnection3W(ctypes.c_void_p(hwnd), ctypes.byref(res), None, None, flags)
+    return rc in (0, 1219)  # 1219: es besteht schon eine Verbindung
+
+
+def connect_share_as_drive(remote: str, hwnd: int = 0) -> bool:
+    """L-4054: „Netzlaufwerk verbinden“ mit vorgegebener Freigabe."""
+    if not IS_WINDOWS:
+        return False
+    res = _NETRESOURCE(dwType=1, lpRemoteName=remote)
+    dlg = _CONNECTDLGSTRUCT(cbStructure=ctypes.sizeof(_CONNECTDLGSTRUCT), hwndOwner=hwnd or None,
+                            lpConnRes=ctypes.pointer(res), dwFlags=0x01 | 0x10)  # CONNDLG_RO_PATH | CONNDLG_PERSIST
+    return _wapi().mpr.WNetConnectionDialog1W(ctypes.byref(dlg)) == 0
+
+
+DISCOVER_SCRIPT = ("[Console]::OutputEncoding=[Text.Encoding]::UTF8;"
+                   "(New-Object -ComObject Shell.Application).NameSpace(18).Items() | ForEach-Object { $_.Name }")
+
+
+def discover_servers(timeout: float = 45) -> list[str]:
+    """Rechner im Netzwerk wie im Explorer (Shell-Namensraum „Netzwerk“). Dauert ggf. etwas – im Hintergrund aufrufen."""
+    if not IS_WINDOWS:
+        return []
+    import subprocess
+
+    try:
+        out = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", DISCOVER_SCRIPT],
+                             capture_output=True, timeout=timeout,
+                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000))
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return parse_discovered(out.stdout.decode("utf-8", "replace"))
+
+
+def parse_discovered(text: str) -> list[str]:
+    names = []
+    for line in text.splitlines():
+        name = line.strip().lstrip("\\")
+        if name and " " not in name and "\\" not in name:
+            names.append(name)
+    return names

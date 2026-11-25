@@ -180,6 +180,7 @@ class SettingsDialog(QDialog):
 
         if _sys.platform.startswith("win"):  # v3.0 (L-4022)
             page.add_section(t("settings.sec_system_files"), self._system_files_section())
+            page.add_section(t("settings.sec_network"), self._network_section())
         # Reiter „Meta-Wizard“: ReplayGain
         page = self._page("meta", t("settings.tab_meta"))
         page.add_section(t("settings.sec_replaygain"), self._replaygain_section())
@@ -283,6 +284,18 @@ class SettingsDialog(QDialog):
         self.show_protected.setChecked(bool(self.window.settings.get("show_protected_system")))
         lay.addWidget(self.show_protected)
         lay.addWidget(self._hint(t("settings.show_protected_hint"), w))
+        return w
+
+    def _network_section(self) -> QWidget:
+        from PySide6.QtWidgets import QCheckBox
+
+        w = QWidget(self)
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        self.net_browse = QCheckBox(t("settings.net_browse"), w)  # v3.0.1 (L-4053)
+        self.net_browse.setChecked(bool(self.window.settings.get("net_browse")))
+        lay.addWidget(self.net_browse)
+        lay.addWidget(self._hint(t("settings.net_browse_hint"), w))
         return w
 
     # --- Archive (v2.2, L-3206) ------------------------------------------------------------------------
@@ -1220,6 +1233,11 @@ class SettingsDialog(QDialog):
             if on != bool(s.get("show_protected_system")):
                 s.set("show_protected_system", on)
                 self.window.apply_protected_setting()
+            if self.net_browse.isChecked() != bool(s.get("net_browse")):
+                from . import netbrowse
+
+                s.set("net_browse", self.net_browse.isChecked())
+                netbrowse.instance().refresh()
         archive_open = "app" if self.archive_app.isChecked() else "panepilot"
         s.set("archive_open", archive_open)
         for side in self.window.sides.values():

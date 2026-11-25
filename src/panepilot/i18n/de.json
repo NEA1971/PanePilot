@@ -1860,5 +1860,18 @@
   "action.net_drive_disconnect": "Netzlaufwerk trennen …",
   "update.win_setup_ready": "„{name}“ ist heruntergeladen. Jetzt installieren? PanePilot wird dafür beendet.",
   "update.win_setup_start": "Jetzt installieren",
-  "update.win_zip_ready": "„{name}“ liegt in „{folder}“. Zum Aktualisieren entpacken und die alten Dateien ersetzen."
+  "update.win_zip_ready": "„{name}“ liegt in „{folder}“. Zum Aktualisieren entpacken und die alten Dateien ersetzen.",
+  "button.no": "Nein",
+  "type.share": "Freigabe",
+  "error.no_terminal_win": "Das gewählte Terminal wurde nicht gefunden. Wähle unter Einstellungen → Allgemein → Terminal ein anderes (z. B. „Eingabeaufforderung“).",
+  "backup.foreign_question": "Diese Sicherung stammt von einem anderen Betriebssystem.\n\nNur die Einstellungen übernehmen (ohne Favoriten, Ordner, Abgleiche und Server)?\n\nJa = nur Einstellungen · Nein = alles übernehmen",
+  "net.add_server": "Server hinzufügen …",
+  "net.add_server_title": "Server hinzufügen",
+  "net.add_server_label": "Name oder Adresse des Servers (z. B. nas oder 192.168.1.10):",
+  "net.remove_server": "Server entfernen",
+  "net.connect_share": "Als Netzlaufwerk verbinden …",
+  "net.refresh": "Netzwerk neu durchsuchen",
+  "settings.sec_network": "Netzwerk",
+  "settings.net_browse": "Netzwerk im Ordnerbaum durchsuchen",
+  "settings.net_browse_hint": "Zeigt unter „Netzwerk“ die Rechner, die Windows im Netz findet. Aus: nur die selbst eingetragenen Server (Rechtsklick auf „Netzwerk“ → „Server hinzufügen …“)."
 }

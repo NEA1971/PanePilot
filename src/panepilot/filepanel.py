@@ -1254,11 +1254,21 @@ class FilePanel(QWidget):
             self.close_remote(navigate_away=False)  # Verbindung endet beim Wechsel ins Lokale (L-346)
         if is_trash_uri(path):
             return self._show_trash(add_history)
-        path = os.path.abspath(os.path.expanduser(path))
+        from .platform import IS_WINDOWS
+
+        unc = False
+        if IS_WINDOWS:
+            from . import winsys
+
+            unc = winsys.share_root(path) is not None or winsys.server_of(path) is not None
+            if winsys.server_of(path) is not None:
+                path = winsys.server_path(winsys.server_of(path))  # v3.0.1 (L-4050): Server → Freigaben
+        if not unc:
+            path = os.path.abspath(os.path.expanduser(path))
         if self.mounts is not None and self.mounts.needs_mount(path) is not None:
             self.with_mount(path, lambda: self.navigate(path, select_name, add_history))
             return True
-        if not os.path.isdir(path):
+        if not unc and not os.path.isdir(path):
             from . import archivefs
 
             inside = archivefs.split_path(path)
@@ -1266,8 +1276,17 @@ class FilePanel(QWidget):
                 return self._navigate_archive(inside[0], inside[1], select_name, add_history)
         self.archive = None
         try:
-            self.model.load(path)
+            try:
+                self.model.load(path)
+            except OSError as exc:
+                if not (unc and self._net_login(path, exc)):
+                    raise
+                self.model.load(path)  # v3.0.1 (L-4051): nach der Anmeldung noch einmal
         except OSError as exc:
+            if unc:
+                reason = exc.strerror or str(exc)
+                self.message.emit(t("title.folder_error"), t("error.cannot_open_folder", path=path, reason=reason))
+                return False
             reason = exc.strerror or str(exc)
             fallback = nearest_existing_dir(os.path.dirname(path))
             self.message.emit(t("title.folder_error"), t("error.cannot_open_folder", path=path, reason=reason))
@@ -1289,6 +1308,15 @@ class FilePanel(QWidget):
         self._update_status()
         self.path_changed.emit(path)
         return True
+
+    def _net_login(self, path: str, exc: OSError) -> bool:
+        """Windows-Anmeldefenster, wenn der Server eine Anmeldung verlangt (L-4051)."""
+        from . import winsys
+
+        if not winsys.needs_login(exc):
+            return False
+        target = winsys.share_root(path) or winsys.server_of(path) or path
+        return winsys.login(target, int(self.window().winId()))
 
     def _select_after_load(self, select_name: str | None) -> None:
         row = self.model.row_of(select_name) if select_name else -1
@@ -1534,6 +1562,18 @@ class FilePanel(QWidget):
                 return
             self.focus_view()
             return
+        from .platform import IS_WINDOWS
+
+        if IS_WINDOWS:
+            from . import winsys
+
+            if winsys.server_of(text) is not None or winsys.share_root(text) is not None:
+                # v3.0.1 (L-4050): \\server bzw. \\server\freigabe – auch wenn Windows noch nicht angemeldet ist
+                if not self.navigate(text.rstrip("\\/") or text):
+                    self.path_edit.setText(self.current_path)
+                    return
+                self.focus_view()
+                return
         target = os.path.abspath(os.path.expanduser(text))
         from . import archivefs
 

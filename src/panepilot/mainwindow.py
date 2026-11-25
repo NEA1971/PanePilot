@@ -236,6 +236,11 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         from . import filemodel as _fm
 
         _fm.SHOW_PROTECTED = bool(self.settings.get("show_protected_system"))  # v3.0 (L-4022)
+        if IS_WINDOWS:  # v3.0.1 (L-4052): Netzwerk im Ordnerbaum
+            from . import netbrowse
+
+            netbrowse.instance().configure(self.settings)
+            QTimer.singleShot(1500, netbrowse.instance().refresh)
         self._trash_full = None
         self._network_trash_full = False
         self.fav_sets = FavoriteSets(self.icons, parent=self)
@@ -750,13 +755,27 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
                        yes_key="button.restore_now"):
             return
         folder = self._backup_folder()
+        only_settings = False
+        try:
+            if backup.is_foreign(Path(path)):  # v3.0.1 (L-4060): Sicherung vom anderen System
+                from .dialogs import ask_yes_no_cancel
+
+                answer = ask_yes_no_cancel(parent, t("title.settings_restore"), t("backup.foreign_question"))
+                if answer is None:
+                    return
+                only_settings = answer
+        except (OSError, zipfile.BadZipFile):
+            pass
         try:
             backup.check_zip(Path(path))
             if backup.folder_reachable(folder, self.mounts):
                 backup.create_backup(folder, auto=False)
             self._skip_save_state = True
             self.settings.frozen = True
-            backup.restore_backup(Path(path))
+            if only_settings:
+                backup.restore_settings_only(Path(path))
+            else:
+                backup.restore_backup(Path(path))
         except (OSError, ValueError, zipfile.BadZipFile) as exc:
             self._skip_save_state = False
             self.settings.frozen = False
@@ -1151,10 +1170,9 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         self.fkey_bar.setVisible(bool(self.settings.get("show_fkeybar")))
         self._refresh_fkey_display()
         if IS_WINDOWS:
-            # Windows-Vorschau: noch nicht umgesetzte Funktionen ausgrauen
+            # noch nicht umgesetzte Funktionen ausgrauen (seit v3.0.1 ist der Papierkorb-Knopf an, L-4040)
             for aid in WINDOWS_DISABLED_ACTIONS:
                 self.qactions[aid].setEnabled(False)
-            self.button_bar.trash_button.setEnabled(False)
 
     def _create_menus(self) -> None:
         mb = self.menuBar()
@@ -1455,7 +1473,7 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         folder = folder or self._plain_folder() or str(Path.home())
         if not util.open_terminal(folder, self.settings.get("terminal") or "auto",
                                   self.settings.get("terminal_custom") or ""):  # v3.0 (L-4024)
-            show_error(self, t("action.open_terminal"), t("error.no_terminal"))
+            show_error(self, t("action.open_terminal"), t("error.no_terminal_win" if IS_WINDOWS else "error.no_terminal"))
 
     # --- Ordner vergleichen / synchronisieren (v1.16) --------------------------------------------------
     def do_compare_folders(self) -> None:
@@ -2913,11 +2931,41 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         elif idx.isValid() and view.disk_of(idx) is not None:
             self._disk_actions(menu, view.disk_of(idx), separator=False)
         if IS_WINDOWS:  # v3.0 (L-4013)
+            self._tree_network_actions(menu, view, idx)
             menu.addSeparator()
             menu.addAction(self.qactions["net_drive_connect"])
             menu.addAction(self.qactions["net_drive_disconnect"])
         self._sidebar_switch_actions(menu, side, MODE_TREE)
         menu.exec(view.viewport().mapToGlobal(pos))
+
+    def _tree_network_actions(self, menu: QMenu, view: FolderTreeView, idx) -> None:
+        """v3.0.1 (L-4052/L-4054): Server hinzufügen/entfernen, Freigabe als Netzlaufwerk verbinden."""
+        from . import foldertree as ft
+        from . import netbrowse, winsys
+
+        kind = view.item_kind(idx) if idx.isValid() else None
+        path = view.path_of(idx) if idx.isValid() else None
+        if kind not in (ft.K_NETWORK, ft.K_NETSERVER, ft.K_SHARE):
+            return
+        menu.addSeparator()
+        menu.addAction(t("net.add_server")).triggered.connect(lambda _c=False: self.do_net_add_server())
+        if kind == ft.K_NETSERVER and view.is_manual_server(idx):
+            name = winsys.server_of(path) or ""
+            menu.addAction(t("net.remove_server")).triggered.connect(
+                lambda _c=False, n=name: netbrowse.instance().remove(n))
+        if kind == ft.K_SHARE and path:
+            menu.addAction(t("net.connect_share")).triggered.connect(
+                lambda _c=False, p=path: winsys.connect_share_as_drive(p, int(self.winId())) and self._rebuild_drive_trees())
+        if kind == ft.K_NETWORK and netbrowse.instance().browse:
+            menu.addAction(t("net.refresh")).triggered.connect(lambda _c=False: netbrowse.instance().refresh())
+
+    def do_net_add_server(self) -> None:
+        from . import netbrowse
+        from .dialogs import ask_text
+
+        name = ask_text(self, t("net.add_server_title"), t("net.add_server_label"))
+        if name and netbrowse.clean(name):
+            netbrowse.instance().add(name)
 
     def _favorites_context_menu(self, side: str, view: FavoritesView, pos: QPoint) -> None:
         self.set_active_side(side)

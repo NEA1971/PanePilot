@@ -1859,5 +1859,18 @@
   "action.net_drive_disconnect": "Netzlaufwerk trenn …",
   "update.win_setup_ready": "„{name}“ is runnorgeladn. Jetze installiern? PanePilot werd dafür beendet.",
   "update.win_setup_start": "Jetze installiern",
-  "update.win_zip_ready": "„{name}“ liegt in „{folder}“. Zum Agdualisiern auspaggn und de aldn Dadein ersetzn."
+  "update.win_zip_ready": "„{name}“ liegt in „{folder}“. Zum Agdualisiern auspaggn und de aldn Dadein ersetzn.",
+  "button.no": "Nee",
+  "type.share": "Freigabe",
+  "error.no_terminal_win": "Das gewählte Dorminal wurde nich gefundn. Nimm unter Einstellungen → Allgemein → Terminal ä anderes (z. B. „Eingabeaufforderung“).",
+  "backup.foreign_question": "Die Sicherung stammt von ä anderen Betriebssystem.\n\nNur de Einstellungen übernehm (ohne Favoritn, Ordner, Abgleiche und Server)?\n\nJa = nur Einstellungen · Nee = alles übernehm",
+  "net.add_server": "Server hinzufüchn …",
+  "net.add_server_title": "Server hinzufüchn",
+  "net.add_server_label": "Name oder Adresse vom Server (z. B. nas oder 192.168.1.10):",
+  "net.remove_server": "Server wegmachn",
+  "net.connect_share": "Als Netzlaufwerk verbindn …",
+  "net.refresh": "Netzwerk nochma durchsuchn",
+  "settings.sec_network": "Netzwerk",
+  "settings.net_browse": "Netzwerk im Ordnerboom durchsuchn",
+  "settings.net_browse_hint": "Zeicht unter „Netzwerk“ de Rechner, die Windows im Netz findt. Aus: nur de selber eingetragnen Server (Rechtsklick auf „Netzwerk“ → „Server hinzufüchn …“)."
 }

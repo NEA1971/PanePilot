@@ -201,6 +201,26 @@ def scan_directory(path: str, show_hidden: bool, icons: IconProvider | None) -> 
     return entries
 
 
+def share_entries(server_path: str, shares: list[str]) -> list[Entry]:
+    """Freigaben eines Servers als Ordner-Einträge (v3.0.1)."""
+    base = server_path.rstrip("\\/")
+    out = []
+    for name in shares:
+        e = Entry(name=name, path=f"{base}\\{name}", is_dir=True, mode=stat.S_IFDIR)
+        e.type_text = t("type.share")
+        out.append(e)
+    return out
+
+
+def unc_parent(path: str) -> str | None:
+    """'\\\\server\\share' → '\\\\server' (sonst None)."""
+    from . import winsys
+
+    if winsys.is_share_root(path):
+        return winsys.server_path(winsys.server_of(winsys.share_root(path).rsplit("\\", 1)[0]) or "")
+    return None
+
+
 def entry_from_path(path: str, icons: IconProvider | None) -> Entry | None:
     """Ein Eintrag für einen beliebigen Pfad (z. B. Suchtreffer)."""
     name = os.path.basename(path.rstrip(os.sep)) or path
@@ -397,7 +417,15 @@ class FileListModel(QAbstractTableModel):
         self.remote_mode = False
         self.archive_mode = False
         self.search_base = None
-        entries = scan_directory(path, self._show_hidden, self._icons)
+        server = None
+        if IS_WINDOWS:
+            from . import winsys
+
+            server = winsys.server_of(path)
+        if server is not None:  # v3.0.1 (L-4050): \\server zeigt die Freigaben als Ordner
+            entries = share_entries(path, winsys.list_shares(server))
+        else:
+            entries = scan_directory(path, self._show_hidden, self._icons)
         self.total_count = len(entries)
         if self.accept is not None:
             entries = [e for e in entries if self.accept(e.name, e.is_dir)]
@@ -408,7 +436,10 @@ class FileListModel(QAbstractTableModel):
         self._entries = entries
         self._sort_entries()
         p = Path(path)
-        if self._show_parent and p.parent != p:  # nicht an der Wurzel (/ bzw. C:\)
+        parent = unc_parent(path) if IS_WINDOWS else None
+        if self._show_parent and parent:  # v3.0.1: \\server\share → \\server
+            self._entries.insert(0, Entry(name="..", path=parent, is_dir=True, is_parent=True))
+        elif self._show_parent and p.parent != p and server is None:  # nicht an der Wurzel (/ bzw. C:\)
             self._entries.insert(0, Entry(name="..", path=str(p.parent), is_dir=True, is_parent=True))
         self.endResetModel()
         if was_trash:

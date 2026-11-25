@@ -1859,5 +1859,18 @@
   "action.net_drive_disconnect": "Desconectar unidad de red …",
   "update.win_setup_ready": "«{name}» se ha descargado. ¿Instalar ahora? PanePilot se cerrará para ello.",
   "update.win_setup_start": "Instalar ahora",
-  "update.win_zip_ready": "«{name}» está en «{folder}». Para actualizar, descomprímalo y sustituya los archivos antiguos."
+  "update.win_zip_ready": "«{name}» está en «{folder}». Para actualizar, descomprímalo y sustituya los archivos antiguos.",
+  "button.no": "No",
+  "type.share": "Recurso compartido",
+  "error.no_terminal_win": "No se encontró el terminal elegido. Elige otro en Ajustes → General → Terminal (p. ej. «Símbolo del sistema»).",
+  "backup.foreign_question": "Esta copia procede de otro sistema operativo.\n\n¿Aplicar solo los ajustes (sin favoritos, carpetas, sincronizaciones ni servidores)?\n\nSí = solo ajustes · No = restaurar todo",
+  "net.add_server": "Añadir servidor …",
+  "net.add_server_title": "Añadir servidor",
+  "net.add_server_label": "Nombre o dirección del servidor (p. ej. nas o 192.168.1.10):",
+  "net.remove_server": "Quitar servidor",
+  "net.connect_share": "Conectar como unidad de red …",
+  "net.refresh": "Volver a buscar en la red",
+  "settings.sec_network": "Red",
+  "settings.net_browse": "Buscar en la red en el árbol de carpetas",
+  "settings.net_browse_hint": "Muestra en «Red» los equipos que Windows encuentra en la red. Desactivado: solo los servidores añadidos por ti (clic derecho en «Red» → «Añadir servidor …»)."
 }
