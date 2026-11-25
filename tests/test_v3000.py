@@ -195,14 +195,16 @@ def test_win_credentials():  # L-4023
 def test_win_attributes_and_paths(tmp_path):  # L-4020, L-4030
     from panepilot import filemodel, winsys
 
-    f = tmp_path / "datei mit langem namen.txt"
+    folder = tmp_path / "attr"
+    folder.mkdir()
+    f = folder / "datei mit langem namen.txt"
     f.write_text("x")
     winsys.set_attrs(str(f), winsys.READONLY | winsys.HIDDEN)
     a = winsys.get_attrs(str(f))
     assert a & winsys.READONLY and a & winsys.HIDDEN
-    entries = filemodel.scan_directory(str(tmp_path), False, None)
+    entries = filemodel.scan_directory(str(folder), False, None)
     assert entries == []  # versteckt
-    entries = filemodel.scan_directory(str(tmp_path), True, None)
+    entries = filemodel.scan_directory(str(folder), True, None)
     assert entries[0].hidden and "R" in winsys.attr_text(entries[0].attrs)
     winsys.set_attrs(str(f), 0)
     assert not winsys.get_attrs(str(f)) & (winsys.READONLY | winsys.HIDDEN)
