@@ -52,6 +52,9 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="3.0.0" date="2026-11-25">
+      <description><p>PanePilot for Windows: setup and portable ZIP, Recycle Bin, Open with, drives and network drives, attributes, Credential Manager; terminal choice on Linux and Windows.</p></description>
+    </release>
     <release version="2.8.0" date="2026-11-25">
       <description><p>Write to archives (ZIP, TAR, 7z): copy, move, rename, delete, new folder; real conflict detection for saved synchronizations.</p></description>
     </release>

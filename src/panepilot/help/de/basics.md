@@ -67,3 +67,14 @@ PanePilot zeigt zwei Dateifenster (Panels) nebeneinander. Eines davon ist **akti
 - **Zu Favoriten hinzufügen** merkt sich den aktuellen Ordner. Favoriten lassen sich in Ordnern gruppieren und erscheinen in der Seitenleiste und im Menü **Favoriten**.
 
 Siehe auch: [Seitenleisten](sidebars.md) · [Tastenkürzel](shortcuts.md)
+
+## Windows
+- **Installieren:** `PanePilot-…-windows-x64-setup.exe` installiert nach `C:\Program Files\PanePilot` (mit Administratorrechten), mit Startmenü-Eintrag und auf Wunsch Desktop-Symbol; deinstalliert wird über „Apps & Features“. Alternativ gibt es das **portable ZIP** zum Entpacken. Weil PanePilot nicht signiert ist, warnt Windows beim ersten Start: „Weitere Informationen“ → „Trotzdem ausführen“. Einstellungen liegen unter `%APPDATA%\PanePilot`.
+- **Papierkorb:** wie unter Linux – anzeigen, wiederherstellen, endgültig löschen und leeren arbeiten mit dem Windows-Papierkorb.
+- **Öffnen mit:** zeigt die für den Dateityp registrierten Programme; „Andere Anwendung …“ öffnet das Windows-Fenster „Öffnen mit“.
+- **Laufwerke:** Im Ordnerbaum stehen unter **Dieser PC** alle Laufwerke mit Bezeichnung, auch Netzlaufwerke. Freigaben wie `\\NAS\Freigabe` lassen sich direkt in die Pfadzeile eingeben. **Datei → Netzlaufwerk verbinden … / trennen …** (auch per Rechtsklick im Ordnerbaum) öffnet das Windows-Fenster dafür.
+- **Attribute:** Statt Rechte, Besitzer und Gruppe gibt es die Spalte **Attribute** (R = schreibgeschützt, H = versteckt, S = System, A = Archiv) und in den Eigenschaften den Reiter **Attribute** zum Ändern.
+- **Versteckte Dateien:** „Versteckte Dateien anzeigen“ zeigt Dateien mit dem Attribut „Versteckt“ und Namen mit Punkt am Anfang. Geschützte Systemdateien bleiben ausgeblendet, außer du schaltest sie in den Einstellungen ein.
+- **Passwörter** (Server, OpenSubtitles, TMDb) liegen in der **Windows-Anmeldeinformationsverwaltung**.
+- **Zwischenablage:** Zusätzlich Ordnerpfad, Dateipfad und Dateiname in Kurzform (8.3), Pfade „Web“ (mit `/`) und als UNC (`\\Rechner\Freigabe\…`).
+- **Noch nicht unter Windows** (folgt in 3.1): Video-Funktionen und Zusatzprogramme (ffmpeg, exiftool, MKVToolNix, 7-Zip), die Aktionen „Danach“ beim Synchronisieren.

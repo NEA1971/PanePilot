@@ -1,6 +1,6 @@
 # PanePilot
 
-**A free two-panel file manager for Linux, inspired by FreeCommander.**
+**A free two-panel file manager for Linux and Windows, inspired by FreeCommander.**
 
 PanePilot brings together what usually takes three or four programs: a classic two-panel file manager, a powerful multi-rename tool, a music tag editor in the style of MP3TAG, and a checksum tool – in one fast, keyboard-friendly application.
 
@@ -62,6 +62,13 @@ Optional: install `ffmpeg` (e.g. `sudo apt install ffmpeg`) to use ReplayGain.
 
 Settings are stored in `~/.config/PanePilot/`.
 
+### Windows 10/11 (64-bit)
+
+- **`PanePilot-x.y.z-windows-x64-setup.exe`** installs to `C:\Program Files\PanePilot` with a Start menu entry; uninstall via “Apps & features”.
+- **`PanePilot-x.y.z-windows-x64.zip`** – portable, just extract and start `PanePilot.exe`.
+
+PanePilot is not code-signed, so Windows SmartScreen warns on the first start (“More info” → “Run anyway”). Settings are stored in `%APPDATA%\PanePilot`. Video functions and the helper tools (ffmpeg, exiftool, MKVToolNix, 7-Zip) follow in 3.1.
+
 ## Feedback
 
 - Found a bug or have an idea? Please open an [issue](https://github.com/NEA1971/PanePilot/issues/new/choose). The **System** tab in *Help ▸ About PanePilot* has a **Copy** button for the technical details.
@@ -93,7 +100,7 @@ PanePilot is free software, licensed under the [GNU General Public License v3.0 
 <a id="deutsch"></a>
 ## 🇩🇪 Deutsch
 
-**PanePilot ist ein kostenloser Zwei-Fenster-Dateimanager für Linux nach dem Vorbild von FreeCommander.**
+**PanePilot ist ein kostenloser Zwei-Fenster-Dateimanager für Linux und Windows nach dem Vorbild von FreeCommander.**
 
 Er vereint, wofür man sonst drei oder vier Programme braucht:
 - Dateimanager mit zwei Fenstern, Ordnerbaum, Favoriten und Laufwerken
@@ -109,6 +116,7 @@ Die Oberfläche gibt es komplett auf Deutsch, die Hilfe mit F1 ebenfalls.
 - **Debian, Ubuntu, Mint:** die `.deb`-Datei unter [Releases](https://github.com/NEA1971/PanePilot/releases/latest) herunterladen und per Doppelklick installieren (oder `sudo apt install ./PanePilot-x.y.z-amd64.deb`).
 - **Fedora, openSUSE:** die `.rpm`-Datei, z. B. `sudo dnf install ./PanePilot-x.y.z-x86_64.rpm`.
 - **Ohne Installation:** das AppImage herunterladen, ausführbar machen (Rechtsklick → Eigenschaften → „Als Programm ausführbar“) und per Doppelklick starten.
+- **Windows 10/11:** `PanePilot-x.y.z-windows-x64-setup.exe` installieren oder das portable ZIP entpacken. Beim ersten Start warnt Windows, weil PanePilot nicht signiert ist: „Weitere Informationen“ → „Trotzdem ausführen“.
 
 **Rückmeldungen:** Fehler und Wünsche gern als [Issue](https://github.com/NEA1971/PanePilot/issues/new/choose), auch auf Deutsch. Fragen in den [Discussions](https://github.com/NEA1971/PanePilot/discussions).
 

@@ -67,3 +67,14 @@ PanePilot shows two file panels side by side. One of them is **active**, recogni
 - **Add to favourites** remembers the current folder. Favourites can be grouped and appear in the sidebar and in the **Favourites** menu.
 
 See also: [Sidebars](sidebars.md) · [Keyboard shortcuts](shortcuts.md)
+
+## Windows
+- **Installing:** `PanePilot-…-windows-x64-setup.exe` installs to `C:\Program Files\PanePilot` (administrator rights), with a Start menu entry and optionally a desktop icon; uninstall via “Apps & features”. Alternatively there is the **portable ZIP**. As PanePilot is not signed, Windows warns on the first start: “More info” → “Run anyway”. Settings are stored in `%APPDATA%\PanePilot`.
+- **Trash:** as on Linux – show, restore, delete permanently and empty work with the Windows Recycle Bin.
+- **Open with:** shows the programs registered for the file type; “Other application …” opens the Windows “Open with” window.
+- **Drives:** in the folder tree **This PC** lists all drives with their labels, network drives included. Shares like `\\NAS\Share` can be typed into the path bar. **File → Map network drive … / Disconnect …** (also by right-clicking the folder tree) opens the Windows window for it.
+- **Attributes:** instead of permissions, owner and group there is the **Attributes** column (R = read-only, H = hidden, S = system, A = archive) and an **Attributes** tab in the properties to change them.
+- **Hidden files:** “Show hidden files” shows files with the “Hidden” attribute and names starting with a dot. Protected system files stay hidden unless you switch them on in the settings.
+- **Passwords** (servers, OpenSubtitles, TMDb) are kept in the **Windows Credential Manager**.
+- **Clipboard:** additionally folder path, file path and file name in short form (8.3), paths “web” (with `/`) and as UNC (`\\computer\share\…`).
+- **Not yet on Windows** (coming in 3.1): video functions and helper programs (ffmpeg, exiftool, MKVToolNix, 7-Zip), the “When finished” actions of synchronization.
