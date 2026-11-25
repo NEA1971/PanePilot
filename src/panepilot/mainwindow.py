@@ -236,10 +236,6 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         from . import filemodel as _fm
 
         _fm.SHOW_PROTECTED = bool(self.settings.get("show_protected_system"))  # v3.0 (L-4022)
-        from . import tools as _tools  # v3.1 (L-4110)
-
-        _tools.configure(self.settings.get("tool_paths"))
-        _tools.install_windows_subprocess_defaults()
         if IS_WINDOWS:  # v3.0.1 (L-4052): Netzwerk im Ordnerbaum
             from . import netbrowse
 
@@ -1262,8 +1258,7 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
             m.addSeparator() if aid is None else m.addAction(a[aid])
 
         m = mb.addMenu(t("menu.favorites"))
-        for aid in ("add_favorite", "fav_new_group", "fav_separator", None, "fav_edit", "fav_rename", "fav_delete",
-                    *((None, "fav_import_fc") if IS_WINDOWS else ())):  # v3.1 (L-4100)
+        for aid in ("add_favorite", "fav_new_group", "fav_separator", None, "fav_edit", "fav_rename", "fav_delete"):
             m.addSeparator() if aid is None else m.addAction(a[aid])
 
         m = mb.addMenu(t("menu.help"))
@@ -1446,49 +1441,6 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         if panel.in_trash or panel.search_mode or not os.path.isdir(panel.current_path):
             return None
         return panel.current_path
-
-    def do_fav_import_fc(self, path: str | None = None) -> None:
-        """v3.1 (L-4100–L-4102): Favoriten aus FreeCommander als neuen Satz übernehmen."""
-        from PySide6.QtWidgets import QFileDialog
-
-        from . import fcimport
-
-        if path is None:
-            folder = fcimport.settings_folder()
-            dlg = QFileDialog(self, t("fcimport.title"), folder if os.path.isdir(folder) else str(Path.home()),
-                              t("fcimport.filter") + " (FreeCommander.fav*.xml);;" + t("fcimport.all") + " (*)")
-            dlg.setFileMode(QFileDialog.FileMode.ExistingFile)
-            newest = fcimport.newest_file(folder) if os.path.isdir(folder) else None
-            if newest:
-                dlg.selectFile(os.path.basename(newest))
-            if not dlg.exec() or not dlg.selectedFiles():
-                return
-            path = dlg.selectedFiles()[0]
-        try:
-            with open(path, "rb") as fh:
-                data, expanded = fcimport.parse(fh.read())
-        except (OSError, ValueError) as exc:
-            show_error(self, t("fcimport.title"), t("fcimport.failed", reason=str(exc)))
-            return
-        n = fcimport.count(data["items"])
-        if n == 0:
-            show_info(self, t("fcimport.title"), t("fcimport.empty"))
-            return
-        name = fcimport.unique_set_name(self.fav_sets.names())
-        try:
-            self.fav_sets.create(name)
-        except OSError as exc:
-            show_error(self, t("fcimport.title"), exc.strerror or str(exc))
-            return
-        self.fav_sets.model(name).load_dict(data)
-        self.fav_sets.model(name).save()
-        side = self.active_side
-        self.switch_fav_set(side, name)
-        self._update_fav_titles()
-        pane = self._fav_pane(side)
-        if pane is not None:
-            pane.view.restore_expanded(expanded)
-        show_info(self, t("fcimport.title"), t("fcimport.done", n=n, name=name))
 
     def do_net_drive_connect(self) -> None:
         """v3.0 (L-4013): Windows-Fenster „Netzlaufwerk verbinden“, danach die Laufwerke neu einlesen."""

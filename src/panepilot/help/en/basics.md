@@ -79,6 +79,4 @@ See also: [Sidebars](sidebars.md) · [Keyboard shortcuts](shortcuts.md)
 - **Hidden files:** “Show hidden files” shows files with the “Hidden” attribute and names starting with a dot. Protected system files stay hidden unless you switch them on in the settings.
 - **Passwords** (servers, OpenSubtitles, TMDb) are kept in the **Windows Credential Manager**.
 - **Clipboard:** additionally folder path, file path and file name in short form (8.3), paths “web” (with `/`) and as UNC (`\\computer\share\…`).
-- **Additional programs** (ffmpeg, exiftool, MKVToolNix, 7-Zip) are installed by you; which one is needed for what and how is described under [Additional programs](tools.md). The video functions then work as on Linux.
-- **Favorites from FreeCommander:** **Favorites → Import from FreeCommander …** opens FreeCommander's settings folder with the newest `FreeCommander.fav*.xml`. It becomes a new favorite set “FreeCommander” (can be renamed like any set) with the categories as favorite folders, the folders and files and their font colour. Shortcuts, sorting and view settings from FreeCommander are left out.
-- **“When finished” in synchronization:** shut down and sleep via Windows; scripts `.bat`/`.cmd` run via cmd, `.ps1` via PowerShell, other commands via cmd – with the same environment variables as on Linux (`%PANEPILOT_RESULT%` etc.).
+- **Not yet on Windows** (coming in 3.1): video functions and helper programs (ffmpeg, exiftool, MKVToolNix, 7-Zip), the “When finished” actions of synchronization.

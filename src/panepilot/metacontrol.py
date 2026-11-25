@@ -8,7 +8,6 @@ from PySide6.QtCore import QTimer
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QApplication, QDialog, QFileDialog, QMessageBox
 
-from . import tools as _tools
 from . import metaprofile as mp
 from .dialogs import ErrorListDialog, _msgbox, show_error
 from .i18n import t
@@ -20,7 +19,7 @@ META_ALLOWED = {"quit", "about", "help", "help_online", "check_updates", "donate
 def vr_tools_ok() -> bool:
     import shutil
 
-    return _tools.find("ffmpeg") is not None
+    return shutil.which("ffmpeg") is not None
 
 
 class MetaWizardMixin:

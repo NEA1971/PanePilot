@@ -56,8 +56,7 @@ TABS_LEGACY = ("tab_new", "tab_close", "tab_next", "tab_prev", "tab_lock", "tab_
 FAV_MENU_ONLY = ("fav_separator",)
 # v2.7: nur Menü/Rechtsklick/Tasten – kein Knopf ohne Absprache (einziger neuer Knopf: „Schnellansicht“)
 NO_BUTTON_27 = ("select_add", "select_remove", "select_invert", "select_same_ext", "folder_size", "folder_sizes_all",
-                "compare_files", "change_date", "net_drive_connect", "net_drive_disconnect",
-                "fav_import_fc")
+                "compare_files", "change_date", "net_drive_connect", "net_drive_disconnect")
 EXCLUDED = (set(NOT_ASSIGNABLE) | set(VIEW_LEGACY) | set(CLIP_MENU_ONLY) | set(ARCHIVE_LEGACY) | set(TABS_LEGACY)
             | set(FAV_MENU_ONLY) | set(NO_BUTTON_27))
 

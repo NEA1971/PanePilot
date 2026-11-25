@@ -12,11 +12,11 @@ Vorschau liefert ffmpeg (L-522). Fehlen die Programme, fehlen nur diese Angaben 
 
 from __future__ import annotations
 
-from . import tools as _tools
 import datetime as dt
 import json
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
@@ -132,23 +132,23 @@ def wrong_extension(path: str) -> str:
 
 # --- Zusatzprogramme ----------------------------------------------------------------------------------
 def ffprobe() -> str | None:
-    return _tools.find("ffprobe")
+    return shutil.which("ffprobe")
 
 
 def ffmpeg() -> str | None:
-    return _tools.find("ffmpeg")
+    return shutil.which("ffmpeg")
 
 
 def exiftool() -> str | None:
-    return _tools.find("exiftool")
+    return shutil.which("exiftool")
 
 
 def mkvpropedit() -> str | None:
-    return _tools.find("mkvpropedit")
+    return shutil.which("mkvpropedit")
 
 
 def mkvextract() -> str | None:
-    return _tools.find("mkvextract")
+    return shutil.which("mkvextract")
 
 
 def mkvtoolnix() -> bool:
@@ -1028,7 +1028,7 @@ def _mkv_restore(rec, inner, datetaken) -> None:
 
 def _restore_special(rec, special: dict) -> None:
     tool = exiftool()
-    args = [tool, "-overwrite_original", "-q", "-m", "-api", "QuickTimeUTC=1", *_tools.exiftool_args()]
+    args = [tool, "-overwrite_original", "-q", "-m", "-api", "QuickTimeUTC=1"]
     old_date = special.get("datetaken")
     if old_date and old_date != rec.fields.get("datetaken"):
         when = _date_value(old_date)

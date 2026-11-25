@@ -15,7 +15,6 @@ import subprocess
 import threading
 from dataclasses import dataclass
 
-from . import tools as _tools
 from . import mkvtracks as mt
 from .i18n import t
 
@@ -76,9 +75,11 @@ def subtitle_name(video: str, track: mt.MkvTrack, taken: set[str]) -> str:
 
 # --- Hilfen -----------------------------------------------------------------------------------------
 def _tool(name: str) -> str:
+    import shutil
+
     from . import videotags as vt
 
-    path = {"ffmpeg": vt.ffmpeg, "mkvmerge": mt.mkvmerge}.get(name, lambda: _tools.find(name))()
+    path = {"ffmpeg": vt.ffmpeg, "mkvmerge": mt.mkvmerge}.get(name, lambda: shutil.which(name))()
     if path is None:
         raise OSError(t("remux.missing_tool", tool=name))
     return path
@@ -240,7 +241,9 @@ def export_subtitles(files: mt.FileTracks, tracks: list[mt.MkvTrack]) -> list[st
                 raise _fail(proc, "ffmpeg")
         out.append(target)
     if extract:
-        tool = _tools.find("mkvextract")
+        import shutil
+
+        tool = shutil.which("mkvextract")
         if tool is None:
             raise OSError(t("remux.missing_tool", tool="mkvextract"))
         proc = _run([tool, files.path, "tracks", *extract], timeout=1800)

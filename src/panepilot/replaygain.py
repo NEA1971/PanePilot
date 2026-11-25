@@ -7,9 +7,9 @@ Opus speichert die Werte als R128_*_GAIN (Q7.8, bezogen auf −23 LUFS).
 
 from __future__ import annotations
 
-from . import tools as _tools
 import math
 import re
+import shutil
 import subprocess
 from dataclasses import dataclass, field
 
@@ -22,7 +22,7 @@ R128_TRACK, R128_ALBUM = "R128_TRACK_GAIN", "R128_ALBUM_GAIN"
 
 
 def ffmpeg_path() -> str | None:
-    return _tools.find("ffmpeg")
+    return shutil.which("ffmpeg")
 
 
 def _env() -> dict:

@@ -19,15 +19,11 @@ Die Einstellungen öffnet man über **Datei ▸ Einstellungen ▸ Einstellungen 
 ## Dateiansicht
 - **Größeneinheit**: wie Dateigrößen angezeigt werden.
 - **Systemdateien** (nur Windows): **Geschützte Systemdateien anzeigen** – Dateien mit den Attributen „Versteckt“ und „System“ (z. B. `NTUSER.DAT`, `pagefile.sys`) erscheinen nur damit, und nur, wenn versteckte Dateien angezeigt werden.
-- **Netzwerk** (nur Windows): **Netzwerk im Ordnerbaum durchsuchen** – zeigt unter „Netzwerk“ die gefundenen Rechner; aus: nur die selbst eingetragenen Server.
 - **Spalten**: Spaltenprofile mit sichtbaren Spalten und Ausrichtung, dazu das Standardprofil für das linke und das rechte Panel.
 
 ## Meta-Wizard
 - **ReplayGain**: Ziel-Lautheit, Standard −18 LUFS.
 - **Untertitel**: Zugang zu OpenSubtitles und was mit heruntergeladenen Untertiteln nach dem Einbinden geschieht: im Ordner belassen (Vorgabe), in den Papierkorb oder endgültig löschen.
-
-## Zusatzprogramme
-- Für ffmpeg/ffprobe, exiftool, MKVToolNix und 7-Zip: gefunden oder fehlt, eigener Pfad mit **Durchsuchen …** und Link zur Download-Seite. Welches Programm wofür gebraucht wird: [Zusatzprogramme](tools.md).
 
 ## Weitere Anpassungen direkt im Fenster
 - **Symbolleiste**: Rechtsklick ▸ „Symbolleiste anpassen“, dort auch Abstände und „Ab hier rechtsbündig“.

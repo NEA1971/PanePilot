@@ -67,9 +67,11 @@ def archive_stem(name: str) -> str:
 
 # --- Zusatzprogramme -----------------------------------------------------------------
 def seven_zip() -> str | None:
-    from . import tools
-
-    return tools.find("7z")  # v3.1 (L-4110): auch C:\\Program Files\\7-Zip
+    for prog in ("7z", "7zz", "7za"):
+        path = shutil.which(prog)
+        if path:
+            return path
+    return None
 
 
 def rar_tool() -> str | None:
