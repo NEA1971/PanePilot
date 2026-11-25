@@ -6,8 +6,8 @@ Gelesen wird mit „mkvmerge -J“ (liefert die Spurnummern, die mkvpropedit bra
 
 from __future__ import annotations
 
+from . import tools as _tools
 import json
-import shutil
 from dataclasses import dataclass, field
 
 from .i18n import t
@@ -66,7 +66,7 @@ class FileTracks:
 
 
 def mkvmerge() -> str | None:
-    return shutil.which("mkvmerge")
+    return _tools.find("mkvmerge")
 
 
 def available() -> bool:

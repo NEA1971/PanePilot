@@ -199,6 +199,7 @@ class Settings:
         "show_protected_system": False,  # v3.0 (L-4022): geschützte Systemdateien (Windows)
         "net_browse": True,  # v3.0.1 (L-4053): Netzwerk im Ordnerbaum durchsuchen (Windows)
         "net_servers": [],  # v3.0.1 (L-4052): selbst eingetragene Server
+        "tool_paths": {},  # v3.1 (L-4111): eigene Pfade der Zusatzprogramme
         "subs_after_embed": "keep",  # v2.6: heruntergeladene Untertitel nach dem Einbinden – keep / trash / delete
         "update_skip": "",  # diese Version nicht mehr automatisch anbieten
         "meta_disc": {},  # Disc-Assistent: letzte Einstellungen

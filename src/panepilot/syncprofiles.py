@@ -206,8 +206,11 @@ def clean_env() -> dict:
 
 def run_command(command: str, env: dict, timeout: int = 3600) -> tuple[int, str]:
     """Im Hintergrund ohne Terminal (L-1634); liefert Rückgabewert und die letzten Zeilen der Ausgabe."""
+    import sys
+
+    args, shell = (windows_command(command) if sys.platform.startswith("win") else (command, True))
     try:
-        proc = subprocess.run(command, shell=True, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+        proc = subprocess.run(args, shell=shell, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT, timeout=timeout, cwd=os.path.expanduser("~"))
     except subprocess.TimeoutExpired as exc:
         out = (exc.output or b"").decode("utf-8", "replace") if isinstance(exc.output, bytes) else (exc.output or "")
@@ -215,6 +218,17 @@ def run_command(command: str, env: dict, timeout: int = 3600) -> tuple[int, str]
     except OSError as exc:
         return -1, str(exc)
     return proc.returncode, _tail(proc.stdout.decode("utf-8", "replace"))
+
+
+def windows_command(command: str):
+    """v3.1 (L-4121): .ps1 über PowerShell, .bat/.cmd und alles andere über cmd. Liefert (args, shell)."""
+    from .winsys import split_command
+
+    parts = split_command(command) or [command]
+    first = parts[0].lower()
+    if first.endswith(".ps1"):
+        return ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", *parts], False
+    return command, True  # .bat/.cmd und alles andere: shell=True = cmd.exe /c
 
 
 def _tail(text: str, lines: int = 8) -> str:
@@ -233,6 +247,17 @@ def power_command(kind: str) -> list[str]:
 
 def power(kind: str) -> str:
     """Führt Bereitschaft/Herunterfahren aus; liefert eine Fehlermeldung oder „“."""
+    import sys
+
+    if sys.platform.startswith("win") and kind == AFTER_SUSPEND:
+        # v3.1 (L-4120): Standby direkt über die Energieverwaltung (rundll32 landet sonst ggf. im Ruhezustand)
+        import ctypes
+
+        try:
+            ok = ctypes.WinDLL("powrprof").SetSuspendState(False, False, False)
+        except OSError as exc:
+            return str(exc)
+        return "" if ok else ctypes.FormatError().strip()
     try:
         proc = subprocess.run(power_command(kind), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT, timeout=60, env=clean_env())

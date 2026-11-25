@@ -108,7 +108,7 @@ def test_replaygain_in_meta_wizard(window, qtbot, tmp_path, monkeypatch):  # noq
 def test_replaygain_disabled_without_ffmpeg(window, tmp_path, monkeypatch):  # noqa: F811
     import panepilot.replaygain as rg
 
-    monkeypatch.setattr(rg.shutil, "which", lambda name: None)
+    monkeypatch.setattr(rg._tools, "find", lambda name: None)
     pane = window._make_meta_pane("left")
     assert not pane.convert_buttons["replaygain"].isEnabled()
     assert "ffmpeg" in pane.convert_buttons["replaygain"].toolTip()

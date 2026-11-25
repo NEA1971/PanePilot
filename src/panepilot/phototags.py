@@ -10,10 +10,10 @@ RAW-Dateien bleiben unverändert: Änderungen landen in einer XMP-Begleitdatei d
 
 from __future__ import annotations
 
+from . import tools as _tools
 import datetime as dt
 import os
 import re
-import shutil
 import subprocess
 from fractions import Fraction
 
@@ -104,7 +104,7 @@ def is_heif(path: str) -> bool:
 
 
 def exiftool() -> str | None:
-    return shutil.which("exiftool")
+    return _tools.find("exiftool")
 
 
 def writable(path: str) -> bool:
