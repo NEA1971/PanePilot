@@ -1235,6 +1235,8 @@ class FilePanel(QWidget):
     def navigate(self, path: str, select_name: str | None = None, add_history: bool = True) -> bool:
         if self.locked:
             return False
+        if getattr(self, "_size_job", None) is not None:
+            self.stop_size_job()
         if self._tab_is_locked() and not self._applying_tab and self.current_path and \
                 os.path.normpath(path) != os.path.normpath(self.current_path):
             # Gesperrter Reiter bleibt stehen – der neue Ordner öffnet sich in einem neuen Reiter (L-3103)
@@ -1325,9 +1327,11 @@ class FilePanel(QWidget):
                 sel.setCurrentIndex(idx, QItemSelectionModel.SelectionFlag.NoUpdate)
                 self.list_widget().scrollTo(idx)
 
-    def refresh(self) -> None:
+    def refresh(self, keep_sizes: bool = True) -> None:
         if not self.current_path:
             return
+        if not keep_sizes:  # v2.7 (L-3722): „Aktualisieren“ verwirft berechnete Ordnergrößen
+            self.stop_size_job()
         if QAbstractItemView.State.EditingState in (self.view.state(), self.icon_view.state()):
             # Während des Umbenennens nicht neu einlesen – das würde die Eingabe beenden.
             self._refresh_timer.start()
@@ -1377,11 +1381,15 @@ class FilePanel(QWidget):
         if not os.path.isdir(self.current_path):
             self.navigate(nearest_existing_dir(self.current_path))
             return
+        sizes = {e.path: (e.mtime, e.dir_size) for e in self.model.entries() if e.dir_size >= 0} if keep_sizes else {}
         try:
             self.model.load(self.current_path)
         except OSError:
             self.navigate(nearest_existing_dir(os.path.dirname(self.current_path)))
             return
+        for e in self.model.entries():  # automatisches Neueinlesen: unveränderte Ordner behalten ihre Größe
+            if e.path in sizes and sizes[e.path][0] == e.mtime:
+                e.dir_size = sizes[e.path][1]
         self.select_names(selected, current=cur_name)
         if cur_name and self.model.row_of(cur_name) < 0 and self.model.rowCount():
             self.view.selectionModel().setCurrentIndex(
@@ -1583,6 +1591,95 @@ class FilePanel(QWidget):
                 self.model.index(0, self.model.icon_column),
                 QItemSelectionModel.SelectionFlag.Deselect | QItemSelectionModel.SelectionFlag.Rows,
             )
+
+    # --- Auswahl nach Muster (v2.7, L-3710 ff.) ---------------------------------------------
+    def _set_rows_selected(self, rows: list[int], select: bool) -> None:
+        from PySide6.QtCore import QItemSelection
+
+        selection = QItemSelection()
+        col = self.model.icon_column
+        for r in rows:
+            selection.select(self.model.index(r, col), self.model.index(r, col))
+        flag = QItemSelectionModel.SelectionFlag.Select if select else QItemSelectionModel.SelectionFlag.Deselect
+        self.view.selectionModel().select(selection, flag | QItemSelectionModel.SelectionFlag.Rows)
+
+    def select_pattern(self, patterns: list[str], include_dirs: bool, select: bool = True) -> int:
+        """Markiert (bzw. entmarkiert) alle passenden Einträge; liefert ihre Anzahl."""
+        from .selectpattern import matches
+
+        rows = [r for r, e in enumerate(self.model.entries())
+                if not e.is_parent and (include_dirs or not e.is_dir) and matches(e.name, patterns)]
+        self._set_rows_selected(rows, select)
+        return len(rows)
+
+    def invert_selection(self) -> None:
+        chosen = {i.row() for i in self.view.selectionModel().selectedRows(COL_NAME)}
+        rows = [r for r, e in enumerate(self.model.entries()) if not e.is_parent]
+        self.view.selectionModel().clearSelection()
+        self._set_rows_selected([r for r in rows if r not in chosen], True)
+
+    def select_same_ext(self) -> int:
+        """Alle Dateien mit der Endung der aktuellen Datei markieren (L-3711)."""
+        from .selectpattern import ext_pattern
+
+        cur = self.current_entry()
+        if cur is None or cur.is_parent or cur.is_dir:
+            return 0
+        pattern = ext_pattern(cur.name)
+        if pattern == "*":  # ohne Endung: alle Dateien ohne Endung
+            rows = [r for r, e in enumerate(self.model.entries())
+                    if not e.is_parent and not e.is_dir and "." not in e.name[1:]]
+            self._set_rows_selected(rows, True)
+            return len(rows)
+        return self.select_pattern([pattern], False)
+
+    # --- Ordnergrößen (v2.7, L-3720 ff.) ---------------------------------------------------
+    def size_job_running(self) -> bool:
+        job = getattr(self, "_size_job", None)
+        return job is not None and job.isRunning()
+
+    def stop_size_job(self, wait: bool = False) -> bool:
+        job = getattr(self, "_size_job", None)
+        if job is None or not job.isRunning():
+            return False
+        job.stop()
+        if wait:
+            job.wait(3000)
+        self._size_job = None
+        self._update_status()
+        return True
+
+    def calc_folder_sizes(self, entries: list[Entry] | None = None) -> bool:
+        """Größe der Ordner im Hintergrund berechnen; ohne entries: alle Ordner im Fenster."""
+        from .dirsize import DirSizeThread
+
+        if self.in_trash or self.in_remote or self.in_archive:
+            return False
+        if entries is None:
+            entries = [e for e in self.model.entries() if e.is_dir and not e.is_parent and not e.is_link]
+        entries = [e for e in entries if e.is_dir and not e.is_parent]
+        if not entries:
+            return False
+        self.stop_size_job()
+        job = DirSizeThread([e.path for e in entries], self)
+        job.result.connect(self._folder_size_ready)
+        job.finished.connect(lambda j=job: self._size_job_finished(j))
+        self._size_job = job
+        self._size_base = self.model.directory
+        job.start()
+        self._update_status()
+        return True
+
+    def _folder_size_ready(self, path: str, size: int) -> None:
+        if self.model.directory != getattr(self, "_size_base", None):
+            return
+        self.model.set_dir_size(path, size)
+        self._update_status()
+
+    def _size_job_finished(self, job) -> None:
+        if getattr(self, "_size_job", None) is job:
+            self._size_job = None
+        self._update_status()
 
     def start_rename(self) -> None:
         entry = self.current_entry()
@@ -1858,6 +1955,8 @@ class FilePanel(QWidget):
         layout = self.layout()
         old = getattr(self, "_custom_view", None)
         if old is not None:
+            if hasattr(old, "replaced"):  # v2.7: Schnellansicht erfährt, dass sie ersetzt wird
+                old.replaced()
             layout.removeWidget(old)
             old.hide()
             old.setParent(None)
@@ -1937,8 +2036,11 @@ class FilePanel(QWidget):
             parts.append(t("status.filtered", shown=shown, total=total))
         sel = self.selected_entries()
         if sel:
-            size = sum(e.size for e in sel if not e.is_dir)
+            # v2.7 (L-3723): berechnete Ordnergrößen zählen mit
+            size = sum(e.size if not e.is_dir else max(e.dir_size, 0) for e in sel)
             parts.append(t("status.selected", n=len(sel), size=format_size(size)))
+        if self.size_job_running():
+            parts.append(t("status.sizing"))
         if self._free_text:
             parts.append(self._free_text)
         self.status.setText("  ·  ".join(parts))

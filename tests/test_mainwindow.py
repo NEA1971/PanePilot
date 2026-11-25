@@ -415,7 +415,7 @@ def test_toolbar_history_and_customizing(window, qtbot, tree, monkeypatch):
     from PySide6.QtWidgets import QMenu
 
     panel = window.sides["left"].panel
-    assert window.toolbar.items == ["back", "forward"]
+    assert window.toolbar.items == ["back", "forward", "quick_view"]
     assert window.qactions["back"].isEnabled() is panel.can_go_back()
     panel.navigate(str(tree / "a" / "sub"))
     assert window.qactions["back"].isEnabled() and not window.qactions["forward"].isEnabled()

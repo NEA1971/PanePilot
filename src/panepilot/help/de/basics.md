@@ -37,6 +37,18 @@ PanePilot zeigt zwei Dateifenster (Panels) nebeneinander. Eines davon ist **akti
 - **Versteckte Dateien**, **Ein-Fenster-Ansicht**, Knopfleiste, F-Tasten-Leiste und Symbolleiste lassen sich im Menü **Ansicht** ein- und ausschalten.
 - Spalten: Rechtsklick auf die Spaltenköpfe. Reihenfolge und Breite stellt man direkt durch Ziehen ein (siehe [Einstellungen](settings.md)).
 
+## Schnellansicht
+- Knopf **„Schnellansicht“** (Lupe über einem Blatt, rechts neben „Ansicht“) oder **Ansicht → Schnellansicht**: Das **andere Fenster** zeigt statt der Dateiliste die markierte Datei. Beim Weiterblättern mit den Pfeiltasten folgt die Vorschau. Noch ein Klick oder **Esc** bringt die Liste zurück. Eine Taste ist ab Werk nicht belegt – unter Einstellungen → Tastenkürzel bzw. F-Tasten frei wählbar.
+- Gezeigt werden: **Text** (der Anfang bis 1 MB), **Bilder** (eingepasst, Mausrad zoomt), **PDF** (alle Seiten untereinander), **Videos** (ein Standbild mit Dauer, Auflösung und Spuren), **Musik** (Cover und Tags), **LibreOffice- und Microsoft-Dokumente** (Writer/Word als Text, Calc/Excel als Tabelle mit einem Reiter je Blatt – die ersten 500 Zeilen –, Impress/PowerPoint Folie für Folie als Text). Bei anderen Dateien Art, Größe und Datum, bei Ordnern die Zahl der Einträge.
+- Die Schnellansicht braucht beide Fenster; in der Ein-Fenster-Ansicht oder wenn das andere Fenster gerade etwas anderes zeigt (z. B. den Meta-Wizard), geht sie nicht.
+
+## Auswahl, Ordnergrößen, Vergleichen, Datum
+- **Auswahl nach Muster** (Menü Bearbeiten): **Num +** erweitert die Auswahl, **Num −** verringert sie – vorbelegt ist die Endung der aktuellen Datei, z. B. `*.jpg`, mehrere Muster mit `;`, die letzten Muster stehen zur Auswahl, mit „Auch Ordner“ zählen Ordner mit. **Num \*** kehrt die Auswahl um, **Alt+Num +** markiert alle Dateien mit derselben Endung wie die aktuelle.
+- **Ordnergrößen:** **Leertaste** auf einem Ordner zeigt seine Größe in der Spalte „Größe“. **Ansicht → Alle Ordnergrößen berechnen** (Alt+Umschalt+Enter) macht das für alle Ordner im Fenster, im Hintergrund – **Esc** bricht ab. Die Werte bleiben, bis du den Ordner verlässt oder „Aktualisieren“ wählst; die Summe der Markierung in der Statuszeile zählt sie mit.
+- **Dateien vergleichen …** (Rechtsklick oder Menü Datei, Strg+Umschalt+C): vergleicht **zwei markierte Dateien** – beide in einem Fenster oder je eine links und rechts. Textdateien erscheinen nebeneinander mit farbigen Unterschieden (gelb geändert, rot nur links, grün nur rechts), beide Seiten scrollen gemeinsam, **▲ / ▼** (Alt+↑ / Alt+↓) springen zum vorherigen/nächsten Unterschied. PDF-, LibreOffice- und Microsoft-Dokumente werden über ihren Text verglichen. Bei anderen Dateien meldet PanePilot „identisch“ oder die Stelle der ersten Abweichung.
+- **Datum ändern …** (Rechtsklick oder Menü Datei): setzt das Änderungsdatum auf ein festes Datum, auf jetzt, auf das **Aufnahmedatum** (Fotos/Videos) oder auf ein Datum im **Dateinamen** (z. B. `IMG_20240512_143012.jpg`). Die Vorschau zeigt alt → neu; Dateien ohne passendes Datum bleiben, wie sie sind. Mit „Auch Unterordner“ gilt es für alles darin. Das Erstellungsdatum lässt sich unter Linux nicht setzen.
+- **Rechte für Unterordner:** Eigenschaften → Berechtigungen → „Auch für Unterordner und enthaltene Dateien“. Ordner bekommen dabei das Recht „Ausführen“, damit man sie weiter öffnen kann.
+
 ## Gemeinsame Seitenleiste
 - **Ansicht → Gemeinsame Seitenleiste** zeigt statt zwei Seitenleisten **eine ganz links** über die volle Höhe – nebeneinander wie übereinander.
 - Sie gilt immer für das **aktive Fenster**: Klickst du ins andere Fenster, zeigt der Ordnerbaum dessen Ordner und Favoriten öffnen dort. Ansicht und Favoritensatz bleiben dabei gleich.

@@ -869,6 +869,13 @@ class SyncPane(QWidget):
         side = e.left if left_side else e.right
         if side is None:
             return
+        if e.left is not None and e.right is not None and e.status != fd.SAME:
+            # v2.7 (L-3734): abweichende Datei auf beiden Seiten → Dateivergleich
+            from . import filecompare
+
+            parts = e.rel.split("/")
+            filecompare.compare(self, os.path.join(self.scanned[0], *parts), os.path.join(self.scanned[1], *parts))
+            return
         base = self.scanned[0] if left_side else self.scanned[1]
         util.open_with_default_app(os.path.join(base, *e.rel.split("/")))
 

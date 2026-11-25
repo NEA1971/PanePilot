@@ -130,7 +130,10 @@ class Settings:
         "show_buttonbar": True,
         "show_fkeybar": True,
         "show_toolbar": True,
-        "toolbar": ["back", "forward"],  # Inhalt der Symbolleiste, "|" = Trennstrich
+        "toolbar": ["back", "forward", "quick_view"],  # Inhalt der Symbolleiste, "|" = Trennstrich
+        "toolbar_quick_view_added": False,  # v2.7: Knopf „Schnellansicht“ einmalig ergänzt
+        "select_patterns": [],  # v2.7 (L-3710): zuletzt benutzte Auswahlmuster
+        "select_include_dirs": False,  # v2.7 (L-3712): Häkchen „Auch Ordner“
         "fkeys": {},  # Abweichungen von der Startbelegung, z. B. {"F3": "refresh", "F8": null}
         "recent_filters": [],  # zuletzt benutzte Filter (F-604)
         "multirename_last": {},  # zuletzt benutzte Umbenennen-Einstellungen (F-732)

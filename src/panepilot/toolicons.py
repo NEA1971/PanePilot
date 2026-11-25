@@ -1019,3 +1019,23 @@ def icon_tabs() -> QIcon:
 
 
 _PAINTED["tabs"] = icon_tabs
+
+
+def icon_quick_view() -> QIcon:
+    """v2.7 (L-3700): Lupe über einem Blatt – Schnellansicht (abgestimmt 25.11.2026)."""
+    fg, accent = _colors()
+
+    def draw(p: QPainter) -> None:
+        bg = QApplication.palette().color(QApplication.palette().ColorRole.Base)
+        _page(p, 3, 2, 13, 17, fg, bg)
+        p.setPen(QPen(fg, 1.4))
+        p.drawLine(QPointF(5, 11.5), QPointF(9, 11.5))
+        p.setPen(_pen(fg, 1.9))
+        p.setBrush(bg)
+        p.drawEllipse(QPointF(15, 14), 4.6, 4.6)
+        p.setPen(_pen(accent, 2.8))
+        p.drawLine(QPointF(18.4, 17.4), QPointF(22, 21))
+    return _paint_icon(draw)
+
+
+_PAINTED["quick_view"] = icon_quick_view

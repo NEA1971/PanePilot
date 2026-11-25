@@ -17,6 +17,7 @@ import os
 import re
 import shutil
 import tempfile
+import threading
 import xml.etree.ElementTree as ET
 import zipfile
 
@@ -754,26 +755,58 @@ def restore(path: str, snap: tuple):
 
 
 # --- Vorschau ----------------------------------------------------------------------------------------------
+# pdfium ist nicht threadsicher: Vorschaubilder (Hintergrund) und Schnellansicht (v2.7) wechseln sich ab
+PDFIUM_LOCK = threading.RLock()
+
+
 def pdf_preview(path: str, size: int = 432) -> bytes | None:
     """Erste Seite einer PDF als PNG (L-841), gezeichnet mit pdfium."""
+    pages = pdf_render(path, [0], size)
+    return pages[0] if pages else None
+
+
+def pdf_page_count(path: str) -> int:
+    try:
+        import pypdfium2 as pdfium
+    except Exception:  # noqa: BLE001
+        return 0
+    with PDFIUM_LOCK:
+        try:
+            pdf = pdfium.PdfDocument(path)
+            try:
+                return len(pdf)
+            finally:
+                pdf.close()
+        except Exception:  # noqa: BLE001
+            return 0
+
+
+def pdf_render(path: str, indexes: list[int], size: int, by_width: bool = False) -> list[bytes]:
+    """Seiten als PNG (längere Seite = size Pixel, mit by_width die Breite); kaputte Seiten fehlen in der Liste."""
     try:
         import pypdfium2 as pdfium
     except Exception:  # noqa: BLE001 – ohne Bibliothek keine Vorschau
-        return None
-    try:
-        pdf = pdfium.PdfDocument(path)
+        return []
+    out = []
+    with PDFIUM_LOCK:
         try:
-            page = pdf[0]
-            w, h = page.get_size()
-            scale = size / max(w, h, 1)
-            image = page.render(scale=scale).to_pil()
-            buf = io.BytesIO()
-            image.save(buf, "PNG")
-            return buf.getvalue()
+            pdf = pdfium.PdfDocument(path)
+        except Exception:  # noqa: BLE001 – kaputte oder verschlüsselte PDF: keine Vorschau
+            return []
+        try:
+            for i in indexes:
+                try:
+                    page = pdf[i]
+                    w, h = page.get_size()
+                    image = page.render(scale=size / max(w if by_width else max(w, h), 1)).to_pil()
+                    buf = io.BytesIO()
+                    image.save(buf, "PNG")
+                    out.append(buf.getvalue())
+                except Exception:  # noqa: BLE001
+                    continue
         finally:
             pdf.close()
-    except Exception:  # noqa: BLE001 – kaputte oder verschlüsselte PDF: keine Vorschau
-        return None
+    return out
 
 
 def preview(rec, size: int = 432) -> bytes | None:

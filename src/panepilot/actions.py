@@ -62,6 +62,9 @@ ACTION_DEFS: tuple[ActionDef, ...] = (
     ActionDef("checksums", "action.checksums", (), "window"),
     ActionDef("find_duplicates", "action.find_duplicates", (), "window"),  # v1.6
     ActionDef("compare_folders", "action.compare_folders", ("Ctrl+Shift+V",), "window"),  # v1.16 (L-1600)
+    ActionDef("compare_files", "action.compare_files", ("Ctrl+Shift+C",), "window"),  # v2.7 (L-3730)
+    ActionDef("change_date", "action.change_date", (), "window"),  # v2.7 (L-3740)
+    ActionDef("quick_view", "action.quick_view", (), "window"),  # v2.7 (L-3700): Knopf „Schnellansicht“
     ActionDef("sync_folders", "action.sync_folders", ("Ctrl+Shift+S",), "window"),  # v1.16 (L-1610)
     ActionDef("properties", "action.properties", ("Alt+Return",), "window"),
     ActionDef("settings_dialog", "action.settings_dialog", (), "window"),
@@ -78,6 +81,14 @@ ACTION_DEFS: tuple[ActionDef, ...] = (
     ActionDef("open", "action.open", ("Return", "Enter"), "list"),
     ActionDef("tree_open", "action.open", ("Return", "Enter"), "tree"),
     ActionDef("select_all", "action.select_all", ("Ctrl+A",), "list"),
+    # v2.7 (L-3710 ff.): Auswahl nach Muster – Ziffernblock
+    ActionDef("select_add", "action.select_add", ("Num++",), "list"),
+    ActionDef("select_remove", "action.select_remove", ("Num+-",), "list"),
+    ActionDef("select_invert", "action.select_invert", ("Num+*",), "list"),
+    ActionDef("select_same_ext", "action.select_same_ext", ("Alt+Num++",), "list"),
+    # v2.7 (L-3720 ff.): Ordnergrößen
+    ActionDef("folder_size", "action.folder_size", ("Space",), "list"),
+    ActionDef("folder_sizes_all", "action.folder_sizes_all", ("Alt+Shift+Return", "Alt+Shift+Enter"), "window"),
     ActionDef("clip_copy", "action.clip_copy", ("Ctrl+C",), "list"),
     ActionDef("clip_cut", "action.clip_cut", ("Ctrl+X",), "list"),
     ActionDef("clip_paste", "action.clip_paste", ("Ctrl+V",), "list"),

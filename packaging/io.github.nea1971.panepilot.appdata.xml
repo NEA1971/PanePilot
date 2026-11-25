@@ -52,6 +52,9 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="2.7.0" date="2026-11-25">
+      <description><p>Quick view in the other panel, select by pattern, folder sizes, compare files, change dates, recursive permissions.</p></description>
+    </release>
     <release version="2.6.0" date="2026-11-24">
       <description><p>Separators in the favourites, subtitle files after embedding, sorting by track columns, changing the order of tracks.</p></description>
     </release>

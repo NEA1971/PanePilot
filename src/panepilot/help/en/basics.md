@@ -37,6 +37,18 @@ PanePilot shows two file panels side by side. One of them is **active**, recogni
 - **Hidden files**, **single-panel view**, button bar, function key bar and toolbar can be switched in the **View** menu.
 - Columns: right-click the column headers. Order and width are set directly by dragging (see [Settings](settings.md)).
 
+## Quick view
+- Button **“Quick view”** (magnifier over a sheet, right of “View”) or **View → Quick view**: the **other panel** shows the selected file instead of the file list. Moving with the arrow keys updates the preview. Another click or **Esc** brings the list back. No key is assigned by default – choose one under Settings → Keyboard shortcuts or the function keys.
+- Shown: **text** (the first 1 MB), **images** (fitted, the mouse wheel zooms), **PDF** (all pages one below the other), **videos** (a still with duration, resolution and tracks), **music** (cover and tags), **LibreOffice and Microsoft documents** (Writer/Word as text, Calc/Excel as a table with one tab per sheet – the first 500 rows –, Impress/PowerPoint slide by slide as text). Other files show type, size and date, folders the number of items.
+- Quick view needs both panels; it is not available in single-panel view or while the other panel shows something else (e.g. the meta wizard).
+
+## Selection, folder sizes, comparing, dates
+- **Select by pattern** (Edit menu): **Num +** extends the selection, **Num −** reduces it – prefilled with the extension of the current file, e.g. `*.jpg`, several patterns with `;`, recent patterns are offered, “Include folders” counts folders too. **Num \*** inverts the selection, **Alt+Num +** selects all files with the same extension as the current one.
+- **Folder sizes:** **Space** on a folder shows its size in the “Size” column. **View → Calculate all folder sizes** (Alt+Shift+Enter) does this for all folders in the panel, in the background – **Esc** cancels. The values stay until you leave the folder or choose “Refresh”; the selection total in the status line includes them.
+- **Compare files …** (right-click or File menu, Ctrl+Shift+C): compares **two selected files** – both in one panel or one on each side. Text files appear side by side with coloured differences (yellow changed, red left only, green right only), both sides scroll together, **▲ / ▼** (Alt+↑ / Alt+↓) jump to the previous/next difference. PDF, LibreOffice and Microsoft documents are compared by their text. For other files PanePilot reports “identical” or the position of the first difference.
+- **Change date …** (right-click or File menu): sets the modification date to a fixed date, to now, to the **date taken** (photos/videos) or to a date in the **file name** (e.g. `IMG_20240512_143012.jpg`). The preview shows old → new; files without a matching date stay unchanged. “Include subfolders” applies it to everything inside. The creation date cannot be set on Linux.
+- **Permissions for subfolders:** Properties → Permissions → “Also for subfolders and contained files”. Folders get the “execute” right so they can still be opened.
+
 ## Shared sidebar
 - **View → Shared sidebar** shows **one sidebar on the far left** over the full height instead of two – side by side as well as one above the other.
 - It always belongs to the **active panel**: click into the other panel and the folder tree shows its folder, favorites open there. View and favorites set stay the same.

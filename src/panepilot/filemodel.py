@@ -111,6 +111,7 @@ class Entry:
     info_path: str = ""
     btime: float | None = None  # Erstellungszeit, wird erst bei Bedarf ermittelt (-1 = unbekannt)
     remote: bool = False  # Eintrag auf einem Server (v1.3); path ist dann die Adresse (sftp://…/pfad)
+    dir_size: int = -1  # v2.7 (L-3720): berechnete Ordnergröße, -1 = nicht berechnet
 
     def birth_time(self) -> float:
         """Erstellungszeit in Sekunden oder -1, wenn das Dateisystem sie nicht liefert (F-513)."""
@@ -443,6 +444,16 @@ class FileListModel(QAbstractTableModel):
         else:
             self._entries.sort(key=key, reverse=reverse)
 
+    def set_dir_size(self, path: str, size: int) -> bool:
+        """v2.7 (L-3720): berechnete Größe eines Ordners eintragen und die Zeile neu zeichnen."""
+        for row, e in enumerate(self._entries):
+            if e.path == path and e.is_dir:
+                e.dir_size = size
+                idx = self.index(row, COL_SIZE)
+                self.dataChanged.emit(idx, idx)
+                return True
+        return False
+
     # --- Zugriff -----------------------------------------------------------------
     def entry(self, row: int) -> Entry | None:
         if 0 <= row < len(self._entries):
@@ -500,7 +511,9 @@ class FileListModel(QAbstractTableModel):
             if e.is_parent:
                 return e.name if col == COL_NAME_STEM else ""  # F-960: „..“ auch ohne Endung
             if col == COL_SIZE:
-                return "" if e.is_dir else format_size(e.size)
+                if e.is_dir:
+                    return format_size(e.dir_size) if e.dir_size >= 0 else ""
+                return format_size(e.size)
             if col == COL_DATE:
                 return datetime.fromtimestamp(e.mtime).strftime("%d.%m.%Y %H:%M")
             if col == COL_TYPE:

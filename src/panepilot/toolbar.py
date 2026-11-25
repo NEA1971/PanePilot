@@ -39,7 +39,7 @@ def spacer_width(item: str) -> int | None:
         return max(SPACER_MIN, min(SPACER_MAX, int(item[len(SPACER):])))
     except ValueError:
         return None
-DEFAULT_ITEMS = ["back", "forward"]
+DEFAULT_ITEMS = ["back", "forward", "quick_view"]  # v2.7: Schnellansicht ab Werk
 HISTORY_ACTIONS = ("back", "forward")
 MENU_ACTIONS = HISTORY_ACTIONS + ("filter_toggle", "view_mode", "clip_copy", "archive", "tabs")  # Knopf mit Pfeil und Menü
 # Nicht in der Symbolleiste: an eine Ansicht gebundene Aktionen; v1.23: die Ansichten stecken im Knopf „Ansicht“
@@ -52,8 +52,11 @@ ARCHIVE_LEGACY = ("compress", "extract_here", "extract_subfolder", "extract_to",
 TABS_LEGACY = ("tab_new", "tab_close", "tab_next", "tab_prev", "tab_lock", "tab_to_other", "open_in_tab")
 # v2.6: Trennlinie nur im Rechtsklick-Menü der Favoritenleiste (kein Knopf ohne Absprache)
 FAV_MENU_ONLY = ("fav_separator",)
+# v2.7: nur Menü/Rechtsklick/Tasten – kein Knopf ohne Absprache (einziger neuer Knopf: „Schnellansicht“)
+NO_BUTTON_27 = ("select_add", "select_remove", "select_invert", "select_same_ext", "folder_size", "folder_sizes_all",
+                "compare_files", "change_date")
 EXCLUDED = (set(NOT_ASSIGNABLE) | set(VIEW_LEGACY) | set(CLIP_MENU_ONLY) | set(ARCHIVE_LEGACY) | set(TABS_LEGACY)
-            | set(FAV_MENU_ONLY))
+            | set(FAV_MENU_ONLY) | set(NO_BUTTON_27))
 
 
 def available_actions() -> list[str]:

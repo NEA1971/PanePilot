@@ -550,6 +550,12 @@ class PropertiesDialog(QDialog):
         self.exec_box.setVisible(not self._is_dir)
         self.exec_box.toggled.connect(self._perm_changed)
         form.addRow("", self.exec_box)
+        # v2.7 (L-3743): auch für Unterordner und enthaltene Dateien
+        self.recursive_box = QCheckBox(t("props.perm_recursive"), w)
+        self.recursive_box.setToolTip(t("props.perm_recursive_tip"))
+        self.recursive_box.setVisible(any(os.path.isdir(p) and not os.path.islink(p) for p in self.paths))
+        self.recursive_box.toggled.connect(self._perm_changed)
+        form.addRow("", self.recursive_box)
         self.code_label = QLabel(mode_text(st.st_mode), w)
         self.code_label.setStyleSheet("font-family: monospace;")
         form.addRow(t("props.code"), self.code_label)
@@ -583,7 +589,8 @@ class PropertiesDialog(QDialog):
             return
         mode = self.new_mode()
         self.code_label.setText(mode_text(mode))
-        self.apply_button.setEnabled(not self.read_only and (mode & 0o7777) != (self._mode & 0o7777))
+        recursive = self.recursive_box.isChecked() and not self.recursive_box.isHidden()
+        self.apply_button.setEnabled(not self.read_only and ((mode & 0o7777) != (self._mode & 0o7777) or recursive))
 
     def apply_permissions(self) -> None:
         from .dialogs import show_error
@@ -601,6 +608,8 @@ class PropertiesDialog(QDialog):
                 if len(self.paths) == 1 or is_dir == self._is_dir:
                     mode = self.new_mode() if len(self.paths) == 1 else self._mode_for(mode, is_dir)
                 os.chmod(p, stat.S_IMODE(mode))
+                if is_dir and self.recursive_box.isChecked():
+                    errors += self._apply_recursive(p)
             except OSError as exc:
                 errors.append(f"{os.path.basename(p)}: {exc.strerror or exc}")
         if errors:
@@ -610,6 +619,21 @@ class PropertiesDialog(QDialog):
         except OSError:
             pass
         self._perm_changed()
+
+    def _apply_recursive(self, top: str) -> list[str]:
+        """L-3743: gewählte Stufen auf alles darunter anwenden; Ordner bekommen dabei „x“ (über die Ordner-Stufen)."""
+        errors = []
+        for root, dirs, files in os.walk(top, onerror=lambda e: errors.append(f"{e.filename}: {e.strerror}")):
+            for name in dirs + files:
+                path = os.path.join(root, name)
+                try:
+                    st = os.lstat(path)
+                    if stat.S_ISLNK(st.st_mode):
+                        continue
+                    os.chmod(path, stat.S_IMODE(self._mode_for(st.st_mode, stat.S_ISDIR(st.st_mode))))
+                except OSError as exc:
+                    errors.append(f"{name}: {exc.strerror or exc}")
+        return errors
 
     def _mode_for(self, mode: int, is_dir: bool) -> int:
         """Bei Mehrfachauswahl die gewählten Stufen auf jeden Eintrag einzeln anwenden."""

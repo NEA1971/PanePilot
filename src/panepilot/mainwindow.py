@@ -10,6 +10,7 @@ from PySide6.QtCore import QByteArray, QEvent, QEventLoop, QKeyCombination, QMim
 from PySide6.QtGui import QAction, QActionGroup, QKeySequence, QPainter, QPalette
 from PySide6.QtWidgets import (
     QApplication,
+    QDialog,
     QFileDialog,
     QVBoxLayout,
     QWidget,
@@ -70,6 +71,7 @@ MODIFIER_KEYS = {
     Qt.Key.Key_Shift, Qt.Key.Key_Control, Qt.Key.Key_Alt, Qt.Key.Key_Meta,
     Qt.Key.Key_AltGr, Qt.Key.Key_CapsLock, Qt.Key.Key_NumLock, Qt.Key.Key_unknown,
 }
+KEYPAD_KEYS = {Qt.Key.Key_Plus, Qt.Key.Key_Minus, Qt.Key.Key_Asterisk}  # v2.7: Ziffernblock eigens
 
 
 class EmptyHintFavoritesView(FavoritesView):
@@ -121,6 +123,12 @@ class KeyFilter(QObject):
             return None
         mods = event.modifiers() & ~Qt.KeyboardModifier.KeypadModifier
         seq = QKeySequence(QKeyCombination(mods, Qt.Key(key))).toString(QKeySequence.SequenceFormat.PortableText)
+        if event.modifiers() & Qt.KeyboardModifier.KeypadModifier and key in KEYPAD_KEYS:
+            # v2.7 (L-3710): Ziffernblock-Plus/-Minus/-Stern eigens unterscheiden („Num++“)
+            num = QKeySequence(QKeyCombination(mods | Qt.KeyboardModifier.KeypadModifier, Qt.Key(key))).toString(
+                QKeySequence.SequenceFormat.PortableText)
+            if self.window.keymap.actions_for_key(num) or (num in ALL_FKEYS and self.window.fkey_action(num)):
+                seq = num
         # F-Tasten aller Schichten: Belegung der F-Leiste hat Vorrang (F-646)
         if not in_edit and seq in ALL_FKEYS and self.window.fkey_action(seq):
             return self.window.fkey_action(seq)
@@ -139,6 +147,15 @@ class KeyFilter(QObject):
 
     def eventFilter(self, obj, event) -> bool:
         etype = event.type()
+        if (etype == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Escape
+                and QApplication.activeModalWidget() is None and QApplication.activePopupWidget() is None):
+            focus = QApplication.focusWidget()
+            if focus is not None and focus.window() is self.window:
+                if any(sd.panel.stop_size_job() for sd in self.window.sides.values()):
+                    return True  # v2.7 (L-3721): Esc bricht die Ordnergrößen-Berechnung ab
+                if self.window.quick_view_side is not None and not isinstance(focus, QLineEdit):
+                    self.window.close_quick_view()  # v2.7 (L-3702)
+                    return True
         if (etype == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Escape
                 and self.window.rename_mode is not None and QApplication.activeModalWidget() is None
                 and QApplication.activePopupWidget() is None):
@@ -229,6 +246,9 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         self._init_remote()  # Server (v1.3)
         self.active_side = "left"
         self.rename_mode = None  # dict mit dem vorherigen Zustand, solange „Mehrfach umbenennen“ läuft
+        self.quick_view_side: str | None = None  # v2.7: Seite, die gerade die Schnellansicht zeigt
+        self._quick_view = None
+        self._quick_source = None
         self.tool_mode: dict[str, dict] = {}  # Seite → {"mode", "sidebar", "inner"} für Suche/Prüfsummen
         self._search_thread = None
         self.last_rename = None  # (Ordner, [(alt, neu)]) für „Rückgängig“ (F-733)
@@ -1116,6 +1136,7 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
             self.qactions[aid].setCheckable(True)
             self._icon_size_group.addAction(self.qactions[aid])
         self.qactions["filter_toggle"].setCheckable(True)
+        self.qactions["quick_view"].setCheckable(True)  # v2.7 (L-3700): Umschalter
         self.qactions["tabs"].setCheckable(True)  # v2.2: Knopf „Reiter“ = Reiterleiste immer anzeigen
         self.qactions["tabs"].setChecked(bool(self.settings.get("tabs_always")))
         self.qactions["rename_undo"].setEnabled(False)
@@ -1140,7 +1161,8 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         for aid in ("open", "edit_text", "open_with_other", "open_terminal", "server_manager", None, "new_folder",
                     "new_textfile",
                     "rename", "duplicate", "multi_rename", "rename_undo", None, "search", "find_duplicates", "checksums", "dir_list",
-                    "properties", None, "compare_folders", "sync_folders", "sync_profiles", None,
+                    "properties", "change_date", None, "compare_folders", "compare_files", "sync_folders",
+                    "sync_profiles", None,
                     "copy", "move", None, "delete", "delete_permanent", None):
             if aid == "sync_profiles":  # v1.16 (L-1621): gespeicherte Abgleiche
                 self.sync_menu = m.addMenu(t("menu.sync_profiles"))
@@ -1160,7 +1182,8 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         m.addAction(a["quit"])
 
         m = mb.addMenu(t("menu.edit"))
-        for aid in ("clip_cut", "clip_copy", "clip_paste", None, "select_all", None, "meta_wizard"):
+        for aid in ("clip_cut", "clip_copy", "clip_paste", None, "select_all", "select_add", "select_remove",
+                    "select_invert", "select_same_ext", None, "meta_wizard"):
             m.addSeparator() if aid is None else m.addAction(a[aid])
         m.addSeparator()
         self._fill_clip_menu(m.addMenu(t("menu.clip_text")))  # v1.23 (L-2312)
@@ -1192,6 +1215,8 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         m.addAction(a["toggle_shared_sidebar"])  # v1.21
         m.addSeparator()
         m.addAction(a["view_mode"])  # v1.23: Details ↔ Symbole
+        m.addAction(a["quick_view"])  # v2.7 (L-3700)
+        m.addAction(a["folder_sizes_all"])  # v2.7 (L-3721)
         m.addAction(a["toggle_icon_view"])  # v1.19 (L-1910 ff.)
         sub = m.addMenu(t("menu.icon_size"))
         for aid in ("icons_small", "icons_medium", "icons_large"):
@@ -1762,6 +1787,160 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
     def do_select_all(self) -> None:
         self.active.select_all()
 
+    # --- v2.7: Auswahl nach Muster (L-3710 ff.) ------------------------------------------------
+    def _select_by_pattern(self, select: bool) -> None:
+        from . import selectpattern as sp
+
+        panel = self.active
+        cur = panel.current_entry()
+        initial = sp.ext_pattern(cur.name if cur else None, cur.is_dir if cur else False)
+        history = self.settings.get("select_patterns") or []
+        title = t("action.select_add" if select else "action.select_remove").replace("&", "")
+        dlg = sp.PatternDialog(self, title, initial, history, bool(self.settings.get("select_include_dirs")))
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        text, dirs = dlg.values()
+        if not text:
+            return
+        self.settings.set("select_patterns", sp.remember(history, text))
+        self.settings.set("select_include_dirs", dirs)
+        panel.select_pattern(sp.split_patterns(text), dirs, select)
+        panel.focus_view()
+
+    def do_select_add(self) -> None:
+        self._select_by_pattern(True)
+
+    def do_select_remove(self) -> None:
+        self._select_by_pattern(False)
+
+    def do_select_invert(self) -> None:
+        self.active.invert_selection()
+
+    def do_select_same_ext(self) -> None:
+        self.active.select_same_ext()
+
+    # --- v2.7: Ordnergrößen (L-3720 ff.) --------------------------------------------------------
+    def do_folder_size(self) -> None:
+        panel = self.active
+        cur = panel.current_entry()
+        if cur is not None and cur.is_dir and not cur.is_parent:
+            panel.calc_folder_sizes([cur])
+
+    def do_folder_sizes_all(self) -> None:
+        self.active.calc_folder_sizes()
+
+    # --- v2.7: Schnellansicht (L-3700 ff.) ------------------------------------------------------
+    def do_quick_view(self) -> None:
+        if self.quick_view_side is not None:
+            self.close_quick_view()
+        else:
+            self.open_quick_view()
+
+    def open_quick_view(self) -> bool:
+        from .quickview import QuickView
+
+        act = self.qactions["quick_view"]
+        title = t("action.quick_view").replace("&", "")
+        source_side, target_side = self.active_side, self.other_side
+        target = self.sides[target_side].panel
+        if self.single_mode or self.meta_mode is not None or self.rename_mode is not None or \
+                target_side in self.tool_mode or target.locked or getattr(target, "_custom_view", None) is not None:
+            act.setChecked(False)
+            show_info(self, title, t("quick.unavailable"))
+            return False
+        source = self.sides[source_side].panel
+        view = QuickView(target, on_replaced=self._quick_view_gone)
+        self._quick_view = view
+        self._quick_source = source
+        self.quick_view_side = target_side
+        target.set_custom_view(view)
+        source.view.selectionModel().currentChanged.connect(self._quick_view_follow)
+        act.setChecked(True)
+        self._quick_view_follow()
+        view.show_path(self._quick_path(), immediate=True)
+        self.set_active_side(source_side)
+        source.focus_view()
+        return True
+
+    def _quick_path(self) -> str | None:
+        source = self._quick_source
+        if source is None:
+            return None
+        entry = source.current_entry()
+        if entry is None or entry.is_parent or entry.remote or source.in_trash or source.in_archive:
+            return None
+        return entry.path
+
+    def _quick_view_follow(self, *_args) -> None:
+        if self._quick_view is not None:
+            self._quick_view.show_path(self._quick_path())
+
+    def _quick_view_gone(self) -> None:
+        """Eine andere Ansicht hat die Schnellansicht ersetzt (z. B. der Meta-Wizard)."""
+        source = self._quick_source
+        if source is not None:
+            try:
+                source.view.selectionModel().currentChanged.disconnect(self._quick_view_follow)
+            except (RuntimeError, TypeError):
+                pass
+        self._quick_view = None
+        self._quick_source = None
+        self.quick_view_side = None
+        self.qactions["quick_view"].setChecked(False)
+
+    def close_quick_view(self) -> None:
+        if self.quick_view_side is None:
+            return
+        side = self.quick_view_side
+        source = self._quick_source
+        self.sides[side].panel.set_custom_view(None)  # ruft _quick_view_gone über replaced()
+        if source is not None:
+            for name, sd in self.sides.items():
+                if sd.panel is source:
+                    self.set_active_side(name)
+            source.focus_view()
+
+    def do_compare_files(self) -> None:
+        """v2.7 (L-3730): zwei markierte Dateien – beide im aktiven Fenster oder je eine links und rechts."""
+        from . import filecompare
+
+        title = t("compare.title")
+        active, other = self.active, self.other
+        mine = [e for e in active.target_entries()]
+        theirs = [e for e in other.selected_entries()] if not self.single_mode else []
+        if len(mine) == 2:
+            pair = mine
+        elif len(mine) == 1 and len(theirs) == 1:
+            pair = [mine[0], theirs[0]] if self.active_side == "left" else [theirs[0], mine[0]]
+        else:
+            show_info(self, title, t("compare.need_two"))
+            return
+        panels = (active,) if len(mine) == 2 else (active, other)
+        if any(e.is_dir or e.remote for e in pair) or any(p.in_trash or p.in_archive for p in panels):
+            show_info(self, title, t("compare.files_only"))
+            return
+        filecompare.compare(self, pair[0].path, pair[1].path)
+
+    def do_change_date(self) -> None:
+        """v2.7 (L-3740): Änderungsdatum der markierten Einträge setzen."""
+        from . import datechange as dc
+
+        panel = self.active
+        title = t("date.title")
+        if panel.in_trash or panel.in_remote or panel.in_archive:
+            show_error(self, title, t("date.local_only"))
+            return
+        entries = panel.target_entries()
+        if not entries:
+            return
+        dlg = dc.DateDialog(self, [e.path for e in entries])
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        errors = dc.apply(dlg.changes)
+        panel.refresh()
+        if errors:
+            show_error(self, title, t("date.failed", errors="\n".join(errors[:10])))
+
     def do_go_up(self) -> None:
         self.active.go_up()
 
@@ -1777,6 +1956,17 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         self.toolbar.rebuilt.connect(self._update_view_actions)
         self.toolbar.hide_requested.connect(lambda: self.set_toolbar_visible(False))
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar)
+        if not self.settings.get("toolbar_quick_view_added"):  # v2.7 (L-3700): einmalig rechts neben „Ansicht“
+            items = list(self.settings.get("toolbar") or [])
+            if "quick_view" not in items:
+                if "view_mode" in items:
+                    items.insert(items.index("view_mode") + 1, "quick_view")
+                elif ">" in items:
+                    items.insert(items.index(">"), "quick_view")
+                else:
+                    items.append("quick_view")
+                self.settings.set("toolbar", items)
+            self.settings.set("toolbar_quick_view_added", True)
         self.toolbar.set_items(self.settings.get("toolbar"))
         self.toolbar.setVisible(bool(self.settings.get("show_toolbar")))
 
@@ -1918,7 +2108,7 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
     def do_refresh(self) -> None:
         self.mounts.reload()
         for s in self.sides.values():
-            s.panel.refresh()
+            s.panel.refresh(keep_sizes=False)
         for tree in self._trees():
             tree.reload()
         for m in self.fav_sets.loaded_models():
@@ -2356,6 +2546,8 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         menu.addSeparator()
         if self.sides[side].panel.search_mode and entry is not None:
             menu.addAction(t("search.jump")).triggered.connect(self.jump_to_found_folder)
+        menu.addAction(a["compare_files"])  # v2.7 (L-3730)
+        menu.addAction(a["change_date"])  # v2.7 (L-3740)
         if entry is not None and not entry.is_dir:
             menu.addAction(a["checksums"])
         menu.addAction(a["properties"])
@@ -2792,6 +2984,8 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         self.set_single_mode(not self.single_mode)
 
     def set_single_mode(self, on: bool) -> None:
+        if on:
+            self.close_quick_view()  # v2.7: ohne zweites Fenster keine Schnellansicht
         self.single_mode = on
         other = self.sides[self.other_side].splitter
         other.setVisible(not on)
@@ -3318,6 +3512,8 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
             return
         skip = getattr(self, "_skip_save_state", False)  # nach „Wiederherstellen“ nichts überschreiben
         self._stop_search()
+        for side in SIDES:  # v2.7: laufende Ordnergrößen-Berechnung beenden
+            self.sides[side].panel.stop_size_job(wait=True)
         for side in list(self.tool_mode):
             self.close_tool(side)
         for side in SIDES:  # noch nicht gespeicherte Spaltenänderungen ins Profil
