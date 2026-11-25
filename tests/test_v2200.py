@@ -155,7 +155,7 @@ def test_read_only_and_copy_out(window, tree, zipped, qtbot, monkeypatch):  # no
     panel.navigate(str(zipped / "Urlaub"))
     assert panel.in_archive
     panel.select_names(["bild1.jpg", "Strand"], current="bild1.jpg")
-    for aid in ("delete", "rename", "new_folder", "move"):
+    for aid in ("duplicate", "properties", "new_textfile", "multi_rename"):  # seit v2.8 gehen F2/F6/F7/F8
         window.trigger(aid)
     from PySide6.QtCore import Qt
 
@@ -166,16 +166,6 @@ def test_read_only_and_copy_out(window, tree, zipped, qtbot, monkeypatch):  # no
     qtbot.waitUntil(lambda: (tree / "b" / "Strand" / "bild2.jpg").exists() and not window.ops.is_busy(), timeout=5000)
     assert (tree / "b" / "bild1.jpg").read_bytes() == b"\xff\xd8bild1"
     assert not [n for n in os.listdir(tree / "b") if n.startswith(".panepilot")]
-    # ins Archiv kopieren geht nicht
-    window.set_active_side("right")
-    window.sides["right"].panel.navigate(str(zipped))
-    window.sides["right"].panel.select_names(["readme.txt"], current="readme.txt")
-    window.set_active_side("left")
-    panel.navigate(str(tree / "b"))
-    panel.select_names(["bild1.jpg"], current="bild1.jpg")
-    infos.clear()
-    window.trigger("copy")
-    assert infos and "Archiv" in infos[-1]
 
 
 def test_open_file_in_archive(window, tree, zipped, monkeypatch):  # noqa: F811

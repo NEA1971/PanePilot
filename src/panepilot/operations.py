@@ -64,6 +64,9 @@ class OperationController(QObject):
                 result.errors,
             ).exec()
         self.finished.emit(thread.kind, thread.target_dir, result.created)
+        callback = (getattr(thread, "options", None) or {}).get("on_done")
+        if callback is not None:  # v2.8: z. B. nach dem Verschieben aus einem Archiv dort löschen
+            callback(result)
         thread.deleteLater()
 
     def wait_all(self, msecs: int = 3000) -> None:

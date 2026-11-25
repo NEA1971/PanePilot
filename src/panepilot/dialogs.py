@@ -156,7 +156,8 @@ def _describe(path: str) -> str:
 
 
 class ConflictDialog(QDialog):
-    def __init__(self, parent, src: str, dst: str, same_file: bool, suggestion: str) -> None:
+    def __init__(self, parent, src: str, dst: str, same_file: bool, suggestion: str,
+                 dst_info: str | None = None) -> None:
         super().__init__(parent)
         free_window(self)
         self.setWindowTitle(t("title.conflict"))
@@ -166,7 +167,7 @@ class ConflictDialog(QDialog):
         head.setWordWrap(True)
         grid = QGridLayout()
         grid.addWidget(QLabel(t("conflict.existing"), self), 0, 0)
-        grid.addWidget(QLabel(_describe(dst), self), 0, 1)
+        grid.addWidget(QLabel(_describe(dst) if dst_info is None else dst_info, self), 0, 1)
         grid.addWidget(QLabel(t("conflict.new"), self), 1, 0)
         grid.addWidget(QLabel(_describe(src), self), 1, 1)
         rename_row = QHBoxLayout()

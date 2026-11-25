@@ -43,6 +43,7 @@ class OperationResult:
     cancelled: bool = False
     created: list[str] = field(default_factory=list)  # Namen auf oberster Ebene im Ziel
     skipped: int = 0
+    unpacked: list[str] = field(default_factory=list)  # v2.8: vollständig entpackte innere Pfade (UNPACK)
 
 
 def _reason(exc: OSError) -> str:
@@ -391,9 +392,12 @@ class OperationEngine:
                 src = os.path.join(tmp, name)
                 if not os.path.lexists(src):
                     continue
+                errors_before = len(self.result.errors)
                 final = self._transfer(src, os.path.join(dest, name), move=True, top_level=True)
                 if final:
                     self.result.created.append(os.path.basename(final))
+                    if len(self.result.errors) == errors_before and not os.path.lexists(src):
+                        self.result.unpacked.append(inner.strip("/"))  # nichts übersprungen oder fehlgeschlagen
         except Cancelled:
             self.result.cancelled = True
         except ArchiveError as exc:

@@ -34,7 +34,9 @@ MIXED = "mixed"
 
 STATUS_KEYS = {fd.SAME: "sync.status_same", fd.LEFT_ONLY: "sync.status_left_only",
                fd.RIGHT_ONLY: "sync.status_right_only", fd.LEFT_NEWER: "sync.status_left_newer",
-               fd.RIGHT_NEWER: "sync.status_right_newer", fd.CONFLICT: "sync.status_conflict"}
+               fd.RIGHT_NEWER: "sync.status_right_newer", fd.CONFLICT: "sync.status_conflict",
+               fd.BOTH_CHANGED: "sync.status_both_changed", fd.LEFT_DELETED: "sync.status_left_deleted",
+               fd.RIGHT_DELETED: "sync.status_right_deleted"}  # v2.8 (L-3815)
 ACTIONS = (fd.TO_RIGHT, fd.TO_LEFT, fd.DEL_RIGHT, fd.DEL_LEFT, fd.NONE)
 BLUE, RED, GREY, ORANGE = "#1d5fa6", "#a33a12", "#7a7a7a", "#b26a00"
 GLYPHS = {fd.TO_RIGHT: ("→", BLUE), fd.TO_LEFT: ("←", BLUE), fd.DEL_RIGHT: ("✕", RED), fd.DEL_LEFT: ("✕", RED),
@@ -54,9 +56,25 @@ def action_text(e: fd.Entry) -> str:
         text = t("sync.tip_del_left")
     else:
         text = t("sync.tip_none")
-    if e.status == fd.CONFLICT:
-        text = t("sync.status_conflict") + "\n" + text
-    return text
+    if e.status in fd.CONFLICTS or e.status in (fd.LEFT_DELETED, fd.RIGHT_DELETED):
+        text = t(STATUS_KEYS[e.status]) + "\n" + text
+    return text + since_text(e)  # v2.8 (L-3815): was sich seit dem letzten Abgleich geändert hat
+
+
+SINCE_KEYS = {"left_changed": "sync.since_left_changed", "right_changed": "sync.since_right_changed",
+              "left_deleted": "sync.since_left_deleted", "right_deleted": "sync.since_right_deleted",
+              "left_new": "sync.since_left_new", "right_new": "sync.since_right_new"}
+
+
+def since_text(e: fd.Entry) -> str:
+    if not e.since:
+        return ""
+    return "\n\n" + t("sync.since_last") + "\n" + "\n".join("• " + t(SINCE_KEYS[s]) for s in e.since
+                                                               if s in SINCE_KEYS)
+
+
+def status_tip(e: fd.Entry) -> str:
+    return t(STATUS_KEYS[e.status]) + since_text(e)
 
 
 def menu_label(action: str) -> str:
@@ -65,7 +83,7 @@ def menu_label(action: str) -> str:
 
 
 def entry_glyph(e: fd.Entry) -> tuple[str, str]:
-    if e.status == fd.CONFLICT and e.action == fd.NONE:
+    if e.status in fd.CONFLICTS and e.action == fd.NONE:
         return "!", ORANGE
     return GLYPHS[e.action]
 
@@ -583,6 +601,9 @@ class SyncPane(QWidget):
             return
         prof.name = name
         sp.put(prof, old_name=old)
+        from . import syncstate
+
+        syncstate.rename(old, name)  # v2.8: gemerkter Stand zieht mit
         self._fill_profiles(name)
 
     def delete_profile(self) -> None:
@@ -590,6 +611,9 @@ class SyncPane(QWidget):
         if not name or not confirm(self, t("sync.profile_delete"), t("sync.profile_delete_q", name=name)):
             return
         sp.remove(name)
+        from . import syncstate
+
+        syncstate.forget(name)
         self._fill_profiles(None)
 
     # --- FreeFileSync (v1.17) -----------------------------------------------------------------------------
@@ -694,8 +718,19 @@ class SyncPane(QWidget):
             return False
         opts = self.options()
         self.remember()
-        entries, error = netutil.run_blocking(self, lambda: fd.scan(paths[0], paths[1], opts),
-                                              t("sync.comparing"), t("sync.title"))
+        profile = self.current_profile()
+
+        def work():
+            found = fd.scan(paths[0], paths[1], opts)
+            if profile:  # v2.8 (L-3810 ff.): gemerkter Stand nur bei gespeicherten Abgleichen
+                from . import syncstate
+
+                state = syncstate.load(profile, paths[0], paths[1])
+                if state is not None:
+                    syncstate.apply(found, state, opts)
+            return found
+
+        entries, error = netutil.run_blocking(self, work, t("sync.comparing"), t("sync.title"))
         if error:
             show_error(self, t("sync.title"), error)
             return False
@@ -760,8 +795,8 @@ class SyncPane(QWidget):
                 item.setText(c_size, t("sync.n_files", n=side.files) if side.is_dir else util.format_size(side.size))
                 item.setTextAlignment(c_size, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
                 item.setText(c_date, datetime.fromtimestamp(side.mtime).strftime("%d.%m.%Y %H:%M"))
-            item.setToolTip(L_NAME, t(STATUS_KEYS[e.status]))
-            item.setToolTip(R_NAME, t(STATUS_KEYS[e.status]))
+            item.setToolTip(L_NAME, status_tip(e))
+            item.setToolTip(R_NAME, status_tip(e))
             if e.status == fd.SAME:
                 for c in range(7):
                     item.setForeground(c, self.palette().placeholderText())
@@ -909,6 +944,15 @@ class SyncPane(QWidget):
         result = self.run(left, right)
         self.finish(left, right, result)
 
+    def _save_state(self, left: str, right: str) -> None:
+        from . import netutil, syncstate
+
+        profile, opts = self.current_profile(), self.options()
+        keep = {e.rel for e in self.entries
+                if e.action == fd.NONE and e.status != fd.SAME and (e.since or e.status in fd.CONFLICTS)}
+        netutil.run_blocking(self, lambda: syncstate.save(profile, left, right, fd.scan(left, right, opts), keep),
+                             t("sync.saving_state"), t("sync.title"))
+
     def run(self, left: str, right: str) -> fd.Result:
         from .fileops import move_to_trash
 
@@ -945,8 +989,13 @@ class SyncPane(QWidget):
         if self.current_profile():  # L-1900: letzten Lauf merken
             sp.record_run(self.current_profile(), result)
             self.show_last_run()
+            if not result.errors and not result.cancelled:
+                self._save_state(left, right)  # v2.8 (L-3810)
         lines = [t("sync.done", copied=result.copied, over=result.overwritten, deleted=result.deleted,
                    failed=result.failed)]
+        skipped = sum(1 for e in self.entries if e.status in fd.CONFLICTS and e.action == fd.NONE)
+        if skipped:  # v2.8 (L-3816): Konflikte bleiben liegen und werden gemeldet
+            lines.append(t("sync.conflicts_skipped", n=skipped))
         if result.cancelled:
             lines.append(t("sync.cancelled"))
         for rel, msg in result.errors[:15]:

@@ -150,12 +150,17 @@ class _FileListMixin:
         event.setDropAction(action)
         return True
 
+    def _archive_drop_ok(self, event) -> bool:
+        """Ins Archiv dürfen nur echte Dateien von außerhalb dieses Fensters (keine Server/Archive)."""
+        return (event.source() is not self and self._remote_payload(event) is None
+                and bool(self._local_paths(event)))
+
     def _into_archive(self) -> bool:
         model = self.model() if callable(getattr(self, "model", None)) else None
         return bool(getattr(model, "archive_mode", False))
 
     def dragEnterEvent(self, event) -> None:
-        if self._into_archive():  # v2.2: Archiv ist nur lesbar (L-3209)
+        if self._into_archive() and not self._archive_drop_ok(event):  # v2.8: nur Dateien von außen (L-3801)
             event.ignore()
             return
         if self._remote_payload(event) is not None:
@@ -176,7 +181,7 @@ class _FileListMixin:
         event.ignore()
 
     def dragMoveEvent(self, event) -> None:
-        if self._into_archive():  # v2.2: Archiv ist nur lesbar (L-3209)
+        if self._into_archive() and not self._archive_drop_ok(event):  # v2.8: nur Dateien von außen (L-3801)
             event.ignore()
             return
         if self._remote_payload(event) is not None:
@@ -199,7 +204,7 @@ class _FileListMixin:
         event.accept()
 
     def dropEvent(self, event) -> None:
-        if self._into_archive():  # v2.2: Archiv ist nur lesbar (L-3209)
+        if self._into_archive() and not self._archive_drop_ok(event):  # v2.8: nur Dateien von außen (L-3801)
             event.ignore()
             return
         payload = self._remote_payload(event)

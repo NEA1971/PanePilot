@@ -26,6 +26,13 @@ In der Seitenleiste merkt sich PanePilot mit **Speichern …** den Abgleich unte
 
 Unter der Auswahl steht der **letzte Lauf** des gewählten Abgleichs: grüner Haken = fehlerfrei, Verbotsschild = mit Fehlern oder abgebrochen. Der Infotext zeigt Datum, Zahlen und bei Fehlern die ersten Meldungen. Dasselbe steht im Menü **Datei → Gespeicherte Abgleiche** hinter dem Namen.
 
+**Gemerkter Stand (Konflikterkennung):** Nach jedem fehlerfreien Lauf eines gespeicherten Abgleichs merkt sich PanePilot Größe und Änderungszeit jeder Datei auf beiden Seiten (in den Einstellungen, nicht in den Ordnern). Beim nächsten Vergleich gilt dann:
+- Nur auf **einer Seite** geändert → diese Seite gewinnt, auch wenn ihre Uhrzeit älter ist.
+- Auf **beiden Seiten** geändert → **Konflikt** („auf beiden Seiten geändert“, Ausrufezeichen): nichts wird kopiert, du entscheidest in der Zeile.
+- Richtung „beide“: seit dem letzten Abgleich auf einer Seite **gelöscht** → wird auf der anderen Seite ebenfalls gelöscht (Papierkorb) statt zurückkopiert.
+- Eine Richtung (auch „Spiegeln“): Wurde das **Ziel** seither verändert, erscheint die Datei als Konflikt und wird nur überschrieben, wenn du die Zeile umstellst.
+- Der Tooltip zeigt, was sich seit dem letzten Abgleich geändert hat. Übersprungene Konflikte meldet das Ergebnis und sie bleiben beim nächsten Mal erkennbar. Beim ersten Lauf (noch kein Stand) entscheidet wie bisher die Uhrzeit.
+
 ## FreeFileSync
 - **FreeFileSync → Aus FreeFileSync importieren …** übernimmt `.ffs_gui`- und `.ffs_batch`-Dateien (mehrere auf einmal) als gespeicherte Abgleiche; der Name ist der Dateiname. Gibt es ihn schon, fragt PanePilot nach.
 - Übernommen werden Ordnerpaar (bei mehreren je Paar ein Abgleich), Richtung, Spiegeln, Vergleich nach Inhalt, Filter und der Befehl nach dem Abgleich. „Aktualisieren“ wird zu „links → rechts“ ohne Spiegeln, „Spiegeln“ zu „links → rechts“ mit „Spiegeln: Ziel wird genau wie die Quelle“, echte Zwei-Wege-Abgleiche zu „beide Richtungen“.

@@ -51,6 +51,7 @@ class ArchiveIndex:
     password: str | None = None
     encrypted: bool = False  # mindestens eine Datei verschlüsselt
     needs_7z: bool = False  # zip mit AES-Verschlüsselung (nur mit 7zip)
+    headers_encrypted: bool = False  # v2.8: Inhaltsliste nur mit Passwort lesbar (7z -mhe)
     stamp: tuple = ()
 
     # --- Aufbau -------------------------------------------------------------------------------------

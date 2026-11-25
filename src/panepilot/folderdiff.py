@@ -14,6 +14,9 @@ LR, RL, BOTH = "lr", "rl", "both"
 # Zustand eines Eintrags
 SAME, LEFT_ONLY, RIGHT_ONLY, LEFT_NEWER, RIGHT_NEWER, CONFLICT = (
     "same", "left_only", "right_only", "left_newer", "right_newer", "conflict")
+# v2.8 (L-3815): nur mit gemerktem Stand eines gespeicherten Abgleichs (syncstate)
+BOTH_CHANGED, LEFT_DELETED, RIGHT_DELETED = "both_changed", "left_deleted", "right_deleted"
+CONFLICTS = (CONFLICT, BOTH_CHANGED)
 # Aktion
 NONE, TO_RIGHT, TO_LEFT, DEL_RIGHT, DEL_LEFT = "none", "to_right", "to_left", "del_right", "del_left"
 
@@ -60,6 +63,7 @@ class Entry:
     right: Side | None
     status: str = SAME
     action: str = NONE
+    since: tuple = ()  # v2.8: Änderungen seit dem letzten Abgleich, z. B. ("left_changed", "right_deleted")
 
     @property
     def is_dir(self) -> bool:
@@ -194,8 +198,12 @@ def scan(left: str, right: str, opts: Options, cancel: threading.Event | None = 
 
 def default_action(e: Entry, opts: Options) -> str:
     s, d = e.status, opts.direction
-    if s in (SAME, CONFLICT):
+    if s in (SAME, CONFLICT, BOTH_CHANGED):
         return NONE
+    if s == LEFT_DELETED:  # links seit dem letzten Abgleich gelöscht (L-3813)
+        return DEL_RIGHT if d == BOTH or (d == LR and opts.mirror) else NONE
+    if s == RIGHT_DELETED:
+        return DEL_LEFT if d == BOTH or (d == RL and opts.mirror) else NONE
     if d == BOTH:
         return {LEFT_ONLY: TO_RIGHT, RIGHT_ONLY: TO_LEFT, LEFT_NEWER: TO_RIGHT, RIGHT_NEWER: TO_LEFT}[s]
     # Eine Richtung: Ist das Ziel neuer, wird es nur beim Spiegeln überschrieben (sonst „nichts tun“,
@@ -402,6 +410,6 @@ def summary_counts(entries: list[Entry]) -> dict:
             c["bytes"] += e.right.size
         elif e.action in (DEL_RIGHT, DEL_LEFT):
             c["delete"] += 1
-        if e.status == CONFLICT:
+        if e.status in CONFLICTS:
             c["conflict"] += 1
     return c

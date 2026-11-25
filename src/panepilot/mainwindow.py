@@ -1711,6 +1711,9 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         if panel.in_remote:
             self.remote_new_folder(panel, name)
             return
+        if panel.in_archive:  # v2.8 (L-3801)
+            self.archive_new_folder(panel, name)
+            return
         path = os.path.join(panel.current_path, name)
         try:
             os.mkdir(path)
@@ -1725,14 +1728,17 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         panel.focus_view()
 
     def do_rename(self) -> None:
+        if self.active.in_archive:  # v2.8 (L-3801)
+            self.archive_rename(self.active)
+            return
         self.active.start_rename()
 
     def do_delete(self) -> None:
         if self.active.in_trash:
             self.do_trash_purge()  # im Papierkorb gibt es nur endgültiges Löschen
             return
-        if self.active.in_remote:
-            self.do_delete_permanent()  # auf dem Server gibt es keinen Papierkorb
+        if self.active.in_remote or self.active.in_archive:
+            self.do_delete_permanent()  # auf dem Server und im Archiv gibt es keinen Papierkorb
             return
         entries = self.active.target_entries()
         if not entries:
@@ -1754,6 +1760,9 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
             return
         if self.active.in_remote:
             self.remote_delete(self.active, entries)
+            return
+        if self.active.in_archive:  # v2.8 (L-3801): endgültig, mit Rückfrage
+            self.archive_delete(self.active)
             return
         what = t("dialog.one_item", name=entries[0].name) if len(entries) == 1 else t("dialog.n_items", n=len(entries))
         key = "dialog.delete_confirm_one" if len(entries) == 1 else "dialog.delete_confirm"
@@ -2891,6 +2900,16 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
 
     # --- Drag & Drop / Operationen ---------------------------------------------------------------
     def _on_drop(self, paths: list[str], target: str, action) -> None:
+        from . import archivefs
+
+        inside = archivefs.split_path(target) if not os.path.exists(target) else None
+        if inside is not None:  # v2.8 (L-3801): ins geöffnete Archiv gezogen
+            for sd in self.sides.values():
+                panel = sd.panel
+                if panel.in_archive and panel.archive is not None and panel.archive.archive == inside[0]:
+                    self.archive_add(panel, paths, inside[1], action == Qt.DropAction.MoveAction, ask=False)
+                    return
+            return
         if is_remote_uri(target):
             self.remote_drop(paths, target, action)
             return

@@ -26,6 +26,13 @@ Two files are **identical** if name, size and modification date match. Differenc
 
 Below the selection you see the **last run** of the chosen synchronization: green check = no errors, no-entry sign = errors or cancelled. The tooltip shows date, numbers and, after errors, the first messages. The same appears in **File → Saved synchronizations** next to the name.
 
+**Remembered state (conflict detection):** after every error-free run of a saved synchronization PanePilot remembers size and modification time of every file on both sides (in the settings, not in the folders). On the next comparison:
+- Changed on **one side** only → that side wins, even if its time is older.
+- Changed on **both sides** → **conflict** (“changed on both sides”, exclamation mark): nothing is copied, you decide in the row.
+- Direction “both”: **deleted** on one side since the last sync → deleted on the other side too (trash) instead of being copied back.
+- One direction (also “Mirror”): if the **target** changed since then, the file appears as a conflict and is only overwritten if you change the row.
+- The tooltip shows what changed since the last sync. Skipped conflicts are reported in the result and stay detectable next time. On the first run (no state yet) the time decides as before.
+
 ## FreeFileSync
 - **FreeFileSync → Import from FreeFileSync …** imports `.ffs_gui` and `.ffs_batch` files (several at once) as saved synchronizations; the name is the file name. If it exists, PanePilot asks.
 - Imported are the folder pair (one synchronization per pair), direction, mirroring, content comparison, filters and the command after synchronizing. “Update” becomes “left → right” without mirroring, “Mirror” becomes “left → right” with mirroring, real two-way synchronizations become “both directions”.
