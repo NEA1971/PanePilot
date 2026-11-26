@@ -52,6 +52,9 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="3.2.0" date="2026-11-26">
+      <description><p>Light and dark appearance, the same on Linux and Windows; font settings; grid lines and alternating row colours; sort favorites by name.</p></description>
+    </release>
     <release version="3.1.0" date="2026-11-25">
       <description><p>Windows: import favorites from FreeCommander, video functions with automatically found helper programs, When-finished actions; new settings page for additional programs.</p></description>
     </release>
