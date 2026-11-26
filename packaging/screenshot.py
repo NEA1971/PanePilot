@@ -21,6 +21,10 @@ def main(out: str) -> None:
         p = home / f
         with open(p, "wb") as fh:
             fh.truncate(size)
+    look = os.environ.get("PANEPILOT_SHOT_SETTINGS")  # z. B. '{"theme": "dark"}' (Sichtprüfung v3.2)
+    if look:
+        (base / "config").mkdir(parents=True, exist_ok=True)
+        (base / "config" / "settings.json").write_text(look, encoding="utf-8")
     from panepilot.app import create_app
 
     app = create_app([])

@@ -252,6 +252,33 @@ class FileView(_FileListMixin, QTreeView):
         self.setDefaultDropAction(Qt.DropAction.CopyAction)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.setItemDelegate(RenameDelegate(self))
+        self.setAlternatingRowColors(FileView.alt_rows)
+
+    # v3.2 (L-4220/L-4221): abwechselnde Zeilenfarben, senkrechte Rasterlinien
+    grid_lines = True
+    alt_rows = False
+
+    def paintEvent(self, event) -> None:
+        super().paintEvent(event)
+        if not FileView.grid_lines:
+            return
+        header = self.header()
+        visible = [header.logicalIndex(v) for v in range(header.count())
+                   if not header.isSectionHidden(header.logicalIndex(v))]
+        if len(visible) < 2:
+            return
+        from PySide6.QtGui import QPainter, QPalette
+
+        painter = QPainter(self.viewport())
+        color = self.palette().color(QPalette.ColorRole.Mid)
+        color.setAlpha(140)
+        painter.setPen(color)
+        height = self.viewport().height()
+        for logical in visible[:-1]:
+            x = header.sectionViewportPosition(logical) + header.sectionSize(logical) - 1
+            if 0 <= x < self.viewport().width():
+                painter.drawLine(x, 0, x, height)
+        painter.end()
 
 
 # --- Symbolansicht (v1.19, L-1910 ff.) ------------------------------------------------------------------------
@@ -1153,9 +1180,14 @@ class FilePanel(QWidget):
         self._update_tab_bar()
 
     def set_remote_color(self, color: str) -> None:
-        self.view.setStyleSheet(f"QTreeView {{ background-color: {color}; }}" if color else "")
-        self.icon_view.setStyleSheet(f"QListView {{ background-color: {color}; }}" if color else "")
-        self.parent_bar.setStyleSheet(f"QListView {{ background-color: {color}; }}" if color else "")
+        from PySide6.QtGui import QColor
+
+        text = ""
+        if color and QColor(color).isValid():  # v3.2: lesbare Schrift auch im Dunkelmodus
+            text = " color: #000000;" if QColor(color).lightness() > 128 else " color: #F0F0F0;"
+        self.view.setStyleSheet(f"QTreeView {{ background-color: {color};{text} }}" if color else "")
+        self.icon_view.setStyleSheet(f"QListView {{ background-color: {color};{text} }}" if color else "")
+        self.parent_bar.setStyleSheet(f"QListView {{ background-color: {color};{text} }}" if color else "")
 
     def _update_parent_row(self, *_args) -> None:
         """Symbolansicht: „..“ nicht als großes Symbol, sondern als Zeile darüber (v1.19.1)."""

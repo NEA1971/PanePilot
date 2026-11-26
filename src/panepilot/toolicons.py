@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPainterPath, QPen
+from PySide6.QtGui import QColor, QFont, QIcon, QImage, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QApplication
 
 from .bars import _arrow, _colors, _mirror, _page, _paint_icon, icon_copy, icon_move, icon_same_path, icon_swap, trash_icons
@@ -79,11 +79,45 @@ def _make(action_id: str, text: str) -> QIcon:
         return trash_icons()[0]
     themed = _theme(THEME_NAMES.get(action_id, ()))
     if themed is not None:
-        return themed
+        return for_dark(themed)
     fallback = _FALLBACK.get(action_id)
     if fallback is not None:
         return fallback()
     return _badge(text or action_id)
+
+
+def for_dark(icon: QIcon) -> QIcon:
+    """v3.2 (L-4202): einfarbig dunkle Systemsymbole (z. B. „-symbolic“) im Dunkelmodus hell einfärben."""
+    from . import theme
+
+    if not theme.is_dark() or icon.isNull():
+        return icon
+    from PySide6.QtGui import QPixmap
+
+    fg = QApplication.palette().color(QApplication.palette().ColorRole.Text)
+    out = QIcon()
+    changed = False
+    for size in (16, 22, 24, 32, 48):
+        img = icon.pixmap(size, size).toImage().convertToFormat(QImage.Format.Format_ARGB32)
+        if img.isNull():
+            continue
+        total = light = sat = 0
+        for y in range(0, img.height(), 2):
+            for x in range(0, img.width(), 2):
+                c = img.pixelColor(x, y)
+                if c.alpha() > 60:
+                    total += 1
+                    light += c.lightness()
+                    sat += c.hslSaturation()
+        if total and light / total < 90 and sat / total < 60:
+            for y in range(img.height()):
+                for x in range(img.width()):
+                    c = img.pixelColor(x, y)
+                    if c.alpha():
+                        img.setPixelColor(x, y, QColor(fg.red(), fg.green(), fg.blue(), c.alpha()))
+            changed = True
+        out.addPixmap(QPixmap.fromImage(img))
+    return out if changed else icon
 
 
 # --- Selbst gezeichnete Symbole ------------------------------------------------------------
@@ -323,7 +357,7 @@ def icon_quit() -> QIcon:
 
 def icon_filter(active: bool = False) -> QIcon:
     """Trichter: dunkelgrau = Filter aus, rot = Filter aktiv (F-606)."""
-    color = QColor("#D32F2F") if active else QColor("#4A4A4A")
+    color = QColor("#D32F2F") if active else _colors()[0]  # v3.2: auch im Dunkelmodus sichtbar
 
     def draw(p: QPainter) -> None:
         path = QPainterPath(QPointF(3, 4))

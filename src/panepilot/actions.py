@@ -129,6 +129,7 @@ ACTION_DEFS: tuple[ActionDef, ...] = (
     ActionDef("fav_new_group", "action.fav_new_group", (), "window"),
     ActionDef("fav_separator", "action.fav_separator", (), "window"),  # v2.6, L-3600
     ActionDef("fav_import_fc", "action.fav_import_fc", (), "window"),  # v3.1 (L-4100), nur Windows
+    ActionDef("fav_sort", "action.fav_sort", (), "window"),  # v3.2 (L-4230)
     ActionDef("fav_open", "action.fav_open", ("Return", "Enter"), "favorites"),
     ActionDef("fav_edit", "action.fav_edit", (), "window"),
     ActionDef("fav_rename", "action.fav_rename", ("F2",), "favorites"),

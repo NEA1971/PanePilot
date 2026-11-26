@@ -121,6 +121,38 @@ def clean_style(raw) -> dict:
     return style
 
 
+def natural_key(name: str) -> list:
+    """Groß-/Kleinschreibung egal, Zahlen natürlich („2“ vor „10“)."""
+    import re as _re
+
+    return [(0, int(part), "") if part.isdigit() else (1, 0, part) for part in _re.split(r"(\d+)", name.casefold()) if part]
+
+
+def sort_tree(node: FavNode, order: str = "folders_first") -> None:
+    def key(n: FavNode):
+        if order == "folders_first":
+            rank = 0 if n.is_group else 1
+        elif order == "links_first":
+            rank = 1 if n.is_group else 0
+        else:
+            rank = 0
+        return (rank, natural_key(n.name), n.name)
+
+    result: list[FavNode] = []
+    section: list[FavNode] = []
+    for child in node.children:
+        if child.is_separator:
+            result += sorted(section, key=key) + [child]
+            section = []
+        else:
+            section.append(child)
+    result += sorted(section, key=key)
+    node.children = result
+    for child in result:
+        if child.is_group:
+            sort_tree(child, order)
+
+
 class FavoritesModel(QAbstractItemModel):
     changed = Signal()
 
@@ -250,6 +282,19 @@ class FavoritesModel(QAbstractItemModel):
         self.endMoveRows()
         return True
 
+    def sort_by_name(self, node: FavNode | None = None, order: str = "folders_first") -> None:
+        """v3.2 (L-4230–L-4233): alles unterhalb von node (Standard: ganzer Satz) nach Name sortieren –
+        je Abschnitt zwischen Trennlinien, auf jeder Ebene; Trennlinien bleiben an ihrer Stelle."""
+        target = node or self._root
+        self.layoutAboutToBeChanged.emit()
+        old = self.persistentIndexList()
+        old_nodes = [(i, self.node(i), i.column()) for i in old]
+        sort_tree(target, order)
+        for i, n, col in old_nodes:
+            self.changePersistentIndex(i, self.createIndex(n.row(), col, n) if n is not self._root else QModelIndex())
+        self.layoutChanged.emit()
+        self._on_changed()
+
     def rename_node(self, node: FavNode, name: str) -> None:
         name = name.strip()
         if not name or node is self._root:
@@ -363,7 +408,9 @@ class FavoritesModel(QAbstractItemModel):
                 return QApplication.palette().color(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text)
             color = node.style.get("color")
             if color in COLOR_HEX:
-                return QColor(COLOR_HEX[color])
+                from . import theme
+
+                return theme.readable(QColor(COLOR_HEX[color]))  # v3.2 (L-4204)
             return None
         if role == Qt.ItemDataRole.FontRole:
             if not any(node.style.get(f) for f in STYLE_FLAGS):
@@ -705,7 +752,9 @@ class FavoriteDelegate(QStyledItemDelegate):
         left, right = view.separator_bounds(index)
         color_key = node.style.get("color")
         if color_key in COLOR_HEX:
-            color = QColor(COLOR_HEX[color_key])
+            from . import theme
+
+            color = theme.readable(QColor(COLOR_HEX[color_key]))
         elif option.state & QStyle.StateFlag.State_Selected:
             color = option.palette.color(QPalette.ColorRole.HighlightedText)  # lesbar auf der Markierung
         else:

@@ -200,6 +200,12 @@ class Settings:
         "net_browse": True,  # v3.0.1 (L-4053): Netzwerk im Ordnerbaum durchsuchen (Windows)
         "net_servers": [],  # v3.0.1 (L-4052): selbst eingetragene Server
         "tool_paths": {},  # v3.1 (L-4111): eigene Pfade der Zusatzprogramme
+        "theme": "system",  # v3.2 (L-4200): system | light | dark
+        "font_family": "",  # v3.2 (L-4210): leer = Standard
+        "font_size": 0,  # v3.2 (L-4210): 0 = Standard
+        "alt_rows": False,  # v3.2 (L-4220): abwechselnde Zeilenfarben
+        "grid_lines": True,  # v3.2 (L-4221): senkrechte Rasterlinien
+        "fav_sort_order": "folders_first",  # v3.2 (L-4233): folders_first | links_first | mixed
         "subs_after_embed": "keep",  # v2.6: heruntergeladene Untertitel nach dem Einbinden – keep / trash / delete
         "update_skip": "",  # diese Version nicht mehr automatisch anbieten
         "meta_disc": {},  # Disc-Assistent: letzte Einstellungen

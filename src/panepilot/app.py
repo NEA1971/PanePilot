@@ -46,6 +46,10 @@ def create_app(argv: list[str] | None = None) -> QApplication:
 
     set_size_unit(str(settings.get("size_unit") or "auto"))
     _setup_icon_theme()
+    from . import theme  # v3.2 (L-4200): Hell/Dunkel, Schrift
+
+    theme.apply(str(settings.get("theme") or "system"), str(settings.get("font_family") or ""),
+                float(settings.get("font_size") or 0))
     return app
 
 

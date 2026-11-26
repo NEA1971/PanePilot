@@ -21,6 +21,11 @@ class IconProvider:
         self._link_fallback = style.standardIcon(QStyle.StandardPixmap.SP_FileLinkIcon)
         self._up = QIcon.fromTheme("go-up", style.standardIcon(QStyle.StandardPixmap.SP_FileDialogToParent))
         self._folder = QIcon.fromTheme("folder", self._dir_fallback)
+        from .platform import IS_WINDOWS
+
+        if IS_WINDOWS:  # v3.2 (L-4205): gefüllte blaue Ordner wie unter Linux statt der dünnen Windows-11-Umrisse
+            self._folder = QIcon(str(resource_path("icons", "folder.svg")))
+            self._dir_fallback = self._folder
         self._group = QIcon.fromTheme("user-bookmarks", QIcon.fromTheme("bookmark-new", self._folder))
         self._network = _network_folder_icon(self._folder)
         self._network_off = _disabled_icon(self._network)

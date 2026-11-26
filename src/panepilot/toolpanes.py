@@ -578,7 +578,7 @@ class ChecksumPane(ToolPane):
         if normalize_checksum(text) == self.values.get(alg):
             self.result.setStyleSheet("color: #2E7D32; font-weight: bold;")
             self.result.setText("✔ " + t("checksum.match", alg=LABELS[alg]))
-            self.fields[alg].setStyleSheet("font-family: monospace; background: #DFF0D8;")
+            self.fields[alg].setStyleSheet("font-family: monospace; background: #DFF0D8; color: #000000;")
         else:
             self.result.setStyleSheet("color: #D32F2F; font-weight: bold;")
             self.result.setText("✘ " + t("checksum.mismatch", alg=LABELS[alg]))

@@ -167,12 +167,15 @@ class SettingsDialog(QDialog):
         page.add_section(t("settings.sec_language"), self._language_section())
         page.add_section(t("settings.sec_backup"), self._backup_tab())
         page.add_section(t("settings.sec_display"), self._display_section())
+        page.add_section(t("settings.sec_appearance"), self._appearance_section())  # v3.2 (L-4200)
         page.add_section(t("settings.sec_updates"), self._updates_section())
         page.add_section(t("settings.sec_servers"), self._servers_section())
         page.add_section(t("settings.sec_terminal"), self._terminal_section())  # v3.0 (L-4024)
         # Reiter „Dateiansicht“: Größeneinheit, Spalten
         page = self._page("view", t("settings.tab_view"))
         page.add_section(t("settings.sec_size"), self._size_section())
+        page.add_section(t("settings.sec_lists"), self._lists_section())  # v3.2 (L-4220)
+        page.add_section(t("settings.sec_fav_sort"), self._fav_sort_section())  # v3.2 (L-4233)
         page.add_section(t("settings.sec_columns"), self._columns_tab())
         page.add_section(t("settings.sec_tabs"), self._tabs_section())  # v2.1
         page.add_section(t("settings.sec_archives"), self._archives_section())  # v2.2
@@ -667,6 +670,108 @@ class SettingsDialog(QDialog):
         else:
             layout.addSpacing(8)
             layout.addLayout(row)
+        return w
+
+    # --- Erscheinungsbild (v3.2, L-4200 ff.) -----------------------------------------------------------
+    THEME_LABELS = {"system": "settings.theme_system", "light": "settings.theme_light", "dark": "settings.theme_dark"}
+    FAV_SORT_LABELS = {"folders_first": "settings.fav_sort_folders", "links_first": "settings.fav_sort_links",
+                       "mixed": "settings.fav_sort_mixed"}
+
+    def _appearance_section(self) -> QWidget:
+        from PySide6.QtGui import QFont
+        from PySide6.QtWidgets import QFontComboBox, QRadioButton, QSpinBox
+
+        from . import theme
+
+        w = QWidget(self)
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        current = str(self.window.settings.get("theme") or "system")
+        self.theme_choice: dict[str, QRadioButton] = {}
+        row = QHBoxLayout()
+        for key in theme.MODES:
+            rb = QRadioButton(t(self.THEME_LABELS[key]), w)
+            rb.setChecked(key == current)
+            self.theme_choice[key] = rb
+            row.addWidget(rb)
+        row.addStretch(1)
+        lay.addLayout(row)
+        lay.addWidget(self._hint(t("settings.theme_hint"), w))
+        dfam, dsize = theme.default_font()
+        family = str(self.window.settings.get("font_family") or "") or dfam
+        size = float(self.window.settings.get("font_size") or 0) or dsize
+        self.font_family = QFontComboBox(w)
+        self.font_family.setCurrentFont(QFont(family))
+        self.font_size = QSpinBox(w)
+        self.font_size.setRange(7, 24)
+        self.font_size.setSuffix(" pt")
+        self.font_size.setValue(round(size))
+        self._font_is_default = not (self.window.settings.get("font_family") or self.window.settings.get("font_size"))
+        self.font_family.currentFontChanged.connect(lambda *_: setattr(self, "_font_is_default", False))
+        self.font_size.valueChanged.connect(lambda *_: setattr(self, "_font_is_default", False))
+        self.font_default = QPushButton(t("settings.font_default"), w)  # L-4211: Text, ohne Symbol
+        self.font_default.clicked.connect(self._font_to_default)
+        row = QHBoxLayout()
+        row.addWidget(QLabel(t("settings.font"), w))
+        row.addWidget(self.font_family, 1)
+        row.addWidget(QLabel(t("settings.font_size"), w))
+        row.addWidget(self.font_size)
+        row.addWidget(self.font_default)
+        lay.addSpacing(6)
+        lay.addLayout(row)
+        lay.addWidget(self._hint(t("settings.font_hint"), w))
+        return w
+
+    def _font_to_default(self) -> None:
+        from PySide6.QtGui import QFont
+
+        from . import theme
+
+        dfam, dsize = theme.default_font()
+        self.font_family.setCurrentFont(QFont(dfam))
+        self.font_size.setValue(round(dsize))
+        self._font_is_default = True
+
+    def font_values(self) -> tuple[str, int]:
+        """Gewählte Schrift; ('', 0), wenn sie dem Standard entspricht."""
+        from . import theme
+
+        if self._font_is_default:
+            return "", 0
+        dfam, dsize = theme.default_font()
+        fam = self.font_family.currentFont().family()
+        size = self.font_size.value()
+        return ("" if fam == dfam else fam), (0 if size == round(dsize) else size)
+
+    def _lists_section(self) -> QWidget:
+        w = QWidget(self)
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        self.alt_rows = QCheckBox(t("settings.alt_rows"), w)
+        self.alt_rows.setChecked(bool(self.window.settings.get("alt_rows")))
+        self.grid_lines = QCheckBox(t("settings.grid_lines"), w)
+        self.grid_lines.setChecked(bool(self.window.settings.get("grid_lines")))
+        lay.addWidget(self.alt_rows)
+        lay.addWidget(self.grid_lines)
+        return w
+
+    def _fav_sort_section(self) -> QWidget:
+        from PySide6.QtWidgets import QRadioButton
+
+        w = QWidget(self)
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        current = str(self.window.settings.get("fav_sort_order") or "folders_first")
+        self.fav_sort_choice: dict[str, QRadioButton] = {}
+        row = QHBoxLayout()
+        for key, label in self.FAV_SORT_LABELS.items():
+            rb = QRadioButton(t(label), w)
+            rb.setChecked(key == current)
+            self.fav_sort_choice[key] = rb
+            row.addWidget(rb)
+        row.addStretch(1)
+        lay.addLayout(row)
+        lay.addWidget(self._hint(t("settings.fav_sort_hint"), w))
         return w
 
     def scale_value(self) -> int:
@@ -1303,6 +1408,23 @@ class SettingsDialog(QDialog):
         self.window.set_tabs_always(self.tabs_always.isChecked())  # v2.2: auch der Knopf „Reiter“
         s.set("terminal", next(k for k, b in self.terminal_choice.items() if b.isChecked()))  # v3.0
         s.set("terminal_custom", self.terminal_custom.text().strip())
+        # v3.2 (L-4200 ff.): Erscheinungsbild, Schrift, Dateilisten, Favoriten sortieren
+        fam, size = self.font_values()
+        new_theme = next(k for k, b in self.theme_choice.items() if b.isChecked())
+        look_changed = (new_theme, fam, size) != (s.get("theme"), s.get("font_family") or "", s.get("font_size") or 0)
+        s.set("theme", new_theme)
+        s.set("font_family", fam)
+        s.set("font_size", size)
+        s.set("alt_rows", self.alt_rows.isChecked())
+        s.set("grid_lines", self.grid_lines.isChecked())
+        s.set("fav_sort_order", next(k for k, b in self.fav_sort_choice.items() if b.isChecked()))
+        self.window.apply_list_look()
+        from . import theme
+
+        was_dark = theme.is_dark()
+        if look_changed:
+            self.window.apply_appearance()
+        self._icons_restart = was_dark != theme.is_dark()  # Symbole passen sich erst nach einem Neustart an
         if hasattr(self, "show_protected"):
             on = self.show_protected.isChecked()
             if on != bool(s.get("show_protected_system")):
@@ -1372,6 +1494,10 @@ class SettingsDialog(QDialog):
         if scale_changed and not lang_changed and confirm(
                 self.window, t("settings.scale_title"), t("settings.scale_restart"), yes_key="button.restart_now",
                 no_key="donate.later"):
+            self.window.restart()
+        elif getattr(self, "_icons_restart", False) and not lang_changed and not scale_changed and confirm(
+                self.window, t("settings.sec_appearance"), t("settings.theme_restart"), yes_key="button.restart_now",
+                no_key="donate.later"):  # v3.2
             self.window.restart()
 
 

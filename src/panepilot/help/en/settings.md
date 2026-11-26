@@ -12,6 +12,8 @@ Open the settings via **File ▸ Settings ▸ Settings …** or the gear button.
 - **Display**: button bar, function key bar, toolbar, hidden files, single-panel view.
   - **Scaling** from 50 to 200 %, e.g. for UHD screens; takes effect after a restart.
   - **Add to application menu** (only when running as an AppImage): creates a launcher with the program icon that you can also pin to the dock. If you later start another AppImage file (e.g. a newer version), the launcher is updated automatically.
+- **Appearance**: **Like the system** (default – follows the light/dark setting of Windows or Linux), **Light** or **Dark**; the same on Linux and Windows, the selection uses the system's accent colour. In dark mode favorite colours that are too dark are shown lighter. Some icons adapt only after a restart; PanePilot offers it.
+  - **Font** and **Size** for the whole interface, take effect immediately. **Default** resets both (Windows: Segoe UI 10 pt, Linux: system font).
 - **Updates**: under **Check for updates automatically** choose **Never** (default), **Once a day** (at the first start of the day) or **At every start**; PanePilot then asks GitHub for a new version. You can check by hand at any time via **Help ▸ Check for updates …**. If there is a new version, you can download it, be reminded later or skip this version. When running as an AppImage, the new file is saved in the same folder as the running one; the old one is kept. PanePilot then asks whether to restart with the new version right away. The launcher in the application menu or taskbar points to the new file at once – even if you choose “Later”. What happens to the old AppImage file is set by **Old AppImage file after an update**: **Ask** (default – the new version asks once at its first start), **Always move to the trash** or **Always keep**. If PanePilot is installed as a package (.deb/.rpm), “Download” saves the new package in your Downloads folder and opens it with the software installer; the “Add to application menu” button is hidden there because the package brings its own menu entry.
 - **FTP servers**: **Import from FileZilla …** takes over FileZilla’s server list, see [FTP servers](servers.md).
 - **Terminal**: which program “Open terminal here” starts. Linux: **Automatic** (system default terminal), GNOME Terminal, Konsole or a **custom command**. Windows: **Automatic** (Windows Terminal, otherwise PowerShell), Windows Terminal, PowerShell, Command Prompt (cmd) or a custom command. In a custom command `{folder}` stands for the folder, e.g. `"C:\Program Files\Git\git-bash.exe" --cd={folder}`.
@@ -20,6 +22,8 @@ Open the settings via **File ▸ Settings ▸ Settings …** or the gear button.
 - **Size unit**: how file sizes are shown.
 - **System files** (Windows only): **Show protected system files** – files with both “Hidden” and “System” attributes (e.g. `NTUSER.DAT`, `pagefile.sys`) appear only with this, and only while hidden files are shown.
 - **Network** (Windows only): **Search the network in the folder tree** – lists the computers found under “Network”; off: only the servers you added yourself.
+- **File lists**: **Alternating row colours** (default off) and **Grid lines between columns** (vertical lines through the whole list, default on).
+- **Sorting favorites**: order for “Sort by name” – **Folders first** (default), **Favorites first** or **Mixed**.
 - **Columns**: column profiles with visible columns and alignment; the default profile for the left and the right panel.
 
 ## Meta wizard

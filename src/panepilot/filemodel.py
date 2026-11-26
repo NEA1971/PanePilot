@@ -206,7 +206,7 @@ def share_entries(server_path: str, shares: list[str]) -> list[Entry]:
     base = server_path.rstrip("\\/")
     out = []
     for name in shares:
-        e = Entry(name=name, path=f"{base}\\{name}", is_dir=True, mode=stat.S_IFDIR)
+        e = Entry(name=name, path=f"{base}\\{name}", is_dir=True, mode=stat.S_IFDIR, mtime=-1.0)
         e.type_text = t("type.share")
         out.append(e)
     return out
@@ -579,6 +579,8 @@ class FileListModel(QAbstractTableModel):
                     return format_size(e.dir_size) if e.dir_size >= 0 else ""
                 return format_size(e.size)
             if col == COL_DATE:
+                if e.mtime < 0:  # v3.2 (L-4240): z. B. Freigaben eines Servers – kein Datum
+                    return ""
                 return datetime.fromtimestamp(e.mtime).strftime("%d.%m.%Y %H:%M")
             if col == COL_TYPE:
                 return e.type_text

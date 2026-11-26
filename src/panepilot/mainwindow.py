@@ -230,6 +230,8 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         self.icons = IconProvider()
         self.setWindowIcon(app_icon())
         self.setStyleSheet(STYLE)
+        FileView.alt_rows = bool(self.settings.get("alt_rows"))  # v3.2 (L-4220/L-4221)
+        FileView.grid_lines = bool(self.settings.get("grid_lines"))
         self.mounts = MountManager(self)
         self.icons.mounts = self.mounts
         self.trash = make_trash(self._trash_mount_points, self._trash_network_mount_points)  # v3.0: Windows
@@ -968,6 +970,24 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         w = w.view if isinstance(w, SidebarPane) else w
         return w if isinstance(w, FolderTreeView) else None
 
+    # --- Erscheinungsbild (v3.2, L-4200 ff.) ----------------------------------------------------------
+    def apply_list_look(self) -> None:
+        """Abwechselnde Zeilenfarben und Rasterlinien in allen Dateilisten (L-4220/L-4221)."""
+        FileView.alt_rows = bool(self.settings.get("alt_rows"))
+        FileView.grid_lines = bool(self.settings.get("grid_lines"))
+        for view in self.findChildren(FileView):
+            view.setAlternatingRowColors(FileView.alt_rows)
+            view.viewport().update()
+
+    def apply_appearance(self) -> None:
+        """Hell/Dunkel und Schrift sofort übernehmen (L-4200/L-4210)."""
+        from . import theme
+
+        theme.apply(str(self.settings.get("theme") or "system"), str(self.settings.get("font_family") or ""),
+                    float(self.settings.get("font_size") or 0))
+        self.setStyleSheet(STYLE)  # Stylesheet neu auswerten, damit palette(...) die neuen Farben nimmt
+        self.update()
+
     # --- Reiter (v2.1, L-3100 ff.) ---------------------------------------------------------------------
     def do_tabs(self) -> None:
         """Knopf „Reiter“ (v2.2): Reiterleiste immer anzeigen ein/aus – gleiche Einstellung wie im Dialog."""
@@ -1446,6 +1466,21 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         if panel.in_trash or panel.search_mode or not os.path.isdir(panel.current_path):
             return None
         return panel.current_path
+
+    def do_fav_sort(self) -> None:
+        """v3.2 (L-4230/L-4231): markierten Favoritenordner bzw. ganzen Satz nach Name sortieren."""
+        pane = self._fav_pane(self.active_side)
+        if pane is None:
+            return
+        view = pane.view
+        node = view.selected_node()
+        if node is not None and not node.is_group:
+            return
+        expanded = view.expanded_ids()
+        view.fav_model.sort_by_name(node, str(self.settings.get("fav_sort_order") or "folders_first"))
+        view.restore_expanded(expanded)
+        if node is not None:
+            view.select_node(node)
 
     def do_fav_import_fc(self, path: str | None = None) -> None:
         """v3.1 (L-4100–L-4102): Favoriten aus FreeCommander als neuen Satz übernehmen."""
@@ -3028,10 +3063,13 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         node = view.fav_model.node(idx) if idx.isValid() else None
         if node is not None and node.is_separator:
             items = ("fav_edit", None, "fav_separator", "fav_new_group", None, "fav_delete")
+        elif node is not None and node.is_group:
+            items = ("fav_open", None, "fav_edit", "fav_rename", "fav_new_group", "fav_separator", "fav_delete",
+                     None, "fav_sort")  # v3.2 (L-4230)
         elif node is not None:
             items = ("fav_open", None, "fav_edit", "fav_rename", "fav_new_group", "fav_separator", "fav_delete")
         else:
-            items = ("fav_new_group", "fav_separator")
+            items = ("fav_new_group", "fav_separator", None, "fav_sort")  # v3.2 (L-4231)
         for aid in items:
             menu.addSeparator() if aid is None else menu.addAction(a[aid])
         if idx.isValid():

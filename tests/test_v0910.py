@@ -129,8 +129,8 @@ def test_settings_layout_and_display_toggles(window):  # noqa: F811
     dlg = SettingsDialog(window)
     assert [dlg.tabs.tabText(i) for i in range(dlg.tabs.count())] == ["Allgemein", "Dateiansicht", "Meta-Wizard", "Zusatzprogramme"]
     general = dlg.pages["general"]
-    assert [general.nav.item(i).text() for i in range(general.nav.count())] == ["Sprache", "Sicherung", "Darstellung", "Updates", "FTP-Server", "Terminal"]
-    assert [g.title() for g in dlg.pages["view"].groups] == ["Größeneinheit", "Spalten", "Reiter", "Archive"]  # Reiter: v2.1, Archive: v2.2
+    assert [general.nav.item(i).text() for i in range(general.nav.count())] == ["Sprache", "Sicherung", "Darstellung", "Erscheinungsbild", "Updates", "FTP-Server", "Terminal"]
+    assert [g.title() for g in dlg.pages["view"].groups] == ["Größeneinheit", "Dateilisten", "Favoriten sortieren", "Spalten", "Reiter", "Archive"]  # Reiter: v2.1, Archive: v2.2
     assert [g.title() for g in dlg.pages["meta"].groups] == ["ReplayGain", "Online-Daten für Filme",
                                                          "Untertitel (OpenSubtitles)"]
     dlg.resize(900, 500)
