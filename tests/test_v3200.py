@@ -206,3 +206,41 @@ def test_windows_folder_icon_file():  # L-4205
     from panepilot.resources import resource_path
 
     assert resource_path("icons", "folder.svg").exists()
+
+
+def test_compare_one_file_each_side_by_click(qapp, tmp_path, monkeypatch):  # Finding Windows 3.1.1
+    from PySide6.QtCore import Qt
+    from PySide6.QtTest import QTest
+
+    from panepilot import filecompare
+    from panepilot.mainwindow import MainWindow
+
+    a, b = tmp_path / "l", tmp_path / "r"
+    a.mkdir()
+    b.mkdir()
+    (a / "x.txt").write_text("1")
+    (b / "y.txt").write_text("2")
+    calls = []
+    monkeypatch.setattr(filecompare, "compare", lambda win, p1, p2: calls.append((p1, p2)))
+    monkeypatch.setattr("panepilot.mainwindow.show_info", lambda *x, **k: calls.append("info"))
+    w = MainWindow()
+    try:
+        w.resize(1200, 700)
+        w.show()
+        left, right = w.sides["left"].panel, w.sides["right"].panel
+        left.navigate(str(a))
+        right.navigate(str(b))
+        qapp.processEvents()
+        for panel, name in ((left, "x.txt"), (right, "y.txt")):
+            row = next(i for i in range(panel.model.rowCount()) if panel.model.entry(i).name == name)
+            rect = panel.view.visualRect(panel.model.index(row, 0))
+            QTest.mouseClick(panel.view.viewport(), Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier,
+                             rect.center())
+            qapp.processEvents()
+        assert [e.name for e in left.selected_entries()] == ["x.txt"]
+        assert [e.name for e in right.selected_entries()] == ["y.txt"]
+        w.do_compare_files()
+        assert calls == [(str(a / "x.txt"), str(b / "y.txt"))]
+    finally:
+        w._skip_save_state = True
+        w.close()
