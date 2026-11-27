@@ -52,6 +52,9 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="3.2.1" date="2026-11-27">
+      <description><p>Windows: no more hangs on unreachable network paths; visible alternating rows; light/dark switch without restart.</p></description>
+    </release>
     <release version="3.2.0" date="2026-11-26">
       <description><p>Light and dark appearance, the same on Linux and Windows; font settings; grid lines and alternating row colours; sort favorites by name.</p></description>
     </release>
