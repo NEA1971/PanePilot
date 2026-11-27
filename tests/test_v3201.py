@@ -129,7 +129,9 @@ def test_recycle_dirs_cached(monkeypatch, tmp_path):
     from panepilot import winsys
 
     calls = []
-    root = str(tmp_path) + "/"
+    import os
+
+    root = str(tmp_path) + os.sep
     (tmp_path / "$Recycle.Bin" / "S-1").mkdir(parents=True)
     monkeypatch.setattr(winsys, "local_drive_roots", lambda: calls.append(1) or [root])
     monkeypatch.setitem(winsys._RECYCLE_CACHE, "time", 0.0)
