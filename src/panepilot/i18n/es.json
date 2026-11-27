@@ -1915,6 +1915,5 @@
   "settings.fav_sort_folders": "Carpetas primero",
   "settings.fav_sort_links": "Favoritos primero",
   "settings.fav_sort_mixed": "Mezclado",
-  "settings.fav_sort_hint": "Para «Ordenar por nombre» en el menú contextual de favoritos. Se ordena entre dos líneas separadoras; las líneas se quedan en su sitio.",
-  "settings.theme_restart": "Se han cambiado los colores y la fuente. Algunos iconos se adaptan solo tras reiniciar. ¿Reiniciar ahora?"
+  "settings.fav_sort_hint": "Para «Ordenar por nombre» en el menú contextual de favoritos. Se ordena entre dos líneas separadoras; las líneas se quedan en su sitio."
 }

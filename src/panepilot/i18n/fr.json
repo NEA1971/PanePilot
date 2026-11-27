@@ -1915,6 +1915,5 @@
   "settings.fav_sort_folders": "Dossiers d’abord",
   "settings.fav_sort_links": "Favoris d’abord",
   "settings.fav_sort_mixed": "Mélangé",
-  "settings.fav_sort_hint": "Pour « Trier par nom » dans le menu contextuel des favoris. Le tri se fait entre deux séparateurs ; les séparateurs restent en place.",
-  "settings.theme_restart": "Les couleurs et la police ont été modifiées. Certaines icônes ne s’adaptent qu’après un redémarrage. Redémarrer maintenant ?"
+  "settings.fav_sort_hint": "Pour « Trier par nom » dans le menu contextuel des favoris. Le tri se fait entre deux séparateurs ; les séparateurs restent en place."
 }

@@ -1915,6 +1915,5 @@
   "settings.fav_sort_folders": "Ordner zuerscht",
   "settings.fav_sort_links": "Favoritn zuerscht",
   "settings.fav_sort_mixed": "Gemischt",
-  "settings.fav_sort_hint": "Für „Nach Name sortiern“ im Kontextmenü vor Favoritn. Sortiert wird jeweils zwischn zwee Trennlinien; de Linien bleibn an ihrer Stelle.",
-  "settings.theme_restart": "Farbn und Schrift sin umgestellt. Een paar Symbole passn sich erscht nach ä Neustart an. Jetzt neu startn?"
+  "settings.fav_sort_hint": "Für „Nach Name sortiern“ im Kontextmenü vor Favoritn. Sortiert wird jeweils zwischn zwee Trennlinien; de Linien bleibn an ihrer Stelle."
 }

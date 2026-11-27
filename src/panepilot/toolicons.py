@@ -63,6 +63,11 @@ def _theme(names: tuple[str, ...]) -> QIcon | None:
     return None
 
 
+def clear_cache() -> None:
+    """v3.2.1: nach einem Wechsel Hell/Dunkel neu zeichnen."""
+    _cache.clear()
+
+
 def action_icon(action_id: str, text: str = "") -> QIcon:
     icon = _cache.get(action_id)
     if icon is None:

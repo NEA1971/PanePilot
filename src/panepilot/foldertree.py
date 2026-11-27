@@ -42,8 +42,12 @@ def _placeholder() -> QStandardItem:
 
 
 class FolderTreeModel(QStandardItemModel):
+    _shares_ready = Signal(str, list, int)  # v3.2.1: Server-Pfad, Freigaben, Fehlercode (0 = gut, -1 = Anmeldung)
+
     def __init__(self, icons: IconProvider, mounts: MountManager | None, parent=None) -> None:
         super().__init__(parent)
+        self._shares_ready.connect(self._fill_shares)
+        self._share_jobs: set[str] = set()
         self._icons = icons
         self._mounts = mounts
         self.show_hidden = False
@@ -211,23 +215,39 @@ class FolderTreeModel(QStandardItemModel):
         for name, child_path in names:
             item.appendRow(self._dir_item(name, child_path))
 
-    def _load_shares(self, item: QStandardItem, path: str) -> None:
+    def _load_shares(self, item: QStandardItem, path: str, ask_login: bool = True) -> None:
+        """v3.2.1: Freigaben im Hintergrund holen – ein nicht erreichbarer Server darf den Baum nicht aufhalten."""
+        import threading
+
         from . import winsys
 
-        server = winsys.server_of(path) or ""
-        try:
-            shares = winsys.list_shares(server)
-        except OSError as exc:
-            if not (winsys.needs_login(exc) and winsys.login(server)):
-                item.removeRows(0, item.rowCount())
-                item.setData(True, LoadedRole)
-                return
-            try:
-                shares = winsys.list_shares(server)
-            except OSError:
-                shares = []
-        item.removeRows(0, item.rowCount())
         item.setData(True, LoadedRole)
+        if path in self._share_jobs:
+            return
+        self._share_jobs.add(path)
+        server = winsys.server_of(path) or ""
+
+        def work() -> None:
+            try:
+                shares, code = winsys.list_shares(server), 0
+            except OSError as exc:
+                shares, code = [], (-1 if (ask_login and winsys.needs_login(exc)) else 1)
+            self._shares_ready.emit(path, shares, code)
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _fill_shares(self, path: str, shares: list, code: int) -> None:
+        from . import winsys
+
+        self._share_jobs.discard(path)
+        item = next((self.network_item.child(r) for r in range(self.network_item.rowCount())
+                     if self.network_item.child(r).data(PathRole) == path), None) if self.network_item else None
+        if item is None:
+            return
+        if code == -1 and winsys.login(winsys.server_of(path) or ""):  # L-4051, danach noch einmal (ohne Nachfrage)
+            self._load_shares(item, path, ask_login=False)
+            return
+        item.removeRows(0, item.rowCount())
         icon = self._icons.network_folder(True)
         for share in shares:
             item.appendRow(self._dir_item(share, f"{path}\\{share}", K_SHARE, icon))

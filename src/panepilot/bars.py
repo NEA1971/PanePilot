@@ -228,6 +228,20 @@ class ButtonBar(QWidget):
         self.set_trash_full(False)
         self.set_direction(True)
 
+    def refresh_icons(self) -> None:
+        """v3.2.1: Symbole mit den aktuellen Farben neu zeichnen (Wechsel Hell/Dunkel ohne Neustart)."""
+        self._icons_ltr = {
+            "same_path": icon_same_path(),
+            "swap_panels": icon_swap(),
+            "copy_direct": icon_copy(),
+            "move_direct": icon_move(),
+        }
+        self._icons_rtl = {k: (_mirror(v) if k in ("copy_direct", "move_direct", "same_path") else v)
+                           for k, v in self._icons_ltr.items()}
+        self._trash_empty, self._trash_full = trash_icons()
+        self.set_direction(self._left_to_right)
+        self.set_trash_full(getattr(self, "trash_full", False))
+
     def set_trash_full(self, full: bool) -> None:
         self.trash_full = full
         self.trash_button.setIcon(self._trash_full if full else self._trash_empty)

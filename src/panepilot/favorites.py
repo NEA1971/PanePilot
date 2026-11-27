@@ -15,9 +15,11 @@ from __future__ import annotations
 
 import json
 import os
+import threading
+import time
 import uuid
 
-from PySide6.QtCore import QAbstractItemModel, QByteArray, QMimeData, QModelIndex, QPoint, QSize, Qt, Signal
+from PySide6.QtCore import QAbstractItemModel, QByteArray, QMimeData, QModelIndex, QObject, QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QDrag, QFontMetrics, QPalette, QPen
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QStyle, QStyledItemDelegate, QStyleOptionViewItem,
                                QTreeView)
@@ -153,6 +155,68 @@ def sort_tree(node: FavNode, order: str = "folders_first") -> None:
             sort_tree(child, order)
 
 
+class PathStatus(QObject):
+    """v3.2.1: Ob Favoriten-Ziele existieren – bei Netzpfaden im Hintergrund und gemerkt.
+
+    Unter Windows kann schon ein einzelnes „gibt es das?“ auf einen nicht erreichbaren Server (Firmennetz ohne VPN,
+    ausgeschaltetes NAS) viele Sekunden dauern. Die Favoritenleiste fragt das bei jedem Neuzeichnen – das ließ
+    PanePilot hängen. Lokale Pfade werden weiter direkt geprüft.
+    """
+
+    ready = Signal(str)
+    TTL = 60.0
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._cache: dict[str, tuple[float, bool, bool]] = {}
+        self._pending: set[str] = set()
+        self._lock = threading.Lock()
+
+    @staticmethod
+    def is_slow(path: str) -> bool:
+        from .platform import IS_WINDOWS
+
+        if not IS_WINDOWS:
+            return False
+        from . import winsys
+
+        return winsys.is_network_path(path)
+
+    def get(self, path: str) -> tuple[bool, bool] | None:
+        """(existiert, ist Ordner) – None: wird gerade geprüft."""
+        if not self.is_slow(path):
+            return os.path.exists(path), os.path.isdir(path)
+        now = time.monotonic()
+        hit = self._cache.get(path)
+        if hit is not None and now - hit[0] < self.TTL:
+            return hit[1], hit[2]
+        with self._lock:
+            if path not in self._pending:
+                self._pending.add(path)
+                threading.Thread(target=self._check, args=(path,), daemon=True).start()
+        return (hit[1], hit[2]) if hit is not None else None
+
+    def _check(self, path: str) -> None:
+        try:
+            exists, is_dir = os.path.exists(path), os.path.isdir(path)
+        except OSError:
+            exists, is_dir = False, False
+        self._cache[path] = (time.monotonic(), exists, is_dir)
+        with self._lock:
+            self._pending.discard(path)
+        self.ready.emit(path)
+
+
+_STATUS: PathStatus | None = None
+
+
+def path_status() -> PathStatus:
+    global _STATUS
+    if _STATUS is None:
+        _STATUS = PathStatus()
+    return _STATUS
+
+
 class FavoritesModel(QAbstractItemModel):
     changed = Signal()
 
@@ -160,6 +224,8 @@ class FavoritesModel(QAbstractItemModel):
         super().__init__(parent)
         self.file = file  # relativ zum Konfigurationsordner, z. B. "Favoriten/Standard.json"
         self._icons = icons
+        self._quiet = False
+        path_status().ready.connect(self._on_status_ready)
         self._root = FavNode("group", "", node_id="root")
         self._autosave = autosave
         for sig in (self.rowsInserted, self.rowsRemoved, self.rowsMoved, self.dataChanged):
@@ -187,7 +253,29 @@ class FavoritesModel(QAbstractItemModel):
     def save(self) -> None:
         save_json(self.file, self.to_dict())
 
+    def _on_status_ready(self, path: str) -> None:
+        """Ergebnis der Hintergrundprüfung: betroffene Zeilen neu zeichnen (ohne zu speichern)."""
+        hits = []
+
+        def walk(node: FavNode) -> None:
+            for c in node.children:
+                if c.kind == "link" and c.path == path:
+                    hits.append(c)
+                walk(c)
+
+        walk(self._root)
+        self._quiet = True
+        try:
+            for n in hits:
+                idx = self.index_for(n)
+                if idx.isValid():
+                    self.dataChanged.emit(idx, idx)
+        finally:
+            self._quiet = False
+
     def _on_changed(self, *_args) -> None:
+        if self._quiet:
+            return
         if self._autosave:
             self.save()
         self.changed.emit()
@@ -326,7 +414,8 @@ class FavoritesModel(QAbstractItemModel):
             entry = mounts.needs_mount(node.path)
             if entry is not None:
                 return "unmounted"
-        return "ok" if os.path.exists(node.path) else "broken"
+        status = path_status().get(node.path)
+        return "ok" if status is None or status[0] else "broken"  # unbekannt (wird geprüft) = ok
 
     def target_exists(self, node: FavNode) -> bool:
         return self.link_state(node) != "broken"
@@ -392,8 +481,12 @@ class FavoritesModel(QAbstractItemModel):
             if state == "unmounted":
                 entry = self._icons.mounts.needs_mount(node.path)
                 return self._icons.mount_icon(entry)
-            if os.path.isdir(node.path):
+            status = path_status().get(node.path)
+            is_dir = status[1] if status is not None else not os.path.splitext(node.path)[1]
+            if is_dir:
                 return self._icons.dir_icon(node.path)
+            if PathStatus.is_slow(node.path):  # Dateisymbol nach Endung, ohne den Server zu fragen
+                return self._icons.for_extension(node.path)
             return self._icons.for_file(node.path)
         if role == Qt.ItemDataRole.ToolTipRole and not node.is_group:
             state = self.link_state(node)

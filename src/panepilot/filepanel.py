@@ -1331,7 +1331,8 @@ class FilePanel(QWidget):
             path = fallback
         if self._watcher.directories():
             self._watcher.removePaths(self._watcher.directories())
-        self._watcher.addPath(path)
+        if not self._skip_watch(path):
+            self._watcher.addPath(path)
         self._add_history(path, add_history)
         self.path_edit.setText(path)
         self._update_filter_style()
@@ -1340,6 +1341,18 @@ class FilePanel(QWidget):
         self._update_status()
         self.path_changed.emit(path)
         return True
+
+    @staticmethod
+    def _skip_watch(path: str) -> bool:
+        """v3.2.1: Unter Windows Netzordner nicht überwachen – das Ab- und Anmelden der Überwachung kann bei
+        Freigaben sekundenlang hängen (Wechsel Netzwerk → lokal). Aktualisieren dort mit F5 bzw. beim Hinwechseln."""
+        from .platform import IS_WINDOWS
+
+        if not IS_WINDOWS:
+            return False
+        from . import winsys
+
+        return winsys.is_network_path(path) or winsys.server_of(path) is not None
 
     def _net_login(self, path: str, exc: OSError) -> bool:
         """Windows-Anmeldefenster, wenn der Server eine Anmeldung verlangt (L-4051)."""

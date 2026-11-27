@@ -1419,12 +1419,8 @@ class SettingsDialog(QDialog):
         s.set("grid_lines", self.grid_lines.isChecked())
         s.set("fav_sort_order", next(k for k, b in self.fav_sort_choice.items() if b.isChecked()))
         self.window.apply_list_look()
-        from . import theme
-
-        was_dark = theme.is_dark()
         if look_changed:
-            self.window.apply_appearance()
-        self._icons_restart = was_dark != theme.is_dark()  # Symbole passen sich erst nach einem Neustart an
+            self.window.apply_appearance()  # v3.2.1: wirkt sofort, auch für die Symbole – ohne Neustart
         if hasattr(self, "show_protected"):
             on = self.show_protected.isChecked()
             if on != bool(s.get("show_protected_system")):
@@ -1494,10 +1490,6 @@ class SettingsDialog(QDialog):
         if scale_changed and not lang_changed and confirm(
                 self.window, t("settings.scale_title"), t("settings.scale_restart"), yes_key="button.restart_now",
                 no_key="donate.later"):
-            self.window.restart()
-        elif getattr(self, "_icons_restart", False) and not lang_changed and not scale_changed and confirm(
-                self.window, t("settings.sec_appearance"), t("settings.theme_restart"), yes_key="button.restart_now",
-                no_key="donate.later"):  # v3.2
             self.window.restart()
 
 

@@ -232,6 +232,9 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         self.setStyleSheet(STYLE)
         FileView.alt_rows = bool(self.settings.get("alt_rows"))  # v3.2 (L-4220/L-4221)
         FileView.grid_lines = bool(self.settings.get("grid_lines"))
+        from . import theme as _theme
+
+        _theme.on_system_change(self._refresh_look)  # v3.2.1: Windows/GNOME wechselt Hell/Dunkel
         self.mounts = MountManager(self)
         self.icons.mounts = self.mounts
         self.trash = make_trash(self._trash_mount_points, self._trash_network_mount_points)  # v3.0: Windows
@@ -985,7 +988,16 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
 
         theme.apply(str(self.settings.get("theme") or "system"), str(self.settings.get("font_family") or ""),
                     float(self.settings.get("font_size") or 0))
+        self._refresh_look()
+
+    def _refresh_look(self) -> None:
+        """Stylesheet und Symbole mit den aktuellen Farben neu aufbauen (v3.2.1: ohne Neustart)."""
+        from . import toolicons
+
         self.setStyleSheet(STYLE)  # Stylesheet neu auswerten, damit palette(...) die neuen Farben nimmt
+        toolicons.clear_cache()
+        self.toolbar.set_items(self.toolbar.items)
+        self.button_bar.refresh_icons()
         self.update()
 
     # --- Reiter (v2.1, L-3100 ff.) ---------------------------------------------------------------------

@@ -64,7 +64,7 @@ def is_dark() -> bool:
 def light_palette(acc: QColor) -> QPalette:
     pal = QStyleFactory.create("Fusion").standardPalette()
     _set_accent(pal, acc, QColor("#FFFFFF"))
-    pal.setColor(QPalette.ColorRole.AlternateBase, QColor("#F3F3F3"))
+    pal.setColor(QPalette.ColorRole.AlternateBase, QColor("#E9EDF2"))  # v3.2.1: deutlich sichtbar
     return pal
 
 
@@ -72,7 +72,7 @@ def dark_palette(acc: QColor) -> QPalette:
     pal = QPalette()
     c = {
         QPalette.ColorRole.Window: "#2D2D2D", QPalette.ColorRole.WindowText: "#E6E6E6",
-        QPalette.ColorRole.Base: "#242424", QPalette.ColorRole.AlternateBase: "#303030",
+        QPalette.ColorRole.Base: "#242424", QPalette.ColorRole.AlternateBase: "#323438",
         QPalette.ColorRole.Text: "#E6E6E6", QPalette.ColorRole.Button: "#383838",
         QPalette.ColorRole.ButtonText: "#E6E6E6", QPalette.ColorRole.BrightText: "#FFFFFF",
         QPalette.ColorRole.ToolTipBase: "#3A3A3A", QPalette.ColorRole.ToolTipText: "#F0F0F0",
@@ -154,9 +154,20 @@ class _Watcher(QObject):
                 app.setPalette(dark_palette(accent()) if dark else light_palette(accent()))
                 if font is not None:
                     app.setFont(font)
+                for cb in list(_listeners):
+                    try:
+                        cb()
+                    except Exception:  # noqa: BLE001
+                        pass
 
 
 _watcher: _Watcher | None = None
+_listeners: list = []  # werden nach einem Hell/Dunkel-Wechsel des Systems aufgerufen
+
+
+def on_system_change(callback) -> None:
+    if callback not in _listeners:
+        _listeners.append(callback)
 
 
 def _watch() -> None:

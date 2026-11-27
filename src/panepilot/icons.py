@@ -100,6 +100,8 @@ class IconProvider:
             if icon is None:
                 if not hasattr(self, "_win_provider"):
                     self._win_provider = QFileIconProvider()
+                if path.startswith(("\\\\", "//")):  # v3.2.1: Netzpfad – Symbol nur nach Endung
+                    return self.for_extension(path)
                 icon = self._win_provider.icon(QFileInfo(path)) if os.path.exists(path) else self._file_fallback
                 if ext not in (".exe", ".lnk", ".ico", ".url"):  # diese haben je Datei eigene Symbole
                     self._cache["win:" + ext] = icon
@@ -113,6 +115,33 @@ class IconProvider:
                 icon = QIcon.fromTheme(mime.genericIconName(), self._file_fallback)
             self._cache[name] = icon
         return icon
+
+    def for_extension(self, path: str) -> QIcon:
+        """Symbol nur nach Dateiendung – fragt nicht beim (evtl. langsamen) Speicherort nach (v3.2.1)."""
+        from .platform import IS_WINDOWS
+
+        ext = os.path.splitext(path)[1].lower()
+        if IS_WINDOWS:
+            icon = self._cache.get("win:" + ext)
+            if icon is None:
+                import tempfile
+
+                from PySide6.QtCore import QFileInfo
+                from PySide6.QtWidgets import QFileIconProvider
+
+                if not hasattr(self, "_win_provider"):
+                    self._win_provider = QFileIconProvider()
+                probe = os.path.join(tempfile.gettempdir(), "panepilot-icon" + ext)
+                try:
+                    if not os.path.exists(probe):
+                        open(probe, "wb").close()
+                    icon = self._win_provider.icon(QFileInfo(probe))
+                except OSError:
+                    icon = self._file_fallback
+                if ext not in (".exe", ".lnk", ".ico", ".url"):
+                    self._cache["win:" + ext] = icon
+            return icon
+        return self.for_file(path)
 
     def type_text(self, path: str) -> str:
         return self.mime_for(path).comment()

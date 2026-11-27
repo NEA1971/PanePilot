@@ -126,7 +126,10 @@ def drives() -> list[Drive]:
             d.kind = int(k32.GetDriveTypeW(ctypes.c_wchar_p(root)))
             if d.kind == DRIVE_REMOTE:
                 d.remote = unc_path(root).rstrip("\\")
-            if d.kind not in (DRIVE_REMOVABLE, DRIVE_CDROM) or os.path.exists(root):
+                # v3.2.1: keine Datenträgerabfrage bei Netzlaufwerken – ist der Server nicht erreichbar
+                # (z. B. Firmennetz ohne VPN), hängt sie viele Sekunden. Name = Freigabe.
+                d.label = d.remote.rsplit("\\", 1)[-1] if d.remote else ""
+            elif d.kind not in (DRIVE_REMOVABLE, DRIVE_CDROM) or os.path.exists(root):
                 name = ctypes.create_unicode_buffer(261)
                 old = k32.SetErrorMode(1)  # keine „Kein Datenträger“-Fenster
                 try:
@@ -225,17 +228,63 @@ def user_sid() -> str:
         k32.CloseHandle(token)
 
 
+_RECYCLE_CACHE: dict = {"time": 0.0, "dirs": [], "sid": None}
+RECYCLE_CACHE_S = 30.0
+
+
+def local_drive_roots() -> list[str]:
+    """Nur lokale Laufwerke (Festplatten, USB) – ohne jede Abfrage beim Datenträger (schnell, blockiert nie)."""
+    from .platform import windows_drives
+
+    if not IS_WINDOWS:
+        return list(windows_drives())
+    k32 = _wapi().kernel32
+    return [r for r in windows_drives()
+            if int(k32.GetDriveTypeW(ctypes.c_wchar_p(r))) not in (DRIVE_REMOTE, DRIVE_CDROM, 0, 1)]
+
+
 def recycle_dirs(sid: str | None = None) -> list[str]:
-    """Die eigenen Papierkorb-Ordner aller Laufwerke (X:\\$Recycle.Bin\\<SID>)."""
+    """Die eigenen Papierkorb-Ordner der lokalen Laufwerke (X:\\$Recycle.Bin\\<SID>).
+
+    v3.2.1: Netzlaufwerke werden gar nicht erst angefasst, und die Liste gilt 30 Sekunden – der Papierkorb-Punkt
+    wird alle 2 Sekunden geprüft, das darf PanePilot nie aufhalten.
+    """
+    import time
+
     sid = user_sid() if sid is None else sid
+    now = time.monotonic()
+    cache = _RECYCLE_CACHE
+    if cache["sid"] == sid and now - cache["time"] < RECYCLE_CACHE_S:
+        return list(cache["dirs"])
     out = []
-    for d in drives():
-        if d.kind == DRIVE_REMOTE:
-            continue  # Netzlaufwerke haben keinen Windows-Papierkorb
-        folder = os.path.join(d.root, "$Recycle.Bin", sid) if sid else ""
+    for root in local_drive_roots():
+        folder = os.path.join(root, "$Recycle.Bin", sid) if sid else ""
         if folder and os.path.isdir(folder):
             out.append(folder)
+    cache.update(time=now, dirs=out, sid=sid)
     return out
+
+
+_REMOTE_LETTERS: dict[str, tuple[float, bool]] = {}
+
+
+def is_network_path(path: str) -> bool:
+    """UNC-Pfad oder Netzlaufwerk (Laufwerkstyp wird je Buchstabe 60 s gemerkt)."""
+    import time
+
+    if not path:
+        return False
+    if path.startswith(("\\\\", "//")):
+        return True
+    if not IS_WINDOWS or len(path) < 2 or path[1] != ":":
+        return False
+    letter = path[0].upper()
+    hit = _REMOTE_LETTERS.get(letter)
+    if hit is not None and time.monotonic() - hit[0] < 60:
+        return hit[1]
+    remote = int(_wapi().kernel32.GetDriveTypeW(ctypes.c_wchar_p(letter + ":\\"))) == DRIVE_REMOTE
+    _REMOTE_LETTERS[letter] = (time.monotonic(), remote)
+    return remote
 
 
 def empty_recycle_bin() -> bool:
