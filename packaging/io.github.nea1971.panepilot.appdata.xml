@@ -52,6 +52,9 @@
     <binary>PanePilot</binary>
   </provides>
   <releases>
+    <release version="3.3.0" date="2026-11-27">
+      <description><p>Favorites menu on Alt+Up, like in FreeCommander.</p></description>
+    </release>
     <release version="3.2.1" date="2026-11-27">
       <description><p>Windows: no more hangs on unreachable network paths; visible alternating rows; light/dark switch without restart.</p></description>
     </release>

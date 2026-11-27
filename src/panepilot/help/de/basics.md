@@ -8,6 +8,7 @@ PanePilot zeigt zwei Dateifenster (Panels) nebeneinander. Eines davon ist **akti
 - **Tab** wechselt zwischen den Panels.
 - In die **Pfadzeile** kann man einen Pfad direkt eintippen.
 - Im Menü **Navigation**: gleicher Ordner im anderen Panel, Panels tauschen, Zurück, Vor.
+- **Favoriten-Menü** (Alt+↑ oder Menü Favoriten): zeigt die Favoriten des Satzes der aktiven Seite als Aufklappmenü am aktiven Fenster – Favoritenordner als Untermenüs, Trennlinien als Linien; mit Pfeiltasten, Enter und Esc bedienbar. Ein Ordner öffnet sich im aktiven Fenster, eine Datei mit ihrem Standardprogramm. Die Taste lässt sich unter Einstellungen → Tastenkürzel ändern.
 - **Zuletzt besuchte Ordner**: der Pfeil rechts in der Pfadzeile (oder Alt+↓) zeigt die letzten 20 Ordner beider Fenster, neueste oben; die Liste wird beim Beenden gemerkt.
 
 ## Reiter

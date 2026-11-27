@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from PySide6.QtCore import QByteArray, QEvent, QEventLoop, QKeyCombination, QMimeData, QObject, QPoint, Qt, QTimer, QUrl
-from PySide6.QtGui import QAction, QActionGroup, QKeySequence, QPainter, QPalette
+from PySide6.QtGui import QAction, QActionGroup, QIcon, QKeySequence, QPainter, QPalette
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -1133,6 +1133,41 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
         menu.setMinimumWidth(edit.width())
         self._exec_menu(menu, edit.mapToGlobal(edit.rect().bottomLeft()))
 
+    def do_fav_popup(self) -> None:
+        """v3.3 (L-4300): Favoriten des aktiven Satzes als Aufklappmenü am aktiven Fenster (wie Alt+↓)."""
+        side = self.active_side
+        panel = self.sides[side].panel
+        model = self.fav_sets.model(self.fav_set[side])
+        menu = QMenu(self)
+        self._fill_fav_menu(menu, model.root, side, model)
+        if menu.isEmpty():
+            act = menu.addAction(t("favorites.popup_empty"))
+            act.setEnabled(False)
+        edit = panel.path_edit
+        menu.setMinimumWidth(edit.width())
+        self._exec_menu(menu, edit.mapToGlobal(edit.rect().bottomLeft()))
+        panel.focus_view()
+
+    def _fill_fav_menu(self, menu: QMenu, node, side: str, model) -> None:
+        for child in node.children:
+            if child.is_separator:
+                if child.name:
+                    menu.addSection(child.name)
+                else:
+                    menu.addSeparator()
+            elif child.is_group:
+                sub = menu.addMenu(model.data(model.index_for(child), Qt.ItemDataRole.DecorationRole) or QIcon(),
+                                   child.name.replace("&", "&&"))
+                self._fill_fav_menu(sub, child, side, model)
+                if sub.isEmpty():
+                    sub.addAction(t("favorites.popup_empty")).setEnabled(False)
+            else:
+                icon = model.data(model.index_for(child), Qt.ItemDataRole.DecorationRole) or QIcon()
+                act = menu.addAction(icon, child.name.replace("&", "&&"))
+                act.setToolTip(child.path)
+                act.triggered.connect(lambda _c=False, n=child: self._open_favorite(side, n, model))
+        menu.setToolTipsVisible(True)
+
     def _on_panel_path_changed(self, side: str, path: str) -> None:
         if not self.sides[side].panel.search_mode:
             self._remember_recent(path)
@@ -1294,7 +1329,8 @@ class MainWindow(ArchiveMixin, RemoteMixin, MetaWizardMixin, SyncMixin, QMainWin
             m.addSeparator() if aid is None else m.addAction(a[aid])
 
         m = mb.addMenu(t("menu.favorites"))
-        for aid in ("add_favorite", "fav_new_group", "fav_separator", None, "fav_edit", "fav_rename", "fav_delete",
+        for aid in ("fav_popup", None, "add_favorite", "fav_new_group", "fav_separator", None, "fav_edit", "fav_rename",
+                    "fav_delete",
                     *((None, "fav_import_fc") if IS_WINDOWS else ())):  # v3.1 (L-4100)
             m.addSeparator() if aid is None else m.addAction(a[aid])
 

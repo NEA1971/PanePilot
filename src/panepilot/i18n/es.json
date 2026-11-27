@@ -1915,5 +1915,7 @@
   "settings.fav_sort_folders": "Carpetas primero",
   "settings.fav_sort_links": "Favoritos primero",
   "settings.fav_sort_mixed": "Mezclado",
-  "settings.fav_sort_hint": "Para «Ordenar por nombre» en el menú contextual de favoritos. Se ordena entre dos líneas separadoras; las líneas se quedan en su sitio."
+  "settings.fav_sort_hint": "Para «Ordenar por nombre» en el menú contextual de favoritos. Se ordena entre dos líneas separadoras; las líneas se quedan en su sitio.",
+  "action.fav_popup": "Menú de favoritos …",
+  "favorites.popup_empty": "(sin favoritos)"
 }

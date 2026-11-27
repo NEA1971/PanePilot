@@ -8,6 +8,7 @@ PanePilot shows two file panels side by side. One of them is **active**, recogni
 - **Tab** switches between the panels.
 - You can type a path directly into the **path bar**.
 - In the **Navigate** menu: same folder in the other panel, swap panels, back, forward.
+- **Favorites menu** (Alt+↑ or Favorites menu): shows the favorites of the active side's set as a drop-down menu at the active panel – favorite folders as submenus, separators as lines; works with arrow keys, Enter and Esc. A folder opens in the active panel, a file with its default program. The key can be changed under Settings → Shortcuts.
 - **Recently visited folders**: the arrow at the right of the path bar (or Alt+↓) shows the last 20 folders of both panels, newest first; the list is remembered on exit.
 
 ## Tabs

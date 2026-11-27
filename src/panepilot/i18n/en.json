@@ -1915,5 +1915,7 @@
   "settings.fav_sort_folders": "Folders first",
   "settings.fav_sort_links": "Favorites first",
   "settings.fav_sort_mixed": "Mixed",
-  "settings.fav_sort_hint": "For “Sort by name” in the favorites context menu. Sorting happens between two separator lines; the lines stay in place."
+  "settings.fav_sort_hint": "For “Sort by name” in the favorites context menu. Sorting happens between two separator lines; the lines stay in place.",
+  "action.fav_popup": "Favorites menu …",
+  "favorites.popup_empty": "(no favorites)"
 }

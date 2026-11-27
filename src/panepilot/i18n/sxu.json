@@ -1915,5 +1915,7 @@
   "settings.fav_sort_folders": "Ordner zuerscht",
   "settings.fav_sort_links": "Favoritn zuerscht",
   "settings.fav_sort_mixed": "Gemischt",
-  "settings.fav_sort_hint": "Für „Nach Name sortiern“ im Kontextmenü vor Favoritn. Sortiert wird jeweils zwischn zwee Trennlinien; de Linien bleibn an ihrer Stelle."
+  "settings.fav_sort_hint": "Für „Nach Name sortiern“ im Kontextmenü vor Favoritn. Sortiert wird jeweils zwischn zwee Trennlinien; de Linien bleibn an ihrer Stelle.",
+  "action.fav_popup": "Favoritn-Menü …",
+  "favorites.popup_empty": "(keene Favoritn)"
 }

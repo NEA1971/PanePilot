@@ -1915,5 +1915,7 @@
   "settings.fav_sort_folders": "Dossiers d’abord",
   "settings.fav_sort_links": "Favoris d’abord",
   "settings.fav_sort_mixed": "Mélangé",
-  "settings.fav_sort_hint": "Pour « Trier par nom » dans le menu contextuel des favoris. Le tri se fait entre deux séparateurs ; les séparateurs restent en place."
+  "settings.fav_sort_hint": "Pour « Trier par nom » dans le menu contextuel des favoris. Le tri se fait entre deux séparateurs ; les séparateurs restent en place.",
+  "action.fav_popup": "Menu des favoris …",
+  "favorites.popup_empty": "(aucun favori)"
 }

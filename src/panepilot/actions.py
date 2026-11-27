@@ -153,6 +153,7 @@ ACTION_DEFS: tuple[ActionDef, ...] = (
     ActionDef("tab_lock", "action.tab_lock", (), "window"),
     ActionDef("tab_to_other", "action.tab_to_other", (), "window"),
     ActionDef("recent_dirs", "action.recent_dirs", ("Alt+Down",), "window"),
+    ActionDef("fav_popup", "action.fav_popup", ("Alt+Up",), "window"),  # v3.3 (L-4300, Diskussion #3)
     ActionDef("view_mode", "action.view_mode", (), "window"),  # v1.23 (L-2300): Knopf „Ansicht“
     ActionDef("toggle_icon_view", "action.toggle_icon_view", ("Ctrl+Shift+I",), "window"),  # v1.19 (L-1910)
     ActionDef("icons_small", "action.icons_small", (), "window"),  # v1.19 (L-1911)

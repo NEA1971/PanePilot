@@ -1915,5 +1915,7 @@
   "settings.fav_sort_folders": "Ordner zerscht",
   "settings.fav_sort_links": "Favoritn zerscht",
   "settings.fav_sort_mixed": "Gmischt",
-  "settings.fav_sort_hint": "Für „Nach Nam sortiern“ im Kontextmenü vo die Favoritn. Sortiert werd jeweils zwischn zwa Trennlinien; die Linien bleibn, wo’s sen."
+  "settings.fav_sort_hint": "Für „Nach Nam sortiern“ im Kontextmenü vo die Favoritn. Sortiert werd jeweils zwischn zwa Trennlinien; die Linien bleibn, wo’s sen.",
+  "action.fav_popup": "Favoritn-Menü …",
+  "favorites.popup_empty": "(ka Favoritn)"
 }
